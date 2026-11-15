@@ -450,3 +450,106 @@ describe('settings', () => {
     });
   });
 });
+
+// ─── Review follow-ups (PR #6) ───────────────────────────────────────────────
+
+describe('editing a record', () => {
+  it('sends every field as entered, a null end date for a daily record, and no Z at the standard condition', async () => {
+    const { requests } = mockApi(
+      signedInAs('DATA_ENTRY_OFFICER'),
+      on('GET', `/organisations/${ORG_A}/activity-records/${RECORD_ID}`, () => ({
+        status: 200,
+        body: { data: record() },
+      })),
+      on('GET', `/organisations/${ORG_A}/flare-sources/${SOURCE_ID}`, () => ({
+        status: 200,
+        body: { data: source },
+      })),
+      on('GET', /\/assets\/.+$/, () => ({
+        status: 404,
+        body: { error: { code: 'NOT_FOUND', message: 'x' } },
+      })),
+      on('GET', `/organisations/${ORG_A}/settings`, () => settings),
+      on('PATCH', `/organisations/${ORG_A}/activity-records/${RECORD_ID}`, () => ({
+        status: 200,
+        body: { data: record({ notes: 'Meter checked' }) },
+      })),
+    );
+    renderApp(`/o/${ORG_A}/activity-records/${RECORD_ID}`);
+
+    const edit = await screen.findByRole('button', { name: 'Edit' });
+    await waitFor(() => {
+      expect(edit).toBeEnabled();
+    });
+    fireEvent.click(edit);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText(/^notes/i), {
+      target: { value: 'Meter checked' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText('Activity record saved.')).toBeInTheDocument();
+    const body = requests.find((r) => r.method === 'PATCH')?.body;
+    expect(body).toEqual({
+      periodStart: '2026-01-10',
+      periodEnd: null,
+      activityType: 'ROUTINE_FLARING',
+      otherTypeDescription: null,
+      averageRate: { value: '0.250', unit: 'MMSCF_PER_DAY' },
+      totalVolume: null,
+      operatingHours: '12',
+      referenceTemperature: { value: '15', unit: 'CELSIUS' },
+      referencePressure: { value: '101.325', unit: 'KPA_ABS' },
+      zSource: null,
+      zReference: null,
+      measurementBasis: 'MEASURED',
+      estimateExplanation: null,
+      measurementMethod: 'METERED',
+      methodDescription: null,
+      notes: 'Meter checked',
+    });
+    // Neither the flare source nor the kind can change on an edit.
+    expect(body).not.toHaveProperty('flareSourceId');
+    expect(body).not.toHaveProperty('kind');
+  });
+});
+
+describe('the overlap warning', () => {
+  it('goes away when the dates change, so "Save anyway" cannot confirm an unseen overlap', async () => {
+    const { requests } = flareSourcePage(
+      ['DATA_ENTRY_OFFICER'],
+      [],
+      on('POST', `/organisations/${ORG_A}/activity-records`, () => ({
+        status: 409,
+        body: {
+          error: {
+            code: 'OVERLAP_UNCONFIRMED',
+            message: 'Overlaps',
+            details: {
+              overlapping: [{ id: 'x', periodStart: '2026-01-10', periodEnd: '2026-01-10' }],
+            },
+          },
+        },
+      })),
+    );
+    renderApp(`/o/${ORG_A}/flare-sources/${SOURCE_ID}`);
+    const dialog = await openForm();
+    fireEvent.change(within(dialog).getByLabelText(/^date/i), { target: { value: '2026-01-10' } });
+    fireEvent.change(within(dialog).getByLabelText(/^total volume/i), { target: { value: '1' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save draft' }));
+    expect(await within(dialog).findByRole('button', { name: 'Save anyway' })).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText(/^date/i), { target: { value: '2026-01-11' } });
+
+    await waitFor(() => {
+      expect(within(dialog).queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+    });
+    expect(
+      requests
+        .filter((r) => r.method === 'POST')
+        .every((r) => !(r.body as { acknowledgeOverlap?: boolean }).acknowledgeOverlap),
+    ).toBe(true);
+  });
+});

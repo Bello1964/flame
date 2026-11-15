@@ -48,7 +48,9 @@ const timeZone = z
     } catch {
       return false;
     }
-  }, 'Use an IANA time zone such as Africa/Lagos');
+  }, 'Use an IANA time zone such as Africa/Lagos')
+  // Store the canonical spelling ("africa/lagos" → "Africa/Lagos").
+  .transform((v) => new Intl.DateTimeFormat('en', { timeZone: v }).resolvedOptions().timeZone);
 
 export const idParamSchema = z.object({ id: z.uuid() });
 

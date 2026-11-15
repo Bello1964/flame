@@ -1,20 +1,21 @@
 import { CANONICAL_REFERENCE, type ActivityRecordDto, type ActivityWarning } from '@carbon/shared';
-import type { ActivityRecord } from '../../generated/prisma/client.js';
+import { Prisma, type ActivityRecord } from '../../generated/prisma/client.js';
+import { exact } from '../../lib/decimal.js';
 import { isoDateOf } from './activity.repository.js';
 import { rateVolumeDifferencePercent, RATE_VOLUME_TOLERANCE_PERCENT } from './standardise.js';
 
 /** Explicit response shape: only listed fields leave the API; decimals become exact strings. */
 export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): ActivityRecordDto {
   const quantity = <U extends string>(
-    value: { toString(): string } | null,
+    value: Prisma.Decimal | null,
     unit: U | null,
     entered: string | null,
   ) =>
     value !== null && unit !== null && entered !== null
-      ? { value: value.toString(), unit, entered }
+      ? { value: exact(value), unit, entered }
       : null;
-  const plain = (value: { toString(): string } | null, entered: string | null) =>
-    value !== null && entered !== null ? { value: value.toString(), entered } : null;
+  const plain = (value: Prisma.Decimal | null, entered: string | null) =>
+    value !== null && entered !== null ? { value: exact(value), entered } : null;
 
   return {
     id: r.id,
@@ -30,12 +31,12 @@ export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): A
     totalVolume: quantity(r.totalVolume, r.volumeUnit, r.totalVolumeInput),
     operatingHours: plain(r.operatingHours, r.operatingHoursInput),
     referenceTemperature: {
-      value: r.referenceTemperature.toString(),
+      value: exact(r.referenceTemperature),
       unit: r.referenceTemperatureUnit,
       entered: r.referenceTemperatureInput,
     },
     referencePressure: {
-      value: r.referencePressure.toString(),
+      value: exact(r.referencePressure),
       unit: r.referencePressureUnit,
       entered: r.referencePressureInput,
     },
@@ -49,10 +50,10 @@ export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): A
     notes: r.notes,
     standardised: {
       referenceCondition: CANONICAL_REFERENCE.label,
-      averageRateMmscfd: r.standardRateMmscfd?.toString() ?? null,
-      totalVolumeMmscf: r.standardVolumeMmscf?.toString() ?? null,
-      derivedVolumeMmscf: r.derivedVolumeMmscf?.toString() ?? null,
-      correctionFactor: r.correctionFactor.toString(),
+      averageRateMmscfd: r.standardRateMmscfd ? exact(r.standardRateMmscfd) : null,
+      totalVolumeMmscf: r.standardVolumeMmscf ? exact(r.standardVolumeMmscf) : null,
+      derivedVolumeMmscf: r.derivedVolumeMmscf ? exact(r.derivedVolumeMmscf) : null,
+      correctionFactor: exact(r.correctionFactor),
       conversionVersion: r.conversionVersion,
       standardisedAt: r.standardisedAt.toISOString(),
     },
@@ -111,16 +112,16 @@ export function warningsFor(r: ActivityRecord, candidates: OverlapCandidate[]): 
   }
 
   const difference = rateVolumeDifferencePercent(
-    r.derivedVolumeMmscf?.toString() ?? null,
-    r.standardVolumeMmscf?.toString() ?? null,
+    r.derivedVolumeMmscf ? exact(r.derivedVolumeMmscf) : null,
+    r.standardVolumeMmscf ? exact(r.standardVolumeMmscf) : null,
   );
   if (difference && difference.gt(RATE_VOLUME_TOLERANCE_PERCENT)) {
     warnings.push(
       difference.isFinite()
         ? {
             code: 'RATE_VOLUME_MISMATCH',
-            message: `Rate × operating hours differs from the entered volume by ${difference.toFixed(2)}%`,
-            differencePercent: difference.toFixed(2),
+            message: `Rate × operating hours differs from the entered volume by ${percentLabel(difference)}%`,
+            differencePercent: percentLabel(difference),
           }
         : {
             code: 'RATE_VOLUME_MISMATCH',
@@ -134,4 +135,19 @@ export function warningsFor(r: ActivityRecord, candidates: OverlapCandidate[]): 
     message: 'No supporting evidence is attached (evidence uploads arrive in a later milestone)',
   });
   return warnings;
+}
+
+/**
+ * The difference with 2 decimal places, or more when needed so the shown figure is
+ * visibly above the tolerance (1.004% shows as "1.004", not a misleading "1.00").
+ */
+function percentLabel(difference: Prisma.Decimal): string {
+  let places = 2;
+  while (
+    places < 6 &&
+    !new Prisma.Decimal(difference.toFixed(places)).gt(RATE_VOLUME_TOLERANCE_PERCENT)
+  ) {
+    places += 1;
+  }
+  return difference.toFixed(places);
 }

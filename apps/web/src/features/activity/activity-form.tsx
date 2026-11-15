@@ -86,7 +86,10 @@ export function ActivityFormDialog(props: Props) {
   const create = useCreateActivity(organisationId);
   const update = useUpdateActivity(organisationId, record?.id ?? '');
   const [formError, setFormError] = useState<string | null>(null);
-  const [overlaps, setOverlaps] = useState<Overlap[] | null>(null);
+  // The overlap warning belongs to the period and type it was shown for (see below).
+  const [overlapWarning, setOverlapWarning] = useState<{ key: string; overlaps: Overlap[] } | null>(
+    null,
+  );
 
   const {
     register,
@@ -103,6 +106,18 @@ export function ActivityFormDialog(props: Props) {
     { value: v.temperatureValue ?? '', unit: v.temperatureUnit ?? 'CELSIUS' },
     { value: v.pressureValue ?? '', unit: v.pressureUnit ?? 'KPA_ABS' },
   );
+  // "Save anyway" may only confirm overlaps the user has seen: if the period or activity
+  // type changes after the warning, the warning (and its button) no longer applies.
+  const overlapKey = [
+    v.kind,
+    v.periodStart,
+    v.kind === 'PERIOD' ? v.periodEnd : '',
+    v.activityType,
+  ].join('|');
+  const overlaps = overlapWarning?.key === overlapKey ? overlapWarning.overlaps : null;
+  const setOverlaps = (list: Overlap[] | null) => {
+    setOverlapWarning(list ? { key: overlapKey, overlaps: list } : null);
+  };
 
   const onError = (error: unknown) => {
     const overlapping = overlapsOf(error);

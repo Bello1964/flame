@@ -25,6 +25,11 @@ export function formatCount(n: number): string {
 export function formatDecimal(value: string, maxDecimals = 6): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
+  const smallest = 10 ** -maxDecimals;
+  // Never show a non-zero value as 0: say how small it is instead.
+  if (n !== 0 && Math.abs(n) < smallest) {
+    return `${n < 0 ? '> −' : '< '}${smallest.toFixed(maxDecimals)}`;
+  }
   return new Intl.NumberFormat('en-GB', { maximumFractionDigits: maxDecimals }).format(n);
 }
 

@@ -8,9 +8,10 @@ import type { PressureUnit, RateUnit, TemperatureUnit, VolumeUnit } from '@carbo
  *
  *   V_ref = V_src × (P_src / P_ref) × (T_ref / T_src) × (Z_ref / Z_src)
  *
- * with absolute temperature (K) and absolute pressure (kPa), followed by an exact
- * volume-unit conversion. Every constant below follows from an exact SI definition;
- * none is an empirical or approximate value.
+ * with absolute temperature (K) and absolute pressure (kPa), followed by a volume-unit
+ * conversion. Every constant below is derived from exact SI definitions (none is
+ * empirical); those that don't terminate (psi in kPa, °F to K) are evaluated to 40
+ * significant digits.
  */
 
 /** Bump when the formula or any constant changes; stored with every result. */
@@ -154,6 +155,9 @@ export class StandardisationError extends Error {
   }
 }
 
+/** Results are stored as numeric(40, 20): at most 20 digits before the decimal point. */
+const MAX_STORABLE = new D('1e20');
+
 function round(value: Dec): string {
   return value.toDecimalPlaces(RESULT_SCALE, D.ROUND_HALF_EVEN).toFixed(RESULT_SCALE);
 }
@@ -210,6 +214,33 @@ export function standardise(input: StandardiseInput): StandardiseResult {
     rateMmscfd && input.operatingHours !== null
       ? rateMmscfd.mul(new D(input.operatingHours)).div(24)
       : null;
+
+  // Safety net: a result that can't be stored faithfully is refused, never saved wrong.
+  // (Plausible operating ranges for T, P and Z will be added once sourced values exist.)
+  if (!correction.lt(MAX_STORABLE)) {
+    throw new StandardisationError(
+      'referencePressure',
+      'This reference condition is outside what can be standardised; check the temperature, pressure and Z factors',
+    );
+  }
+  const checks: [string, string | undefined, Dec | null][] = [
+    ['averageRate', input.averageRate?.value, rateMmscfd],
+    ['totalVolume', input.totalVolume?.value, volumeMmscf],
+    ['operatingHours', input.operatingHours ?? undefined, derivedMmscf],
+  ];
+  for (const [field, entered, result] of checks) {
+    if (result === null || entered === undefined) continue;
+    if (!result.lt(MAX_STORABLE)) {
+      throw new StandardisationError(field, 'This value is too large to standardise and store');
+    }
+    // A non-zero quantity must not standardise to zero (e.g. from an absurd condition).
+    if (!new D(entered).isZero() && new D(round(result)).isZero()) {
+      throw new StandardisationError(
+        field,
+        'This value standardises to effectively zero at the given reference condition; check the temperature, pressure and Z factors',
+      );
+    }
+  }
 
   return {
     correctionFactor: round(correction),

@@ -1,6 +1,7 @@
 import { OVERLAP_UNCONFIRMED_CODE, type OverlapErrorDetails } from '@carbon/shared';
 import type { ActivityRecord, Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { AppError, conflict, notFound } from '../../lib/errors.js';
+import { exact } from '../../lib/decimal.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { changeSet, withStoredValues } from '../audit/change-set.js';
 import { lockFlareSource } from '../facilities/facilities.repository.js';
@@ -166,7 +167,9 @@ export class ActivityService {
         kind: existing.kind,
       });
 
-      const row = this.rowData(merged, source.asset.facility.timeZone);
+      // A record keeps the time zone it was entered in. Re-stamping it with the facility's
+      // current zone would silently move the record to a different 24-hour window.
+      const row = this.rowData(merged, existing.timeZone);
       const datesOrTypeChanged =
         row.periodStart.getTime() !== existing.periodStart.getTime() ||
         row.periodEnd.getTime() !== existing.periodEnd.getTime() ||
@@ -206,6 +209,9 @@ export class ActivityService {
         changes: withStoredValues(changes, updated),
         ...(overlaps.length > 0 && !alreadyConfirmed
           ? { overlapAcknowledged: overlaps.map((o) => o.id) }
+          : {}),
+        ...(overlaps.length === 0 && existing.overlapAcknowledgedAt !== null
+          ? { overlapAcknowledgementCleared: true }
           : {}),
       });
     });
@@ -388,10 +394,10 @@ export class ActivityService {
 
   private standardisedSummary(r: ActivityRecord) {
     return {
-      averageRateMmscfd: r.standardRateMmscfd?.toString() ?? null,
-      totalVolumeMmscf: r.standardVolumeMmscf?.toString() ?? null,
-      derivedVolumeMmscf: r.derivedVolumeMmscf?.toString() ?? null,
-      correctionFactor: r.correctionFactor.toString(),
+      averageRateMmscfd: r.standardRateMmscfd ? exact(r.standardRateMmscfd) : null,
+      totalVolumeMmscf: r.standardVolumeMmscf ? exact(r.standardVolumeMmscf) : null,
+      derivedVolumeMmscf: r.derivedVolumeMmscf ? exact(r.derivedVolumeMmscf) : null,
+      correctionFactor: exact(r.correctionFactor),
       conversionVersion: r.conversionVersion,
     };
   }

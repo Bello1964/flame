@@ -501,3 +501,242 @@ describe('database safeguards', () => {
     ).rejects.toThrow();
   });
 });
+
+// ─── Review follow-ups (PR #6) ───────────────────────────────────────────────
+
+function todayIn(timeZone: string, offsetDays = 0): string {
+  const d = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+async function sourceIn(zone: string) {
+  const code = zone.replace('/', '-');
+  const f = await post(w.ownerA, `${base(w.orgA.id)}/facilities`, {
+    name: zone,
+    code,
+    timeZone: zone,
+  });
+  const a = await post(w.ownerA, `${base(w.orgA.id)}/assets`, {
+    facilityId: f.body.data.id,
+    name: 'A',
+    code: `A-${code}`,
+  });
+  const s = await post(w.ownerA, `${base(w.orgA.id)}/flare-sources`, {
+    assetId: a.body.data.id,
+    name: 'S',
+    code: `S-${code}`,
+  });
+  return s.body.data.id as string;
+}
+
+describe('confirming overlaps on edit', () => {
+  it('keeps a confirmation for edits that keep the period, asks again when it moves, clears it when the overlap goes', async () => {
+    await post(w.ownerA, records(w.orgA.id), daily(w.sourceA));
+    const second = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, { acknowledgeOverlap: true }),
+    );
+    const url = `${records(w.orgA.id)}/${second.body.data.id}`;
+
+    // Notes only: the overlap was already confirmed for this period and type.
+    expect((await patch(w.ownerA, url, { notes: 'Checked' })).status).toBe(200);
+
+    // Moving to another day that also overlaps needs a fresh confirmation.
+    await post(w.ownerA, records(w.orgA.id), daily(w.sourceA, { periodStart: '2026-01-11' }));
+    const moved = await patch(w.ownerA, url, { periodStart: '2026-01-11' });
+    expect(moved.status).toBe(409);
+    expect(moved.body.error.code).toBe('OVERLAP_UNCONFIRMED');
+
+    // Moving to a free day clears the confirmation, and the audit entry says so.
+    const freed = await patch(w.ownerA, url, { periodStart: '2026-01-20' });
+    expect(freed.status).toBe(200);
+    expect(freed.body.data.overlapAcknowledgedAt).toBeNull();
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'activity_record.updated', entityId: second.body.data.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit.metadata).toMatchObject({ overlapAcknowledgementCleared: true });
+  });
+});
+
+describe('archived flare sources', () => {
+  it('make existing drafts read-only but still allow withdrawing them', async () => {
+    const created = await post(w.ownerA, records(w.orgA.id), daily(w.sourceA));
+    const url = `${records(w.orgA.id)}/${created.body.data.id}`;
+    await post(w.ownerA, `${base(w.orgA.id)}/flare-sources/${w.sourceA}/archive`, {});
+
+    expect((await patch(w.ownerA, url, { notes: 'x' })).status).toBe(409);
+    const withdrawn = await post(w.ownerA, `${url}/withdraw`, { reason: 'Decommissioned' });
+    expect(withdrawn.status).toBe(200);
+  });
+});
+
+describe('another organisation on the record URL itself', () => {
+  it('cannot edit or withdraw it', async () => {
+    const created = await post(w.ownerA, records(w.orgA.id), daily(w.sourceA));
+    const url = `${records(w.orgA.id)}/${created.body.data.id}`;
+    expect((await patch(w.ownerB, url, { notes: 'x' })).status).toBe(404);
+    expect((await post(w.ownerB, `${url}/withdraw`, { reason: 'x' })).status).toBe(404);
+    const unchanged = await prisma.activityRecord.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+    });
+    expect(unchanged.status).toBe('DRAFT');
+    expect(unchanged.notes).toBeNull();
+  });
+});
+
+describe('future dates in the facility time zone', () => {
+  it.each(['Pacific/Kiritimati', 'Pacific/Pago_Pago'])(
+    'accepts today and rejects tomorrow in %s',
+    async (zone) => {
+      const source = await sourceIn(zone);
+      const today = await post(
+        w.ownerA,
+        records(w.orgA.id),
+        daily(source, { periodStart: todayIn(zone), operatingHours: null }),
+      );
+      expect(today.status).toBe(201);
+      expect(today.body.data.timeZone).toBe(zone);
+      const tomorrow = await post(
+        w.ownerA,
+        records(w.orgA.id),
+        daily(source, { periodStart: todayIn(zone, 1), operatingHours: null }),
+      );
+      expect(tomorrow.status).toBe(400);
+    },
+  );
+});
+
+describe('time zones', () => {
+  it('stores the canonical spelling, and an edit keeps the record zone', async () => {
+    const f = await post(w.ownerA, `${base(w.orgA.id)}/facilities`, {
+      name: 'TZ',
+      code: 'TZ',
+      timeZone: 'africa/accra',
+    });
+    expect(f.body.data.timeZone).toBe('Africa/Accra');
+
+    const created = await post(w.ownerA, records(w.orgA.id), daily(w.sourceA));
+    expect(created.body.data.timeZone).toBe('Africa/Lagos');
+    const source = await prisma.flareSource.findUniqueOrThrow({
+      where: { id: w.sourceA },
+      include: { asset: true },
+    });
+    await patch(w.ownerA, `${base(w.orgA.id)}/facilities/${source.asset.facilityId}`, {
+      timeZone: 'Africa/Accra',
+    });
+
+    const edited = await patch(w.ownerA, `${records(w.orgA.id)}/${created.body.data.id}`, {
+      notes: 'after the facility zone changed',
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.body.data.timeZone).toBe('Africa/Lagos');
+  });
+});
+
+describe('read-time warnings across pages', () => {
+  it('finds an overlapping partner that is not on the current page', async () => {
+    const first = await post(w.ownerA, records(w.orgA.id), daily(w.sourceA));
+    const second = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, { acknowledgeOverlap: true }),
+    );
+    for (const pageNumber of [1, 2]) {
+      const page = await w.ownerA.agent.get(`${records(w.orgA.id)}?pageSize=1&page=${pageNumber}`);
+      expect(page.body.data).toHaveLength(1);
+      const shown = page.body.data[0];
+      const partner = shown.id === first.body.data.id ? second.body.data.id : first.body.data.id;
+      const overlap = shown.warnings.find((x: { code: string }) => x.code === 'OVERLAP');
+      expect(overlap.overlapping.map((o: { id: string }) => o.id)).toEqual([partner]);
+    }
+  });
+
+  it('explains a mismatch when the entered volume is zero', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: { value: '1', unit: 'MMSCF_PER_DAY' },
+        operatingHours: '24',
+        totalVolume: { value: '0', unit: 'MMSCF' },
+      }),
+    );
+    const mismatch = res.body.data.warnings.find(
+      (x: { code: string }) => x.code === 'RATE_VOLUME_MISMATCH',
+    );
+    expect(mismatch.message).toMatch(/entered volume is zero/);
+    expect(mismatch.differencePercent).toBeUndefined();
+  });
+
+  it('shows enough decimals that a difference just over 1% does not read as 1.00%', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: { value: '1.01004', unit: 'MMSCF_PER_DAY' },
+        operatingHours: '24',
+        totalVolume: { value: '1', unit: 'MMSCF' },
+      }),
+    );
+    const mismatch = res.body.data.warnings.find(
+      (x: { code: string }) => x.code === 'RATE_VOLUME_MISMATCH',
+    );
+    expect(mismatch.differencePercent).toBe('1.004');
+  });
+});
+
+describe('values that cannot be stored faithfully', () => {
+  it('rejects a condition that would standardise a non-zero quantity to zero', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: null,
+        operatingHours: null,
+        totalVolume: { value: '5', unit: 'MMSCF' },
+        referenceTemperature: { value: '99999999999999999999', unit: 'KELVIN' },
+        referencePressure: { value: '0.0000000001', unit: 'KPA_ABS' },
+        zSource: '1',
+        zReference: '1',
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.fieldErrors.totalVolume[0]).toMatch(/effectively zero/);
+    expect(await prisma.activityRecord.count()).toBe(0);
+  });
+
+  it('rejects a result too large to store with a 400, not a server error', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: null,
+        operatingHours: null,
+        totalVolume: { value: '99999999999999999999', unit: 'BCF' },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.fieldErrors.totalVolume[0]).toMatch(/too large/);
+  });
+
+  it('returns very small values in plain notation, never as 1e-8', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: { value: '0.00000001', unit: 'MMSCF_PER_DAY' },
+        operatingHours: null,
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.data.averageRate.value).toBe('0.00000001');
+    expect(res.body.data.standardised.averageRateMmscfd).toBe('0.00000001');
+  });
+});

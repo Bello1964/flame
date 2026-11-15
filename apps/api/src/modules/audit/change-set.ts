@@ -7,7 +7,8 @@ export type ChangeSet = Record<string, { before: AuditScalar; after: AuditScalar
 function toAuditScalar(value: unknown): AuditScalar {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
-  if (Prisma.Decimal.isDecimal(value)) return value.toString();
+  // toFixed(): plain notation, never "1e-7".
+  if (Prisma.Decimal.isDecimal(value)) return value.toFixed();
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
@@ -31,7 +32,7 @@ export function changeSet(existing: object, input: object): ChangeSet {
     const before = toAuditScalar(previous);
     const after =
       Prisma.Decimal.isDecimal(previous) && next !== null
-        ? new Prisma.Decimal(String(next)).toString()
+        ? new Prisma.Decimal(String(next)).toFixed()
         : toAuditScalar(next);
 
     if (before !== after) changes[key] = { before, after };

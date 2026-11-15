@@ -1,6 +1,7 @@
 import type { OrganisationSettingsDto } from '@carbon/shared';
 import type { Organisation, PrismaClient } from '../../generated/prisma/client.js';
 import { AppError } from '../../lib/errors.js';
+import { exact } from '../../lib/decimal.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { changeSet, withStoredValues } from '../audit/change-set.js';
 import type { SettingsUpdate } from '../activity/activity.schemas.js';
@@ -10,11 +11,11 @@ import type { Actor } from '../facilities/facilities.service.js';
 function toDto(o: Organisation): OrganisationSettingsDto {
   return {
     defaultReferenceTemperature: {
-      value: o.defaultReferenceTemperature.toString(),
+      value: exact(o.defaultReferenceTemperature),
       unit: o.defaultReferenceTemperatureUnit,
     },
     defaultReferencePressure: {
-      value: o.defaultReferencePressure.toString(),
+      value: exact(o.defaultReferencePressure),
       unit: o.defaultReferencePressureUnit,
     },
   };
