@@ -16,7 +16,7 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
     typeof value === 'object' &&
     value !== null &&
     'error' in value &&
-    typeof (value as { error: unknown }).error === 'object'
+    typeof value.error === 'object'
   );
 }
 

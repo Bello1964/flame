@@ -11,3 +11,18 @@ export interface HealthResponse {
   status: 'ok';
   database: 'ok' | 'unavailable';
 }
+
+export interface DataResponse<T> {
+  data: T;
+}
+
+export interface PageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface ListResponse<T> {
+  data: T[];
+  meta: PageMeta;
+}

@@ -10,11 +10,11 @@ services:
     ports:
       # 5434 avoids local PostgreSQL Windows services on 5432/5433 and
       # Hyper-V reserved port ranges. Bound to loopback only.
-      - "127.0.0.1:5434:5432"
+      - '127.0.0.1:5434:5432'
     volumes:
       - carbon_pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U carbon -d carbon_accounting"]
+      test: ['CMD-SHELL', 'pg_isready -U carbon -d carbon_accounting']
       interval: 5s
       timeout: 5s
       retries: 10

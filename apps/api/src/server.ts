@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
-import { loadEnv } from './config/env.js';
+import { loadEnv, toAppConfig } from './config/env.js';
+import { assertRestrictedAppRole } from './lib/db-roles.js';
 import { createLogger } from './lib/logger.js';
 import { createPrismaClient } from './lib/prisma.js';
 
@@ -7,19 +8,17 @@ const env = loadEnv();
 const logger = createLogger(env.LOG_LEVEL);
 const prisma = createPrismaClient(env.DATABASE_URL);
 
-const app = createApp({
-  logger,
-  checkDatabase: async () => {
-    try {
-      // Fixed, parameter-free connectivity probe.
-      await prisma.$queryRaw`SELECT 1`;
-      return true;
-    } catch (err) {
-      logger.warn({ err }, 'Database health check failed');
-      return false;
-    }
-  },
-});
+const config = toAppConfig(env);
+
+// The API must connect as a restricted carbon_app login, never as the schema owner.
+try {
+  await assertRestrictedAppRole(prisma, logger, config.isProduction);
+} catch (err) {
+  logger.fatal({ err }, 'Database role check failed');
+  if (config.isProduction) process.exit(1);
+}
+
+const app = createApp({ logger, prisma, config });
 
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'API listening');
