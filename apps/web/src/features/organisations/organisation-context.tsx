@@ -1,0 +1,32 @@
+import { createContext, use, useMemo, type ReactNode } from 'react';
+import type { MembershipSummary } from '@carbon/shared';
+import { canWriteHierarchy } from './permissions';
+
+export interface ActiveOrganisation extends MembershipSummary {
+  /** Display hint only; the API enforces the permission. */
+  canWriteHierarchy: boolean;
+}
+
+const OrganisationContext = createContext<ActiveOrganisation | null>(null);
+
+export function OrganisationProvider({
+  membership,
+  children,
+}: {
+  membership: MembershipSummary;
+  children: ReactNode;
+}) {
+  const value = useMemo(
+    () => ({ ...membership, canWriteHierarchy: canWriteHierarchy(membership.roles) }),
+    [membership],
+  );
+  return <OrganisationContext value={value}>{children}</OrganisationContext>;
+}
+
+/** The organisation in the current URL. Only valid beneath an organisation route. */
+// eslint-disable-next-line react-refresh/only-export-components -- hook paired with its provider
+export function useOrganisation(): ActiveOrganisation {
+  const organisation = use(OrganisationContext);
+  if (!organisation) throw new Error('useOrganisation must be used beneath <OrganisationProvider>');
+  return organisation;
+}
