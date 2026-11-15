@@ -262,7 +262,14 @@ describe('facilities', () => {
       signedInAs(membership(ORG_A, ['ORGANISATION_OWNER'])),
       on('POST', `/organisations/${ORG_A}/facilities`, () => ({
         status: 409,
-        body: { error: { code: 'CONFLICT', message: 'A record with these values already exists' } },
+        // Wording deliberately differs from the API's: matching relies on the code and fields.
+        body: {
+          error: {
+            code: 'DUPLICATE',
+            message: 'Reworded duplicate message',
+            details: { fields: ['code'] },
+          },
+        },
       })),
       on('GET', `/organisations/${ORG_A}/facilities`, () => list([])),
     );
@@ -394,5 +401,35 @@ describe('facilities', () => {
     renderApp(`/o/${ORG_A}/facilities/${id}`);
 
     expect(await screen.findByText('Facility not found')).toBeInTheDocument();
+  });
+});
+
+describe('duplicate without named fields', () => {
+  it('falls back to the API message at the top of the form', async () => {
+    mockApi(
+      on('GET', '/auth/session', () => ({
+        status: 200,
+        body: { data: sessionWith([membership(ORG_A, ['ORGANISATION_OWNER'])]) },
+      })),
+      on('POST', `/organisations/${ORG_A}/facilities`, () => ({
+        status: 409,
+        body: {
+          error: { code: 'DUPLICATE', message: 'A record with these values already exists' },
+        },
+      })),
+      on('GET', `/organisations/${ORG_A}/facilities`, () => list([])),
+    );
+    renderApp(`/o/${ORG_A}/facilities`);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: /add facility/i }))[0]!);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/^name/i), { target: { value: 'Okpai' } });
+    fireEvent.change(within(dialog).getByLabelText(/^code/i), { target: { value: 'OKP' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add facility' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'A record with these values already exists',
+    );
+    expect(within(dialog).getByLabelText(/^code/i)).toHaveAttribute('aria-invalid', 'false');
   });
 });

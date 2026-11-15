@@ -268,7 +268,33 @@ describe('facilities', () => {
     await createFacility(w.ownerA, w.orgA.id, 'DUP');
     const dupe = await post(w.ownerA, `${base(w.orgA.id)}/facilities`, { name: 'Y', code: 'DUP' });
     expect(dupe.status).toBe(409);
+    // A distinct code naming the clashing field; the tenant column is never listed.
+    expect(dupe.body.error).toEqual({
+      code: 'DUPLICATE',
+      message: 'A record with these values already exists',
+      details: { fields: ['code'] },
+    });
     await createFacility(w.ownerB, w.orgB.id, 'DUP');
+  });
+
+  it('reports duplicate asset and flare source codes the same way', async () => {
+    const facility = await createFacility(w.ownerA, w.orgA.id, 'FAC-DUP');
+    const asset = await createAsset(w.ownerA, w.orgA.id, facility.id, 'AST-DUP');
+    const dupeAsset = await post(w.ownerA, `${base(w.orgA.id)}/assets`, {
+      facilityId: facility.id,
+      name: 'Other',
+      code: 'AST-DUP',
+    });
+    expect(dupeAsset.status).toBe(409);
+    expect(dupeAsset.body.error.code).toBe('DUPLICATE');
+    expect(dupeAsset.body.error.details).toEqual({ fields: ['code'] });
+
+    const source = { assetId: asset.id, name: 'Stack', code: 'FS-DUP' };
+    expect((await post(w.ownerA, `${base(w.orgA.id)}/flare-sources`, source)).status).toBe(201);
+    const dupeSource = await post(w.ownerA, `${base(w.orgA.id)}/flare-sources`, source);
+    expect(dupeSource.status).toBe(409);
+    expect(dupeSource.body.error.code).toBe('DUPLICATE');
+    expect(dupeSource.body.error.details).toEqual({ fields: ['code'] });
   });
 
   it('returns 409 when an update would duplicate another record’s code, leaving it unchanged', async () => {
@@ -279,7 +305,8 @@ describe('facilities', () => {
       code: 'TAKEN',
     });
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error.code).toBe('DUPLICATE');
+    expect(res.body.error.details).toEqual({ fields: ['code'] });
 
     const unchanged = await prisma.facility.findUniqueOrThrow({ where: { id: other.id } });
     expect(unchanged.code).toBe('MINE');

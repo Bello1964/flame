@@ -113,7 +113,7 @@ Rules:
 5. Permission check for the specific operation.
 6. Request validation (Zod) on params, query and body.
 7. Handler → service → repository, with every query filtered by the authorised `organisationId` and ownership chains verified (e.g. a flare source must belong to a facility in the same organisation).
-8. Consistent response or error shape; no stack traces or database details to clients. Cross-tenant lookups return 404, not 403, to avoid leaking existence.
+8. Consistent response or error shape; no stack traces or database details to clients. Cross-tenant lookups return 404, not 403, to avoid leaking existence. A unique-constraint clash returns 409 `DUPLICATE`; it names the clashing field only for allowlisted organisation-defined values (record codes, see `apps/api/src/lib/unique-violation.ts`). Values that identify people or accounts, such as email, are never named, and endpoints that accept them (sign-up, invitations) must handle duplicates in their service so the response does not reveal whether an account exists.
 
 URL shape: `/api/v1/organisations/:organisationId/<resource>`. Organisation-owned child tables also carry a composite foreign key `(organisationId, parentId) → parent(organisationId, id)`, so the database rejects a child whose parent belongs to another organisation even if application code were wrong. All foreign keys are `ON DELETE RESTRICT ON UPDATE RESTRICT`: ids are immutable, so changing a record's organisation (or any referenced id) fails instead of silently carrying its children or history with it.
 

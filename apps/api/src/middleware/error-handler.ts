@@ -1,8 +1,13 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { z } from 'zod';
-import type { ApiErrorBody } from '@carbon/shared';
+import {
+  DUPLICATE_ERROR_CODE,
+  type ApiErrorBody,
+  type DuplicateErrorDetails,
+} from '@carbon/shared';
 import { Prisma } from '../generated/prisma/client.js';
 import { AppError, notFound } from '../lib/errors.js';
+import { uniqueViolationFields } from '../lib/unique-violation.js';
 
 export const notFoundHandler: RequestHandler = (_req, _res, next) => {
   next(notFound('Route not found'));
@@ -39,8 +44,22 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, _next)
       error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: z.flattenError(err) },
     };
   } else if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    // A distinct code, plus the clashing field names when they are on the allowlist in
+    // lib/unique-violation.ts (organisation-defined codes only), so clients can point at
+    // the field instead of matching message text. Never the conflicting values or
+    // constraint internals. Values that identify people or accounts (e.g. email) are never
+    // named; endpoints that accept them must handle duplicates in their service so the
+    // response does not reveal whether an account exists.
+    const fields = uniqueViolationFields(err);
+    const details: DuplicateErrorDetails | undefined = fields ? { fields } : undefined;
     status = 409;
-    body = { error: { code: 'CONFLICT', message: 'A record with these values already exists' } };
+    body = {
+      error: {
+        code: DUPLICATE_ERROR_CODE,
+        message: 'A record with these values already exists',
+        ...(details ? { details } : {}),
+      },
+    };
   } else if (isBodyParseError(err)) {
     status = err.type === 'entity.too.large' ? 413 : 400;
     body = { error: { code: 'BAD_REQUEST', message: 'Malformed or oversized request body' } };

@@ -1,5 +1,15 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
+import { DUPLICATE_ERROR_CODE } from '@carbon/shared';
 import { ApiError, errorMessage, fieldErrorsOf } from '@/lib/api-client';
+
+/** Fields named by a 409 DUPLICATE response; empty when none are named. */
+function duplicateFieldsOf(error: unknown): string[] {
+  if (!(error instanceof ApiError) || error.code !== DUPLICATE_ERROR_CODE) return [];
+  const details = error.details;
+  if (typeof details !== 'object' || details === null || !('fields' in details)) return [];
+  const fields = details.fields;
+  return Array.isArray(fields) ? fields.filter((f): f is string => typeof f === 'string') : [];
+}
 
 /**
  * Puts API errors next to the fields they concern. Returns the message to show at the
@@ -22,18 +32,18 @@ export function applyServerError<T extends FieldValues>(
   }
   if (mapped) return null;
 
-  // Codes are unique per record type within an organisation; a duplicate is the
-  // conflict a user can fix on this form.
-  if (
-    error instanceof ApiError &&
-    error.status === 409 &&
-    error.message === 'A record with these values already exists' &&
-    fields.includes('code' as Path<T>)
-  ) {
-    setError('code' as Path<T>, {
-      type: 'server',
-      message: `Another ${recordLabel} in this organisation already uses this code`,
-    });
+  // A value that must be unique (e.g. the code, unique per record type within an
+  // organisation) is already used. The API names the clashing fields.
+  const duplicates = duplicateFieldsOf(error).filter((f): f is Path<T> =>
+    fields.includes(f as Path<T>),
+  );
+  if (duplicates.length > 0) {
+    for (const field of duplicates) {
+      setError(field, {
+        type: 'server',
+        message: `Another ${recordLabel} in this organisation already uses this ${field === 'code' ? 'code' : 'value'}`,
+      });
+    }
     return null;
   }
 

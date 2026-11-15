@@ -26,3 +26,14 @@ export interface ListResponse<T> {
   data: T[];
   meta: PageMeta;
 }
+
+/**
+ * 409 `DUPLICATE`: a value that must be unique is already used. `fields` names the
+ * clashing fields as the client knows them (e.g. ["code"]); tenant scoping columns are
+ * never listed. It is omitted when the server cannot determine the fields.
+ */
+export const DUPLICATE_ERROR_CODE = 'DUPLICATE';
+
+export interface DuplicateErrorDetails {
+  fields?: string[];
+}
