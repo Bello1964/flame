@@ -1,10 +1,9 @@
 // Prisma schema for the Carbon Accounting API.
 // Every schema change must go through `npm run prisma:migrate -w @carbon/api`.
-// Domain models (organisations, memberships, facilities, ...) are added per
-// docs/architecture/ARCHITECTURAL_WORKFLOW.md.
+// See docs/architecture/ARCHITECTURAL_WORKFLOW.md.
 
 generator client {
-  provider = "prisma-client"
+  provider            = "prisma-client"
   output              = "../src/generated/prisma"
   moduleFormat        = "esm"
   importFileExtension = "js"
@@ -12,4 +11,234 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Identity ────────────────────────────────────────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  /// Stored lower-cased and trimmed; uniqueness is case-insensitive by construction.
+  email           String     @unique @db.VarChar(320)
+  name            String     @db.VarChar(200)
+  passwordHash    String
+  status          UserStatus @default(ACTIVE)
+  /// Platform-level operations only. Grants no implicit access to tenant data.
+  isPlatformAdmin Boolean    @default(false)
+  createdAt       DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
+
+  memberships Membership[]
+  sessions    Session[]
+  auditLogs   AuditLog[]
+
+  createdFacilities   Facility[]    @relation("FacilityCreatedBy")
+  createdAssets       Asset[]       @relation("AssetCreatedBy")
+  createdFlareSources FlareSource[] @relation("FlareSourceCreatedBy")
+
+  @@map("users")
+}
+
+/// Server-side session. The cookie holds a random token; only its SHA-256 hash is stored.
+model Session {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tokenHash  String    @unique @db.Char(64)
+  /// Per-session CSRF secret, compared against the X-CSRF-Token header.
+  csrfToken  String    @db.VarChar(64)
+  userId     String    @db.Uuid
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  /// Absolute expiry. Idle expiry is enforced from lastSeenAt.
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+  ipAddress  String?   @db.VarChar(64)
+  userAgent  String?   @db.VarChar(512)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ─── Tenancy ─────────────────────────────────────────────────────────────────
+
+enum OrganisationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Organisation {
+  id        String             @id @default(uuid(7)) @db.Uuid
+  name      String             @db.VarChar(200)
+  /// URL-safe unique identifier.
+  slug      String             @unique @db.VarChar(100)
+  /// ISO 3166-1 alpha-2.
+  country   String             @default("NG") @db.Char(2)
+  status    OrganisationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+
+  memberships  Membership[]
+  facilities   Facility[]
+  assets       Asset[]
+  flareSources FlareSource[]
+  auditLogs    AuditLog[]
+
+  @@map("organisations")
+}
+
+enum Role {
+  ORGANISATION_OWNER
+  ADMINISTRATOR
+  APPROVER
+  REVIEWER
+  DATA_ENTRY_OFFICER
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// A user's membership of one organisation. A user may hold several roles.
+model Membership {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  userId         String           @db.Uuid
+  organisationId String           @db.Uuid
+  roles          Role[]
+  status         MembershipStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+  @@map("memberships")
+}
+
+// ─── Operational hierarchy: Facility → Asset → Flare Source ──────────────────
+// Records are archived, never hard-deleted, so historical activity data stays traceable.
+// Child rows carry organisationId and a composite FK to their parent, so the database
+// itself rejects a child whose parent belongs to another organisation.
+
+enum RecordStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Facility {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organisationId String       @db.Uuid
+  name           String       @db.VarChar(200)
+  /// Organisation-defined reference code, unique within the organisation.
+  code           String       @db.VarChar(50)
+  description    String?      @db.VarChar(2000)
+  /// Nigerian state or equivalent first-level region.
+  region         String?      @db.VarChar(100)
+  country        String       @default("NG") @db.Char(2)
+  latitude       Decimal?     @db.Decimal(9, 6)
+  longitude      Decimal?     @db.Decimal(9, 6)
+  status         RecordStatus @default(ACTIVE)
+  archivedAt     DateTime?    @db.Timestamptz(3)
+  createdById    String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User         @relation("FacilityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assets       Asset[]
+
+  @@unique([organisationId, code])
+  @@unique([organisationId, id])
+  @@index([organisationId, status])
+  @@map("facilities")
+}
+
+model Asset {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organisationId String       @db.Uuid
+  facilityId     String       @db.Uuid
+  name           String       @db.VarChar(200)
+  code           String       @db.VarChar(50)
+  /// Free text for now (e.g. flow station, gas plant, FPSO); to become a managed list.
+  assetType      String?      @db.VarChar(100)
+  description    String?      @db.VarChar(2000)
+  status         RecordStatus @default(ACTIVE)
+  archivedAt     DateTime?    @db.Timestamptz(3)
+  createdById    String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facility     Facility      @relation(fields: [organisationId, facilityId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User          @relation("AssetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  flareSources FlareSource[]
+
+  @@unique([organisationId, code])
+  @@unique([organisationId, id])
+  @@index([organisationId, facilityId])
+  @@map("assets")
+}
+
+enum FlareType {
+  ELEVATED
+  GROUND
+  ENCLOSED
+  OTHER
+}
+
+model FlareSource {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organisationId String       @db.Uuid
+  assetId        String       @db.Uuid
+  name           String       @db.VarChar(200)
+  code           String       @db.VarChar(50)
+  /// Optional until confirmed; calculation inputs are captured with methodology data later.
+  flareType      FlareType?
+  description    String?      @db.VarChar(2000)
+  status         RecordStatus @default(ACTIVE)
+  archivedAt     DateTime?    @db.Timestamptz(3)
+  createdById    String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset        Asset        @relation(fields: [organisationId, assetId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User         @relation("FlareSourceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organisationId, code])
+  @@index([organisationId, assetId])
+  @@map("flare_sources")
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+/// Append-only. Application code never updates or deletes audit rows.
+model AuditLog {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  /// Null for platform-level events (e.g. sign-in).
+  organisationId String?  @db.Uuid
+  actorUserId    String?  @db.Uuid
+  action         String   @db.VarChar(100)
+  entityType     String   @db.VarChar(100)
+  entityId       String?  @db.Uuid
+  /// Change summary; never contains passwords, tokens or secrets.
+  metadata       Json?
+  ipAddress      String?  @db.VarChar(64)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor        User?         @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organisationId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }

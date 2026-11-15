@@ -13,10 +13,7 @@ function renderWithClient() {
 }
 
 function mockFetch(status: number, body: unknown) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })),
-  );
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })));
 }
 
 afterEach(() => {

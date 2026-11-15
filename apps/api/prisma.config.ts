@@ -14,6 +14,9 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: process.env['DATABASE_URL'] ?? '',
+    // Migrations run as the schema owner. The API itself connects with DATABASE_URL as
+    // the restricted carbon_app login. Falls back to DATABASE_URL when no separate
+    // owner URL is configured.
+    url: process.env['MIGRATION_DATABASE_URL'] ?? process.env['DATABASE_URL'] ?? '',
   },
 });

@@ -11,5 +11,19 @@ export class AppError extends Error {
   }
 }
 
+export const badRequest = (message: string, details?: unknown): AppError =>
+  new AppError(400, 'BAD_REQUEST', message, details);
+
+export const unauthorized = (message = 'Authentication required'): AppError =>
+  new AppError(401, 'UNAUTHENTICATED', message);
+
+export const forbidden = (
+  message = 'You do not have permission to perform this action',
+): AppError => new AppError(403, 'FORBIDDEN', message);
+
+/** Also used for resources in other organisations, so their existence is not revealed. */
 export const notFound = (message = 'Resource not found'): AppError =>
   new AppError(404, 'NOT_FOUND', message);
+
+export const conflict = (message: string, details?: unknown): AppError =>
+  new AppError(409, 'CONFLICT', message, details);
