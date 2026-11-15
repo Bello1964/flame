@@ -49,5 +49,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Above Testing Library's 5 s wait (setup.ts), so a failing wait reports what it
+    // couldn't find instead of a bare test timeout.
+    testTimeout: 15_000,
   },
 });
