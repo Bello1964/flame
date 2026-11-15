@@ -59,12 +59,14 @@ Use the project's preferred operational units unless an approved organisation co
 | Metric average rate | Sm³/d or MMSm³/d |
 | Metric total volume | Sm³ or MMSm³ |
 
-Initial reference conditions are:
+The platform's canonical reference condition is ISO 13443 (Natural gas — Standard reference conditions):
 
-- Temperature: 60°F.
-- Pressure: 14.73 psia.
+- Temperature: 15 °C (288.15 K).
+- Pressure: 101.325 kPa absolute.
 
-These are initial platform defaults, not universal assumptions. They must be configurable by organisation and the conditions applicable to each measurement must be recorded.
+(Decided 2026-11-15, replacing the earlier initial default of 60°F / 14.73 psia; see `docs/architecture/ARCHITECTURAL_WORKFLOW.md` §4.1.) Each organisation has a default source reference condition, initially ISO 13443, that prefills new measurements; the conditions applicable to each measurement must be recorded with it. Standardised values are expressed at the canonical condition and must be labelled with it, so MMscf at 15 °C / 101.325 kPa is never mistaken for MMscf at 60°F.
+
+Normalising a measurement to the canonical condition uses absolute temperature and pressure and the compressibility factor at both conditions: `V_ref = V_src × (P_src / P_ref) × (T_ref / T_src) × (Z_ref / Z_src)`. When the source condition is not the canonical one, both Z values are required; do not assume either.
 
 Always preserve:
 

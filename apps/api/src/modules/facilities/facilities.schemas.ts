@@ -35,6 +35,21 @@ function coordinate(limit: number) {
     .nullable();
 }
 
+/** An IANA time zone the runtime knows, e.g. "Africa/Lagos". Defines activity days at the facility. */
+const timeZone = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine((v) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: v });
+      return v.includes('/') || v === 'UTC';
+    } catch {
+      return false;
+    }
+  }, 'Use an IANA time zone such as Africa/Lagos');
+
 export const idParamSchema = z.object({ id: z.uuid() });
 
 export const listQuerySchema = z.object({
@@ -52,6 +67,7 @@ export const facilityCreateSchema = z.strictObject({
   country: country.optional(),
   latitude: coordinate(90).optional(),
   longitude: coordinate(180).optional(),
+  timeZone: timeZone.optional(),
 });
 
 export const facilityUpdateSchema = facilityCreateSchema
