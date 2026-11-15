@@ -7,10 +7,11 @@ import type { AppConfig } from '../config/env.js';
 import { createLogger } from '../lib/logger.js';
 import { createPrismaClient } from '../lib/prisma.js';
 import { hashPassword } from '../modules/auth/password.js';
-import { testAppDatabaseUrl, testDatabaseUrl } from './test-database.js';
+import { inject } from 'vitest';
+import { testDatabaseUrl } from './test-database.js';
 
 /** Connected as the restricted carbon_app login, exactly like the API in production. */
-export const prisma = createPrismaClient(testAppDatabaseUrl());
+export const prisma = createPrismaClient(inject('appDatabaseUrl'));
 /** Connected as the schema owner. Only for resetting the database between tests. */
 export const ownerPrisma = createPrismaClient(testDatabaseUrl());
 export const logger = createLogger('silent');
@@ -27,7 +28,12 @@ export const testConfig: AppConfig = {
     idleTimeoutMs: 60 * 60_000,
     absoluteTimeoutMs: 12 * 3_600_000,
   },
-  loginRateLimit: { windowMs: 60_000, maxPerIp: 1_000, maxPerAccount: 1_000 },
+  loginRateLimit: {
+    windowMs: 60_000,
+    maxPerIp: 1_000,
+    maxPerAccountIp: 1_000,
+    maxPerAccount: 1_000,
+  },
 };
 
 export function makeApp(overrides: Partial<AppDependencies> = {}): Express {

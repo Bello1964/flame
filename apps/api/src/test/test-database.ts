@@ -4,7 +4,13 @@ const DEFAULT_TEST_DATABASE_URL =
 
 /** Test-only login for the restricted carbon_app role, created by the global setup. */
 const TEST_APP_USER = 'carbon_app_test';
-const TEST_APP_PASSWORD = 'carbon_app_test_only';
+
+declare module 'vitest' {
+  export interface ProvidedContext {
+    /** Test database URL for the restricted app login, with this run's random password. */
+    appDatabaseUrl: string;
+  }
+}
 
 /**
  * Returns the test database URL (schema owner) and refuses anything whose database name
@@ -21,9 +27,11 @@ export function testDatabaseUrl(): string {
 
 /**
  * The same test database, connected as the restricted app login — what the API uses in
- * tests, mirroring production. Override with TEST_APP_DATABASE_URL.
+ * tests, mirroring production. The password is generated fresh for every test run by the
+ * global setup, so no working credential is stored in the repository. TEST_APP_DATABASE_URL
+ * overrides the whole URL (its password is then applied to the login).
  */
-export function testAppDatabaseUrl(): string {
+export function testAppDatabaseUrl(password: string): string {
   const override = process.env['TEST_APP_DATABASE_URL'];
   if (override) {
     if (testDatabaseName(override) !== testDatabaseName(testDatabaseUrl())) {
@@ -33,7 +41,7 @@ export function testAppDatabaseUrl(): string {
   }
   const url = new URL(testDatabaseUrl());
   url.username = TEST_APP_USER;
-  url.password = TEST_APP_PASSWORD;
+  url.password = password;
   return url.toString();
 }
 

@@ -7,8 +7,31 @@ export const APP_GROUP_ROLE = 'carbon_app';
 
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/;
 
+interface ExistingRole {
+  rolsuper: boolean;
+  rolcreaterole: boolean;
+  rolcreatedb: boolean;
+  rolreplication: boolean;
+  rolbypassrls: boolean;
+  owns_objects: boolean;
+}
+
+function privilegedReasons(r: ExistingRole): string[] {
+  const reasons: string[] = [];
+  if (r.rolsuper) reasons.push('is a superuser');
+  if (r.rolcreaterole) reasons.push('can create roles');
+  if (r.rolcreatedb) reasons.push('can create databases');
+  if (r.rolreplication) reasons.push('has replication rights');
+  if (r.rolbypassrls) reasons.push('bypasses row-level security');
+  if (r.owns_objects) reasons.push('owns database objects');
+  return reasons;
+}
+
 /**
  * Creates (or updates the password of) a LOGIN role that is a member of carbon_app.
+ * An existing role is only reused if it is a plain login that owns nothing.
+ * Note: the password is sent inside the CREATE/ALTER ROLE statement, so it can appear
+ * in server logs if PostgreSQL's log_statement is set to 'ddl' or 'all'.
  * Must be run with the schema owner's connection. Identifiers and the password are
  * escaped by the driver because CREATE ROLE does not accept bind parameters.
  */
@@ -32,14 +55,31 @@ export async function ensureAppLogin(
     );
   }
 
-  const exists = await owner.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [username]);
+  const existing = await owner.query<ExistingRole>(
+    `SELECT r.rolsuper, r.rolcreaterole, r.rolcreatedb, r.rolreplication, r.rolbypassrls,
+            EXISTS (SELECT 1 FROM pg_shdepend d WHERE d.refobjid = r.oid AND d.deptype = 'o')
+              AS owns_objects
+       FROM pg_roles r WHERE r.rolname = $1`,
+    [username],
+  );
   const role = owner.escapeIdentifier(username);
   const secret = owner.escapeLiteral(password);
-  if (exists.rowCount === 0) {
+  const found = existing.rows[0];
+  if (!found) {
     await owner.query(
       `CREATE ROLE ${role} LOGIN PASSWORD ${secret} IN ROLE ${owner.escapeIdentifier(APP_GROUP_ROLE)}`,
     );
     return 'created';
+  }
+
+  // Only ever reuse a plain login. A mistyped DATABASE_URL naming e.g. "postgres" must
+  // not have its password reset and be enrolled as the app login.
+  const reasons = privilegedReasons(found);
+  if (reasons.length > 0) {
+    throw new Error(
+      `Refusing to reuse existing role "${username}" as the app login: it ${reasons.join(', ')}. ` +
+        'Choose a new user name in DATABASE_URL.',
+    );
   }
   await owner.query(`ALTER ROLE ${role} WITH LOGIN PASSWORD ${secret}`);
   await owner.query(`GRANT ${owner.escapeIdentifier(APP_GROUP_ROLE)} TO ${role}`);
@@ -49,6 +89,7 @@ export async function ensureAppLogin(
 export interface RolePrivileges {
   role: string;
   canUpdateAuditLog: boolean;
+  canDeleteAuditLog: boolean;
   canTruncateAuditLog: boolean;
   ownsAuditLog: boolean;
 }
@@ -56,10 +97,17 @@ export interface RolePrivileges {
 /** Reports what the API's own database connection is allowed to do to the audit log. */
 export async function inspectAppRole(prisma: PrismaClient): Promise<RolePrivileges> {
   const rows = await prisma.$queryRaw<
-    { role: string; can_update: boolean; can_truncate: boolean; owns: boolean }[]
+    {
+      role: string;
+      can_update: boolean;
+      can_delete: boolean;
+      can_truncate: boolean;
+      owns: boolean;
+    }[]
   >`
     SELECT current_user AS role,
            has_table_privilege('public.audit_logs', 'UPDATE') AS can_update,
+           has_table_privilege('public.audit_logs', 'DELETE') AS can_delete,
            has_table_privilege('public.audit_logs', 'TRUNCATE') AS can_truncate,
            pg_has_role(
              (SELECT tableowner FROM pg_tables WHERE schemaname = 'public' AND tablename = 'audit_logs'),
@@ -70,6 +118,7 @@ export async function inspectAppRole(prisma: PrismaClient): Promise<RolePrivileg
   return {
     role: row.role,
     canUpdateAuditLog: row.can_update,
+    canDeleteAuditLog: row.can_delete,
     canTruncateAuditLog: row.can_truncate,
     ownsAuditLog: row.owns,
   };
@@ -87,7 +136,10 @@ export async function assertRestrictedAppRole(
 ): Promise<void> {
   const privileges = await inspectAppRole(prisma);
   const tooPowerful =
-    privileges.ownsAuditLog || privileges.canUpdateAuditLog || privileges.canTruncateAuditLog;
+    privileges.ownsAuditLog ||
+    privileges.canUpdateAuditLog ||
+    privileges.canDeleteAuditLog ||
+    privileges.canTruncateAuditLog;
   if (!tooPowerful) return;
 
   const message =

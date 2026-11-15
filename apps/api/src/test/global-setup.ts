@@ -1,4 +1,6 @@
 import { execSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import type { TestProject } from 'vitest/node';
 import pg from 'pg';
 import { ensureAppLogin } from '../lib/db-roles.js';
 import { testAppDatabaseUrl, testDatabaseName, testDatabaseUrl } from './test-database.js';
@@ -7,7 +9,7 @@ import { testAppDatabaseUrl, testDatabaseName, testDatabaseUrl } from './test-da
  * Once per test run: creates the test database if needed, applies all migrations as
  * the schema owner, then creates the restricted app login the tests connect with.
  */
-export default async function setup(): Promise<void> {
+export default async function setup(project: TestProject): Promise<void> {
   const url = testDatabaseUrl();
   const name = testDatabaseName(url);
 
@@ -38,7 +40,9 @@ export default async function setup(): Promise<void> {
     stdio: 'pipe',
   });
 
-  const app = new URL(testAppDatabaseUrl());
+  // Fresh random password every run: no working test credential lives in the repository.
+  const appUrl = testAppDatabaseUrl(randomBytes(24).toString('base64url'));
+  const app = new URL(appUrl);
   const owner = new pg.Client({ connectionString: url });
   await owner.connect();
   try {
@@ -46,4 +50,6 @@ export default async function setup(): Promise<void> {
   } finally {
     await owner.end();
   }
+
+  project.provide('appDatabaseUrl', appUrl);
 }
