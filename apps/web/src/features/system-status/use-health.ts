@@ -6,7 +6,7 @@ export function useHealth() {
   return useQuery({
     queryKey: ['health'],
     // 503 still carries a HealthResponse describing what is unavailable.
-    queryFn: () => apiGet<HealthResponse>('/health', [503]),
+    queryFn: ({ signal }) => apiGet<HealthResponse>('/health', { acceptStatuses: [503], signal }),
     refetchInterval: 30_000,
   });
 }

@@ -4,13 +4,12 @@ export function HomePage() {
   return (
     <section className="max-w-3xl space-y-4">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Overview</h1>
-        <p className="text-muted-foreground">
-          Platform scaffold. Organisations, facilities and flare sources come next.
+        <h1 className="text-2xl font-semibold">System status</h1>
+        <p className="text-sm text-muted-foreground">
+          Connectivity between this app, the API and the database.
         </p>
       </header>
       <div className="rounded-md border bg-card p-4">
-        <h2 className="mb-2 text-sm font-medium">System status</h2>
         <SystemStatus />
       </div>
     </section>
