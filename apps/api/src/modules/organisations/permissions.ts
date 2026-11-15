@@ -1,27 +1,16 @@
-import type { Role } from '../../generated/prisma/client.js';
-
-const ALL_ROLES: readonly Role[] = [
-  'ORGANISATION_OWNER',
-  'ADMINISTRATOR',
-  'APPROVER',
-  'REVIEWER',
-  'DATA_ENTRY_OFFICER',
-  'VIEWER',
-];
+import type { Role as SharedRole } from '@carbon/shared';
+import type { Role as DatabaseRole } from '../../generated/prisma/client.js';
 
 /**
- * Initial permission matrix (Milestone 1). Extend per module; keep checks
- * per operation rather than per page. See docs/architecture/ARCHITECTURAL_WORKFLOW.md §6.
+ * The permission matrix lives in @carbon/shared so the web app offers exactly the actions
+ * the API allows. The API remains the only place it is enforced.
  */
-export const PERMISSIONS = {
-  'organisation:read': ALL_ROLES,
-  'hierarchy:read': ALL_ROLES,
-  'hierarchy:write': ['ORGANISATION_OWNER', 'ADMINISTRATOR'],
-} as const satisfies Record<string, readonly Role[]>;
+export { PERMISSIONS, hasPermission, type Permission } from '@carbon/shared';
 
-export type Permission = keyof typeof PERMISSIONS;
-
-export function hasPermission(roles: readonly Role[], permission: Permission): boolean {
-  const allowed: readonly Role[] = PERMISSIONS[permission];
-  return roles.some((role) => allowed.includes(role));
-}
+/**
+ * Compile-time guard: the shared role list must match the database's Role enum exactly.
+ * If a role is added to or removed from the Prisma schema without updating
+ * @carbon/shared (or vice versa), type checking fails here.
+ */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+export const SHARED_ROLES_MATCH_DATABASE = true satisfies Same<SharedRole, DatabaseRole>;
