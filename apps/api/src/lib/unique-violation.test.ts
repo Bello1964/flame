@@ -72,6 +72,13 @@ describe('uniqueViolationFields', () => {
     });
   });
 
+  it('never names the server-generated id from the (organisationId, id) index', () => {
+    const err = p2002(
+      adapterMeta('Facility', 'facilities', { index: 'facilities_organisationId_id_key' }),
+    );
+    expect(uniqueViolationFields(err)).toBeNull();
+  });
+
   it.each([
     ['no metadata', undefined],
     ['no model name', { target: ['code'] }],

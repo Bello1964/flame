@@ -30,10 +30,10 @@ export interface ListResponse<T> {
 /**
  * 409 `DUPLICATE`: a value that must be unique is already used. `fields` names the
  * clashing fields as the client knows them (e.g. ["code"]); tenant scoping columns are
- * never listed. It is omitted when the server cannot determine the fields.
+ * never listed. `details` is omitted entirely when no field may be named.
  */
 export const DUPLICATE_ERROR_CODE = 'DUPLICATE';
 
 export interface DuplicateErrorDetails {
-  fields?: string[];
+  fields: string[];
 }
