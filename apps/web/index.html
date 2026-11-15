@@ -3,10 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f2a1d" />
     <title>Carbon Accounting</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f2a1d'/%3E%3Cpath d='M16 6c-4 5-7 8.5-7 12.5a7 7 0 0 0 14 0C23 14.5 20 11 16 6z' fill='%23e3eed4'/%3E%3Cpath d='M16 15c-1.6 2-2.8 3.5-2.8 5a2.8 2.8 0 0 0 5.6 0c0-1.5-1.2-3-2.8-5z' fill='%23375534'/%3E%3C/svg%3E"
+    />
+    <style>
+      /*
+       * Shown from the first byte until the app's code has loaded and React replaces it,
+       * so slow connections see the brand, not a blank page. Static: no animation.
+       */
+      html,
+      body {
+        margin: 0;
+        background: #fbfcf9;
+        color: #0f2a1d;
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      }
+      .boot {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        text-align: center;
+        padding: 0 1rem;
+      }
+      .boot strong {
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+      }
+      .boot span {
+        font-size: 0.8rem;
+        color: #4a5a4f;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status">
+        <strong>Carbon Accounting</strong>
+        <span>Loading…</span>
+      </div>
+    </div>
+    <noscript>
+      <p class="boot">Carbon Accounting needs JavaScript. Enable it in your browser to continue.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
