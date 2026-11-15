@@ -1,0 +1,15 @@
+// Prisma schema for the Carbon Accounting API.
+// Every schema change must go through `npm run prisma:migrate -w @carbon/api`.
+// Domain models (organisations, memberships, facilities, ...) are added per
+// docs/architecture/ARCHITECTURAL_WORKFLOW.md.
+
+generator client {
+  provider = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
