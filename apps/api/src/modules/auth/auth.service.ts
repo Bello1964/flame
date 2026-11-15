@@ -68,6 +68,24 @@ export class AuthService {
     };
   }
 
+  /**
+   * Audits that sign-in attempts were blocked by a rate limit. Like failed sign-ins, there
+   * is no actor; the targeted account is the entity when the email matches a user.
+   */
+  async recordRateLimited(email: string, limit: string, meta: RequestMeta): Promise<void> {
+    const user = email
+      ? await this.prisma.user.findUnique({ where: { email }, select: { id: true } })
+      : null;
+    await recordAudit(this.prisma, {
+      actorUserId: null,
+      action: 'auth.login_rate_limited',
+      entityType: 'User',
+      entityId: user?.id ?? null,
+      metadata: { limit },
+      ipAddress: meta.ipAddress,
+    });
+  }
+
   /** Current user plus active memberships in active organisations. */
   async describeSession(userId: string, csrfToken: string): Promise<SessionResponse> {
     const user = await this.prisma.user.findUniqueOrThrow({

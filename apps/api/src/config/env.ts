@@ -12,7 +12,10 @@ const envSchema = z.object({
   SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+  /** Failed sign-ins per account from one IP. */
   LOGIN_ACCOUNT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  /** Failed sign-ins per account from all IPs combined. */
+  LOGIN_ACCOUNT_GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -41,7 +44,9 @@ export interface AppConfig {
     windowMs: number;
     /** Failed sign-ins allowed per client IP per window. */
     maxPerIp: number;
-    /** Failed sign-ins allowed per account (email) per window, from any number of IPs. */
+    /** Failed sign-ins allowed per account (email) from one IP per window. */
+    maxPerAccountIp: number;
+    /** Failed sign-ins allowed per account (email) from all IPs combined per window. */
     maxPerAccount: number;
   };
 }
@@ -62,7 +67,8 @@ export function toAppConfig(env: Env): AppConfig {
     loginRateLimit: {
       windowMs: env.LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60_000,
       maxPerIp: env.LOGIN_RATE_LIMIT_MAX,
-      maxPerAccount: env.LOGIN_ACCOUNT_RATE_LIMIT_MAX,
+      maxPerAccountIp: env.LOGIN_ACCOUNT_RATE_LIMIT_MAX,
+      maxPerAccount: env.LOGIN_ACCOUNT_GLOBAL_RATE_LIMIT_MAX,
     },
   };
 }

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Logger } from 'pino';
 import { assertRestrictedAppRole, inspectAppRole } from '../../lib/db-roles.js';
+import { createPrismaClient } from '../../lib/prisma.js';
+import { testDatabaseUrl } from '../../test/test-database.js';
 import {
   createUser,
   login,
@@ -68,6 +70,7 @@ describe('startup role check', () => {
   it('reports the app role as unable to modify or own the audit log', async () => {
     expect(await inspectAppRole(prisma)).toMatchObject({
       canUpdateAuditLog: false,
+      canDeleteAuditLog: false,
       canTruncateAuditLog: false,
       ownsAuditLog: false,
     });
@@ -86,9 +89,80 @@ describe('startup role check', () => {
     );
   });
 
+  it('refuses, in production, a login that could delete audit entries', async () => {
+    const name = 'carbon_role_delete_probe';
+    const password = 'delete-probe-password-1';
+    await ownerPrisma.$executeRawUnsafe(`DROP ROLE IF EXISTS ${name}`);
+    await ownerPrisma.$executeRawUnsafe(
+      `CREATE ROLE ${name} LOGIN PASSWORD '${password}' IN ROLE carbon_app`,
+    );
+    await ownerPrisma.$executeRawUnsafe(`GRANT DELETE ON audit_logs TO ${name}`);
+    const url = new URL(testDatabaseUrl());
+    url.username = name;
+    url.password = password;
+    const probe = createPrismaClient(url.toString());
+    try {
+      expect(await inspectAppRole(probe)).toMatchObject({
+        canDeleteAuditLog: true,
+        canUpdateAuditLog: false,
+        canTruncateAuditLog: false,
+        ownsAuditLog: false,
+      });
+      const { logger } = fakeLogger();
+      await expect(assertRestrictedAppRole(probe, logger, true)).rejects.toThrow(
+        /can modify or own audit_logs/,
+      );
+    } finally {
+      await probe.$disconnect();
+      await ownerPrisma.$executeRawUnsafe(`REVOKE DELETE ON audit_logs FROM ${name}`);
+      await ownerPrisma.$executeRawUnsafe(`DROP ROLE ${name}`);
+    }
+  });
+
   it('only warns about the owner role in development', async () => {
     const { logger, warn } = fakeLogger();
     await expect(assertRestrictedAppRole(ownerPrisma, logger, false)).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * Approved privileges of the app role, per table. Every table in the schema must be
+ * listed. A new table makes this test fail until it is added here deliberately; an
+ * append-only table (calculation versions, approvals, ...) must be listed with
+ * INSERT and SELECT only, and its migration must REVOKE UPDATE and DELETE.
+ */
+const CRUD = ['DELETE', 'INSERT', 'SELECT', 'UPDATE'];
+const APPEND_ONLY = ['INSERT', 'SELECT'];
+const NONE: string[] = [];
+const EXPECTED_APP_PRIVILEGES: Record<string, string[]> = {
+  _prisma_migrations: NONE,
+  assets: CRUD,
+  audit_logs: APPEND_ONLY,
+  facilities: CRUD,
+  flare_sources: CRUD,
+  memberships: CRUD,
+  organisations: CRUD,
+  sessions: CRUD,
+  users: CRUD,
+};
+
+describe('app role privileges across all tables', () => {
+  it('match the approved list exactly, so new tables need a deliberate decision', async () => {
+    const rows = await ownerPrisma.$queryRaw<{ table_name: string; privileges: string[] | null }[]>`
+      SELECT t.table_name,
+             array_agg(g.privilege_type::text ORDER BY g.privilege_type)
+               FILTER (WHERE g.privilege_type IS NOT NULL) AS privileges
+        FROM information_schema.tables t
+        LEFT JOIN information_schema.role_table_grants g
+          ON g.table_schema = t.table_schema
+         AND g.table_name = t.table_name
+         AND g.grantee = 'carbon_app'
+       WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+       GROUP BY t.table_name
+       ORDER BY t.table_name`;
+
+    const actual = Object.fromEntries(rows.map((r) => [r.table_name, r.privileges ?? []]));
+    expect(actual).toEqual(EXPECTED_APP_PRIVILEGES);
   });
 });

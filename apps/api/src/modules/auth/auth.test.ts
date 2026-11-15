@@ -235,7 +235,12 @@ describe('POST /auth/login', () => {
     const limited = makeApp({
       config: {
         ...testConfig,
-        loginRateLimit: { windowMs: 60_000, maxPerIp: 3, maxPerAccount: 1_000 },
+        loginRateLimit: {
+          windowMs: 60_000,
+          maxPerIp: 3,
+          maxPerAccountIp: 1_000,
+          maxPerAccount: 1_000,
+        },
       },
     });
     await createUser('ada@example.com');
@@ -260,7 +265,12 @@ describe('per-account sign-in rate limit', () => {
       config: {
         ...testConfig,
         trustProxy: 1,
-        loginRateLimit: { windowMs: 60_000, maxPerIp: 1_000, maxPerAccount: 3 },
+        loginRateLimit: {
+          windowMs: 60_000,
+          maxPerIp: 1_000,
+          maxPerAccountIp: 1_000,
+          maxPerAccount: 3,
+        },
       },
     });
   });
@@ -404,5 +414,73 @@ describe('audit log', () => {
       prisma.auditLog.update({ where: { id: entry.id }, data: { action: 'tampered' } }),
     ).rejects.toThrow();
     await expect(prisma.auditLog.delete({ where: { id: entry.id } })).rejects.toThrow();
+  });
+});
+
+describe('account lockout resistance', () => {
+  // Strict limit per account from one address; higher ceiling per account from all addresses.
+  let app = makeApp();
+  beforeEach(() => {
+    app = makeApp({
+      config: {
+        ...testConfig,
+        trustProxy: 1,
+        loginRateLimit: { windowMs: 60_000, maxPerIp: 1_000, maxPerAccountIp: 2, maxPerAccount: 5 },
+      },
+    });
+  });
+  const attempt = (fromIp: string, email: string, password: string) =>
+    request(app)
+      .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', fromIp)
+      .send({ email, password });
+
+  it('blocks repeated failures against an account from one address', async () => {
+    await createUser('ada@example.com');
+    expect((await attempt('198.51.100.1', 'ada@example.com', 'guess')).status).toBe(401);
+    expect((await attempt('198.51.100.1', 'ada@example.com', 'guess')).status).toBe(401);
+    expect((await attempt('198.51.100.1', 'ada@example.com', 'guess')).status).toBe(429);
+  });
+
+  it('lets the real user sign in from their own address while an attacker is blocked', async () => {
+    await createUser('ada@example.com');
+    for (let i = 0; i < 3; i++) await attempt('198.51.100.66', 'ada@example.com', 'guess');
+    expect((await attempt('198.51.100.66', 'ada@example.com', 'guess')).status).toBe(429);
+
+    const victim = await attempt('192.0.2.10', 'ada@example.com', PASSWORD);
+    expect(victim.status).toBe(200);
+  });
+
+  it('still caps guessing spread across many addresses with an account-wide ceiling', async () => {
+    await createUser('ada@example.com');
+    for (let i = 1; i <= 5; i++) {
+      expect((await attempt(`203.0.113.${i}`, 'ada@example.com', 'guess')).status).toBe(401);
+    }
+    expect((await attempt('203.0.113.99', 'ada@example.com', 'guess')).status).toBe(429);
+  });
+
+  it('audits the first block of each window once, without one row per blocked request', async () => {
+    const ada = await createUser('ada@example.com');
+    for (let i = 0; i < 6; i++) await attempt('198.51.100.7', 'ada@example.com', 'guess');
+
+    const entries = await prisma.auditLog.findMany({
+      where: { action: 'auth.login_rate_limited' },
+      select: {
+        actorUserId: true,
+        entityType: true,
+        entityId: true,
+        metadata: true,
+        ipAddress: true,
+      },
+    });
+    expect(entries).toEqual([
+      {
+        actorUserId: null,
+        entityType: 'User',
+        entityId: ada.id,
+        metadata: { limit: 'account_ip' },
+        ipAddress: '198.51.100.7',
+      },
+    ]);
   });
 });
