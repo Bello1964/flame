@@ -7,6 +7,7 @@ import { useHierarchyRecord } from '@/features/hierarchy/api';
 import { ArchiveDialog } from '@/features/hierarchy/archive-dialog';
 import { FlareSourceFormDialog } from '@/features/hierarchy/flare-source-form';
 import { FLARE_TYPE_LABELS } from '@/features/hierarchy/schemas';
+import { ActivitySection } from '@/features/activity/activity-section';
 import {
   ArchivedNotice,
   Breadcrumbs,
@@ -95,10 +96,9 @@ export function FlareSourcePage() {
         ]}
         timestamps={s}
       />
-      <p className="text-sm text-muted-foreground">
-        Gas activity data and emissions for this flare source will appear here once that module is
-        available.
-      </p>
+      <div className="pt-4">
+        <ActivitySection flareSource={s} />
+      </div>
 
       {editing && (
         <FlareSourceFormDialog

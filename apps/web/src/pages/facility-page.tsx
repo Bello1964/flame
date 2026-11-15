@@ -73,6 +73,7 @@ export function FacilityPage() {
           items={[
             { label: 'Region or state', value: f.region },
             { label: 'Country', value: f.country },
+            { label: 'Time zone', value: f.timeZone },
             {
               label: 'Coordinates',
               value:

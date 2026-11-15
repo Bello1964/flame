@@ -254,6 +254,7 @@ describe('facilities', () => {
       country: 'NG',
       latitude: '5.704321',
       longitude: null,
+      timeZone: 'Africa/Lagos',
     });
   });
 

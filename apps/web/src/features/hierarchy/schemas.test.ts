@@ -10,6 +10,7 @@ const validFacility = {
   country: 'ng',
   latitude: '',
   longitude: '',
+  timeZone: 'Africa/Lagos',
 };
 
 describe('facility form schema', () => {

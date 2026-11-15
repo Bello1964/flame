@@ -8,6 +8,8 @@ export const pages = {
   asset: () => import('@/pages/asset-page'),
   flareSource: () => import('@/pages/flare-source-page'),
   system: () => import('@/pages/home-page'),
+  activityRecord: () => import('@/pages/activity-record-page'),
+  settings: () => import('@/pages/settings-page'),
 };
 
 export type PageName = keyof typeof pages;

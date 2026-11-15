@@ -9,6 +9,14 @@ export function canWriteHierarchy(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'hierarchy:write');
 }
 
+export function canWriteActivity(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'activity:write');
+}
+
+export function canManageSettings(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'organisation:settings');
+}
+
 export const ROLE_LABELS: Record<Role, string> = {
   ORGANISATION_OWNER: 'Owner',
   ADMINISTRATOR: 'Administrator',

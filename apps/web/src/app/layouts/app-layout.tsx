@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigation } from 'react-router';
-import { Activity, Factory } from 'lucide-react';
+import { Activity, Factory, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
 import { preloadPage, type PageName } from '../lazy-pages';
@@ -31,6 +31,12 @@ export function AppLayout({
           label: 'Facilities',
           icon: <Factory aria-hidden />,
           page: 'facilities',
+        },
+        {
+          to: `${basePath}/settings`,
+          label: 'Settings',
+          icon: <Settings aria-hidden />,
+          page: 'settings',
         },
         {
           to: `${basePath}/system`,

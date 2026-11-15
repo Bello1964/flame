@@ -46,6 +46,7 @@ export interface FacilityCreateBody {
   country?: string;
   latitude?: string | null;
   longitude?: string | null;
+  timeZone?: string;
 }
 
 export interface AssetCreateBody {

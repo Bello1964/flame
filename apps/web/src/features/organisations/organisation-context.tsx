@@ -1,10 +1,14 @@
 import { createContext, use, useMemo, type ReactNode } from 'react';
 import type { MembershipSummary } from '@carbon/shared';
-import { canWriteHierarchy } from './permissions';
+import { canManageSettings, canWriteActivity, canWriteHierarchy } from './permissions';
 
 export interface ActiveOrganisation extends MembershipSummary {
   /** Display hint only; the API enforces the permission. */
   canWriteHierarchy: boolean;
+  /** Display hint only; the API enforces the permission. */
+  canWriteActivity: boolean;
+  /** Display hint only; the API enforces the permission. */
+  canManageSettings: boolean;
 }
 
 const OrganisationContext = createContext<ActiveOrganisation | null>(null);
@@ -17,7 +21,12 @@ export function OrganisationProvider({
   children: ReactNode;
 }) {
   const value = useMemo(
-    () => ({ ...membership, canWriteHierarchy: canWriteHierarchy(membership.roles) }),
+    () => ({
+      ...membership,
+      canWriteHierarchy: canWriteHierarchy(membership.roles),
+      canWriteActivity: canWriteActivity(membership.roles),
+      canManageSettings: canManageSettings(membership.roles),
+    }),
     [membership],
   );
   return <OrganisationContext value={value}>{children}</OrganisationContext>;
