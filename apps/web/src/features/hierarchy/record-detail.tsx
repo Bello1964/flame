@@ -147,7 +147,9 @@ export function RecordPageState({
   onRetry: () => void;
 }) {
   if (!error) return <RecordPageSkeleton label={`Loading ${label}`} />;
-  if (error instanceof ApiError && error.status === 404) {
+  // 400: the ID in the address isn't valid (e.g. hand-edited). For the user that is the
+  // same as a record that doesn't exist; retrying could never succeed.
+  if (error instanceof ApiError && (error.status === 404 || error.status === 400)) {
     return (
       <EmptyState
         title={`${label.charAt(0).toUpperCase()}${label.slice(1)} not found`}

@@ -19,9 +19,25 @@ export function membership(
   return { organisationId, organisationName: name, organisationSlug: name, roles };
 }
 
-export function sessionWith(memberships: MembershipSummary[]): SessionResponse {
+export const ADA = {
+  id: 'user-1',
+  email: 'ada@example.com',
+  name: 'Ada Obi',
+  isPlatformAdmin: false,
+};
+export const BAYO = {
+  id: 'user-2',
+  email: 'bayo@example.com',
+  name: 'Bayo Lawal',
+  isPlatformAdmin: false,
+};
+
+export function sessionWith(
+  memberships: MembershipSummary[],
+  user: SessionResponse['user'] = ADA,
+): SessionResponse {
   return {
-    user: { id: 'user-1', email: 'ada@example.com', name: 'Ada Obi', isPlatformAdmin: false },
+    user,
     memberships,
     csrfToken: 'csrf-123',
   };

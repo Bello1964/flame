@@ -13,7 +13,7 @@ function handleError(client: QueryClient, error: unknown): void {
 
   if (error.status === 401 && client.getQueryData(sessionQueryKey)) {
     replaceSession(client, null);
-    toast.info('Your session has ended. Sign in again to continue.');
+    toast.info('Your session has ended. Sign in again to continue.', { id: 'session-ended' });
     return;
   }
 

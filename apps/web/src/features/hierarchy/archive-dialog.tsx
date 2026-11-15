@@ -23,7 +23,8 @@ const CHILD_HINT: Record<HierarchyResource, string | null> = {
 };
 
 function archiveError(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403) {
+  // Only a permission refusal; other 403s (e.g. CSRF_REJECTED) have their own message.
+  if (error instanceof ApiError && error.status === 403 && error.code === 'FORBIDDEN') {
     return 'Your role does not allow archiving. Ask an organisation owner or administrator.';
   }
   return errorMessage(error);

@@ -45,11 +45,18 @@ export function withQuery(path: string, params: QueryParams = {}): string {
   return qs ? `${path}?${qs}` : path;
 }
 
+export interface GetOptions {
+  /** Non-2xx statuses that still carry a typed body (e.g. 503 from /health). */
+  acceptStatuses?: number[];
+  /** Aborts the request; pass TanStack Query's signal so cancelled queries stop. */
+  signal?: AbortSignal;
+}
+
 async function request<T>(
   method: Method,
   path: string,
   body?: unknown,
-  acceptStatuses: number[] = [],
+  { acceptStatuses = [], signal }: GetOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -60,6 +67,7 @@ async function request<T>(
     credentials: 'include',
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(signal ? { signal } : {}),
   });
 
   if (res.status === 204) return undefined as T;
@@ -74,12 +82,9 @@ async function request<T>(
   throw new ApiError(res.status, 'UNKNOWN_ERROR', 'The server returned an unexpected response');
 }
 
-/**
- * Fetch wrapper for the API. Sends cookies (session auth) and normalises errors.
- * Pass `acceptStatuses` for non-2xx responses that still carry a typed body.
- */
-export function apiGet<T>(path: string, acceptStatuses: number[] = []): Promise<T> {
-  return request<T>('GET', path, undefined, acceptStatuses);
+/** Fetch wrapper for the API. Sends cookies (session auth) and normalises errors. */
+export function apiGet<T>(path: string, options: GetOptions = {}): Promise<T> {
+  return request<T>('GET', path, undefined, options);
 }
 
 /** State-changing request. Attaches the session's CSRF token. */
@@ -104,6 +109,11 @@ export function fieldErrorsOf(error: unknown): Record<string, string[]> {
 }
 
 export function errorMessage(error: unknown): string {
+  // The security token no longer matched the session (e.g. it changed in another tab).
+  // The app fetches the current session automatically, so a retry succeeds.
+  if (error instanceof ApiError && error.code === 'CSRF_REJECTED') {
+    return 'Your session was refreshed, so this wasn’t saved. Please try again.';
+  }
   if (error instanceof ApiError) return error.message;
   return 'Could not reach the server. Check your connection and try again.';
 }

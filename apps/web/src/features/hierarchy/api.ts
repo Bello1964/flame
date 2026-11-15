@@ -14,7 +14,7 @@ import type {
   FlareType,
   ListResponse,
 } from '@carbon/shared';
-import { apiGet, apiSend, withQuery } from '@/lib/api-client';
+import { ApiError, apiGet, apiSend, withQuery } from '@/lib/api-client';
 
 export type HierarchyResource = 'facilities' | 'assets' | 'flare-sources';
 
@@ -103,15 +103,37 @@ export function firstPageParams(parent?: Pick<ListParams, 'facilityId' | 'assetI
   return { page: 1, pageSize: PAGE_SIZE, status: 'ACTIVE', ...parent };
 }
 
-function listQuery<R extends HierarchyResource>(
+/**
+ * Copies list rows into the record caches, so opening a record from a list renders at
+ * once. A row reflects the server as of when the list request *started*; a cached
+ * record written after that (e.g. by a save that finished while the list was in
+ * flight) is newer and is left alone.
+ */
+export function seedRecordCaches<R extends HierarchyResource>(
   client: QueryClient,
+  orgId: string,
+  resource: R,
+  records: DtoByResource[R][],
+  requestedAt: number,
+): void {
+  for (const record of records) {
+    const key = hierarchyKeys.detail(orgId, resource, record.id);
+    const cached = client.getQueryState(key);
+    if (cached?.data !== undefined && cached.dataUpdatedAt >= requestedAt) continue;
+    client.setQueryData(key, record, { updatedAt: requestedAt });
+  }
+}
+
+/** Exported for tests. */
+export function listQuery<R extends HierarchyResource>(
   orgId: string,
   resource: R,
   params: ListParams,
 ) {
   return queryOptions({
     queryKey: hierarchyKeys.list(orgId, resource, params),
-    queryFn: async () => {
+    queryFn: async ({ client, signal }) => {
+      const requestedAt = Date.now();
       const res = await apiGet<ListResponse<DtoByResource[R]>>(
         withQuery(base(orgId, resource), {
           page: params.page,
@@ -121,17 +143,11 @@ function listQuery<R extends HierarchyResource>(
           facilityId: params.facilityId,
           assetId: params.assetId,
         }),
+        { signal },
       );
-      // List rows are the same records the detail endpoint returns, so opening one
-      // renders immediately from cache. Newer cached copies are never overwritten.
-      const fetchedAt = Date.now();
-      for (const record of res.data) {
-        const key = hierarchyKeys.detail(orgId, resource, record.id);
-        const cached = client.getQueryState(key);
-        if (!cached?.data || cached.dataUpdatedAt < fetchedAt) {
-          client.setQueryData(key, record, { updatedAt: fetchedAt });
-        }
-      }
+      // A cancelled request (superseded, or the cache was cleared at sign-out) must not
+      // write anything back.
+      if (!signal.aborted) seedRecordCaches(client, orgId, resource, res.data, requestedAt);
       return res;
     },
   });
@@ -142,11 +158,19 @@ export function useHierarchyList<R extends HierarchyResource>(
   resource: R,
   params: ListParams,
 ) {
-  const client = useQueryClient();
   return useQuery({
-    ...listQuery(client, orgId, resource, params),
-    // Keep the current page visible while the next one loads, instead of flashing empty.
-    placeholderData: keepPreviousData,
+    ...listQuery(orgId, resource, params),
+    // While paging, searching or filtering, keep the current rows visible until the next
+    // ones arrive instead of flashing empty. Never across parents: moving from facility A
+    // to facility B must not show A's assets under B's heading.
+    placeholderData: (previous, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[4];
+      return previousParams &&
+        previousParams.facilityId === params.facilityId &&
+        previousParams.assetId === params.assetId
+        ? keepPreviousData(previous)
+        : undefined;
+    },
   });
 }
 
@@ -167,7 +191,7 @@ export function usePrefetchRecordPage() {
   return (orgId: string, resource: HierarchyResource, id: string) => {
     const child = CHILD_LIST[resource]?.(id);
     if (!child) return;
-    client.query(listQuery(client, orgId, child.resource, child.params)).catch(() => {
+    client.query(listQuery(orgId, child.resource, child.params)).catch(() => {
       // Best effort: the page fetches again on open and shows any error there.
     });
   };
@@ -182,14 +206,23 @@ export function useHierarchyRecord<R extends HierarchyResource>(
   return useQuery({
     queryKey: hierarchyKeys.detail(orgId, resource, id ?? ''),
     enabled: id !== undefined,
-    queryFn: async () =>
-      (
+    queryFn: async ({ signal }) => {
+      // Record IDs are UUIDs. A malformed ID (e.g. a hand-edited address) can't match
+      // any record, so answer "not found" without a request the API would reject.
+      if (!UUID_PATTERN.test(id ?? '')) {
+        throw new ApiError(404, 'NOT_FOUND', 'Resource not found');
+      }
+      return (
         await apiGet<DataResponse<DtoByResource[R]>>(
           `${base(orgId, resource)}/${encodeURIComponent(id ?? '')}`,
+          { signal },
         )
-      ).data,
+      ).data;
+    },
   });
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
