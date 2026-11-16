@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigation } from 'react-router';
 import { BrandLockup } from '@/components/brand';
-import { Activity, BookOpen, ClipboardCheck, Factory, Settings, ShieldCheck } from 'lucide-react';
+import {
+  Activity,
+  BarChart3,
+  BookOpen,
+  ClipboardCheck,
+  Factory,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
 import { preloadPage, type PageName } from '../lazy-pages';
@@ -49,6 +57,12 @@ export function AppLayout({
             icon: <Factory aria-hidden />,
             page: 'facilities',
           },
+          {
+            to: `${basePath}/reports`,
+            label: 'Reports',
+            icon: <BarChart3 aria-hidden />,
+            page: 'reports',
+          },
           ...(showReview
             ? [
                 {
@@ -92,9 +106,9 @@ export function AppLayout({
   const navigation = useNavigation();
 
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="min-h-dvh md:grid md:grid-cols-[16rem_minmax(0,1fr)] print:block">
       {navigation.state !== 'idle' && <RouteProgress />}
-      <aside className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:border-r md:border-b-0">
+      <aside className="print:hidden border-b border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:border-r md:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2 md:pt-4 md:pb-3">
           <Link
             to="/"
@@ -149,7 +163,7 @@ export function AppLayout({
         </div>
       </aside>
 
-      <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 md:px-8 md:py-8">
+      <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 md:px-8 md:py-8 print:max-w-none print:p-0">
         {/* Keyed by organisation so per-page state (filters, open dialogs) resets on switch. */}
         <Outlet key={basePath} />
       </main>
