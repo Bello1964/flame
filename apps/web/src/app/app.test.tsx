@@ -146,12 +146,12 @@ describe('organisation access', () => {
     expect(requests.some((r) => r.path.includes(ORG_B))).toBe(false);
   });
 
-  it('sends "/" to the first organisation', async () => {
+  it('sends "/app" (where signing in lands) to the first organisation', async () => {
     mockApi(
       signedInAs(membership(ORG_A, ['VIEWER']), membership(ORG_B, ['VIEWER'])),
       on('GET', `/organisations/${ORG_A}/facilities`, () => list([])),
     );
-    const { router } = renderApp('/');
+    const { router } = renderApp('/app');
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe(`/o/${ORG_A}/facilities`);
@@ -160,7 +160,7 @@ describe('organisation access', () => {
 
   it('explains when the user belongs to no organisation', async () => {
     mockApi(signedInAs());
-    renderApp('/');
+    renderApp('/app');
     expect(await screen.findByText('No organisation access yet')).toBeInTheDocument();
   });
 

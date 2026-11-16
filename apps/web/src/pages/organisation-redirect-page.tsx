@@ -4,7 +4,7 @@ import { EmptyState, FullPageState } from '@/components/page-state';
 import { useCurrentSession } from '@/features/auth/require-auth';
 import { useLogout } from '@/features/auth/session';
 
-/** "/" sends the user into their first organisation (memberships are sorted by name). */
+/** "/app" sends the user into their first organisation (memberships are sorted by name). */
 export function OrganisationRedirectPage() {
   const { memberships } = useCurrentSession();
   const logout = useLogout();

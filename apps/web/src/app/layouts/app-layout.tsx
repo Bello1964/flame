@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { NavLink, Outlet, useNavigation } from 'react-router';
+import { Link, NavLink, Outlet, useNavigation } from 'react-router';
+import { BrandLockup } from '@/components/brand';
 import { Activity, Factory, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
@@ -53,8 +54,13 @@ export function AppLayout({
       {navigation.state !== 'idle' && <RouteProgress />}
       <aside className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:border-r md:border-b-0">
         <div className="px-4 pt-4 pb-3">
-          <p className="text-sm font-semibold tracking-wide">Carbon Accounting</p>
-          <p className="text-xs opacity-70">Emissions management</p>
+          <Link
+            to="/"
+            className="inline-block rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+            aria-label="Flame home"
+          >
+            <BrandLockup subtitle="Emissions management" />
+          </Link>
         </div>
 
         {organisationSlot && <div className="px-2 pb-2">{organisationSlot}</div>}

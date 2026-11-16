@@ -75,11 +75,11 @@ describe('changedFields', () => {
 
 describe('safeRedirectPath', () => {
   it.each([
-    [null, '/'],
+    [null, '/app'],
     ['/o/1/facilities?q=x', '/o/1/facilities?q=x'],
-    ['//evil.example.com', '/'],
-    ['https://evil.example.com', '/'],
-    ['/\\evil.example.com', '/'],
+    ['//evil.example.com', '/app'],
+    ['https://evil.example.com', '/app'],
+    ['/\\evil.example.com', '/app'],
   ])('%s → %s', (input, expected) => {
     expect(safeRedirectPath(input)).toBe(expected);
   });

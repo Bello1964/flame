@@ -1,14 +1,14 @@
 
 ---
 name: ui-design
-description: Use this skill whenever designing, implementing, reviewing, or improving the Carbon Management Platform's frontend, visual identity, design system, dashboards, forms, tables, navigation, responsive layouts, accessibility, or user interactions.
+description: Use this skill whenever designing, implementing, reviewing, or improving Flame, the carbon management platform's frontend, visual identity, design system, dashboards, forms, tables, navigation, responsive layouts, accessibility, or user interactions.
 ---
 
 # UI Design
 
 ## When to use
 
-Use this skill whenever designing, implementing, reviewing, or improving any user-facing part of the Carbon Management Platform.
+Use this skill whenever designing, implementing, reviewing, or improving any user-facing part of Flame, the carbon management platform.
 
 This includes:
 
@@ -1013,4 +1013,4 @@ Avoid overcrowding the table or hiding important record information.
 - Do not make destructive actions visually indistinguishable from ordinary actions.
 - Do not implement controls without meaningful behaviour.
 
-**Final design principle:** The Carbon Management Platform should look like a premium, forward-looking environmental intelligence system: confident, precise, calm, technologically advanced, and trustworthy. Its visual sophistication must come from excellent composition, disciplined use of colour, typography, spacing, and subtle interaction—not excessive animation or decoration.
+**Final design principle:** Flame, the carbon management platform, should look like a premium, forward-looking environmental intelligence system: confident, precise, calm, technologically advanced, and trustworthy. Its visual sophistication must come from excellent composition, disciplined use of colour, typography, spacing, and subtle interaction—not excessive animation or decoration.

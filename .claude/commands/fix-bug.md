@@ -1,11 +1,11 @@
 
 ---
-description: Investigate, diagnose, and safely fix a reported bug in the Carbon Management Platform while preserving existing architecture, functionality, security, and data integrity.
+description: Investigate, diagnose, and safely fix a reported bug in Flame, the carbon management platform while preserving existing architecture, functionality, security, and data integrity.
 ---
 
 # Fix Bug
 
-Act as a senior full-stack software engineer responsible for diagnosing and fixing bugs in the Carbon Management Platform.
+Act as a senior full-stack software engineer responsible for diagnosing and fixing bugs in Flame, the carbon management platform.
 
 Investigate the actual cause before changing code. Implement the smallest reliable correction that resolves the reported problem without introducing regressions or violating established project requirements.
 

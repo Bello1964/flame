@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { BrandLockup } from '@/components/brand';
 
 /**
  * Loading placeholders shaped like the content they stand in for, so the page keeps its
@@ -164,13 +165,12 @@ export function RecordPageSkeleton({ label = 'Loading record' }: { label?: strin
 export function AppShellSkeleton() {
   return (
     <Busy
-      label="Loading Carbon Accounting"
+      label="Loading Flame"
       className="block min-h-dvh md:grid md:grid-cols-[16rem_minmax(0,1fr)]"
     >
       <div className="flex flex-col border-b border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-dvh md:border-r md:border-b-0">
         <div className="px-4 pt-4 pb-3">
-          <p className="text-sm font-semibold tracking-wide">Carbon Accounting</p>
-          <p className="text-xs opacity-70">Emissions management</p>
+          <BrandLockup subtitle="Emissions management" />
         </div>
         <div className="flex items-center gap-2 px-4 pb-3">
           <Skeleton className="size-4 bg-white/10" />

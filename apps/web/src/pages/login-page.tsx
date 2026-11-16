@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
+import { BrandLockup } from '@/components/brand';
 import { preloadAllPagesWhenIdle } from '@/app/lazy-pages';
 import { LoginFormSkeleton } from '@/components/skeletons';
 import { safeRedirectPath } from '@/features/auth/safe-redirect';
@@ -26,7 +27,13 @@ export function LoginPage() {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
       <aside className="hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
-        <p className="text-sm font-semibold tracking-wide">Carbon Accounting</p>
+        <Link
+          to="/"
+          className="self-start rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+          aria-label="Flame home"
+        >
+          <BrandLockup />
+        </Link>
         <div className="max-w-md space-y-3">
           <p className="text-2xl leading-snug font-semibold">
             Activity data, emissions and evidence for gas-flaring operations, in one accountable
@@ -42,9 +49,9 @@ export function LoginPage() {
       <main className="flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm space-y-6">
           <header className="space-y-1">
-            <p className="text-sm font-semibold tracking-wide text-primary lg:hidden">
-              Carbon Accounting
-            </p>
+            <Link to="/" className="inline-block lg:hidden" aria-label="Flame home">
+              <BrandLockup tone="light" />
+            </Link>
             <h1 className="text-2xl font-semibold">Sign in</h1>
             <p className="text-sm text-muted-foreground">Use your organisation account.</p>
           </header>

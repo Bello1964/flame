@@ -4,6 +4,7 @@ import { RequireAuth } from '@/features/auth/require-auth';
 import { OrganisationLayout } from './layouts/organisation-layout';
 import { RouteErrorPage } from './route-error-page';
 import { pages } from './lazy-pages';
+import { LandingPage } from '@/pages/landing-page';
 import { LoginPage } from '@/pages/login-page';
 import { OrganisationRedirectPage } from '@/pages/organisation-redirect-page';
 import { NotFoundPage } from '@/pages/not-found-page';
@@ -14,12 +15,15 @@ import { NotFoundPage } from '@/pages/not-found-page';
  * lazy-pages.ts), preloaded in the background once the user reaches sign-in or the shell.
  */
 export const routes: RouteObject[] = [
+  // Public: everyone can read the landing page, signed in or not.
+  { path: '/', element: <LandingPage />, errorElement: <RouteErrorPage /> },
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
     element: <RequireAuth />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <OrganisationRedirectPage /> },
+      // Where signing in lands: the user's first organisation.
+      { path: 'app', element: <OrganisationRedirectPage /> },
       {
         path: 'o/:organisationId',
         element: <OrganisationLayout />,
