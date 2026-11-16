@@ -493,3 +493,23 @@ describe('the app shell on narrow screens', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('the methodology registry navigation', () => {
+  it('sits in the app shell with a way back to the organisation', async () => {
+    mockApi(
+      signedInAs(['ORGANISATION_OWNER'], true),
+      on('GET', '/admin/methodology/editions', () => list([])),
+    );
+    renderApp('/admin/methodology');
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('link', { name: 'Methodology registry' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: 'Facilities' })).toHaveAttribute(
+      'href',
+      `/o/${ORG_A}/facilities`,
+    );
+    expect(screen.getAllByRole('button', { name: 'Account: Ada Obi' }).length).toBeGreaterThan(0);
+  });
+});

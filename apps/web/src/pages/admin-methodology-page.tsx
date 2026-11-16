@@ -19,7 +19,6 @@ import {
 } from '@/features/methodology/api';
 import { ActionDialog } from '@/features/activity/workflow-actions';
 import type { ActionConfig } from '@/features/activity/workflow-config';
-import { PublicShell } from './methodology-page';
 
 const APPROVE: ActionConfig = {
   label: 'Approve edition',
@@ -62,7 +61,7 @@ export function AdminMethodologyPage() {
 
   if (!user.isPlatformAdmin) {
     return (
-      <PublicShell>
+      <div className="space-y-6">
         <EmptyState
           title="For Platform Administrators only"
           description="The methodology registry is maintained by Platform Administrators. Everyone can read the published editions."
@@ -72,7 +71,7 @@ export function AdminMethodologyPage() {
             </Button>
           }
         />
-      </PublicShell>
+      </div>
     );
   }
   return editionId ? <AdminEdition id={editionId} /> : <AdminEditionList />;
@@ -85,7 +84,7 @@ function AdminEditionList() {
   const hasDraft = editions.data?.some((e) => e.status === 'DRAFT') ?? false;
 
   return (
-    <PublicShell>
+    <div className="space-y-6">
       <div className="space-y-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold">Methodology registry</h1>
@@ -141,7 +140,7 @@ function AdminEditionList() {
           </ul>
         )}
       </div>
-    </PublicShell>
+    </div>
   );
 }
 
@@ -155,16 +154,16 @@ function AdminEdition({ id }: { id: string }) {
 
   if (edition.isPending) {
     return (
-      <PublicShell>
+      <div className="space-y-6">
         <LoadingState label="Loading the edition" />
-      </PublicShell>
+      </div>
     );
   }
   if (edition.isError) {
     return (
-      <PublicShell>
+      <div className="space-y-6">
         <ErrorState error={edition.error} onRetry={() => void edition.refetch()} />
-      </PublicShell>
+      </div>
     );
   }
   const e = edition.data;
@@ -218,7 +217,7 @@ function AdminEdition({ id }: { id: string }) {
   );
 
   return (
-    <PublicShell>
+    <div className="space-y-6">
       <p className="mb-4 text-sm">
         <Link to="/admin/methodology" className="text-primary underline-offset-4 hover:underline">
           ← Methodology registry
@@ -294,6 +293,6 @@ function AdminEdition({ id }: { id: string }) {
           }}
         />
       )}
-    </PublicShell>
+    </div>
   );
 }

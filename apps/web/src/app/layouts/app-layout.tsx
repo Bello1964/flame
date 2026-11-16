@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
 import { preloadPage, type PageName } from '../lazy-pages';
 
-interface NavItem {
+export interface NavItem {
   to: string;
   label: string;
   icon: ReactNode;
@@ -25,6 +25,7 @@ export function AppLayout({
   basePath,
   showReview = false,
   isPlatformAdmin = false,
+  items,
 }: {
   organisationSlot?: ReactNode;
   /** The organisation as a compact menu, for the narrow top bar. */
@@ -35,55 +36,59 @@ export function AppLayout({
   showReview?: boolean;
   /** Show the methodology registry administration. A display aid only. */
   isPlatformAdmin?: boolean;
+  /** Navigation for pages outside an organisation (e.g. platform administration). */
+  items?: NavItem[];
 }) {
-  const nav: NavItem[] = basePath
-    ? [
-        {
-          to: `${basePath}/facilities`,
-          label: 'Facilities',
-          icon: <Factory aria-hidden />,
-          page: 'facilities',
-        },
-        ...(showReview
-          ? [
-              {
-                to: `${basePath}/review`,
-                label: 'Review',
-                icon: <ClipboardCheck aria-hidden />,
-                page: 'review' as const,
-              },
-            ]
-          : []),
-        {
-          to: `${basePath}/methodology`,
-          label: 'Methodology',
-          icon: <BookOpen aria-hidden />,
-          page: 'methodology',
-        },
-        ...(isPlatformAdmin
-          ? [
-              {
-                to: '/admin/methodology',
-                label: 'Methodology registry',
-                icon: <ShieldCheck aria-hidden />,
-                page: 'adminMethodology' as const,
-              },
-            ]
-          : []),
-        {
-          to: `${basePath}/settings`,
-          label: 'Settings',
-          icon: <Settings aria-hidden />,
-          page: 'settings',
-        },
-        {
-          to: `${basePath}/system`,
-          label: 'System status',
-          icon: <Activity aria-hidden />,
-          page: 'system',
-        },
-      ]
-    : [];
+  const nav: NavItem[] =
+    items ??
+    (basePath
+      ? [
+          {
+            to: `${basePath}/facilities`,
+            label: 'Facilities',
+            icon: <Factory aria-hidden />,
+            page: 'facilities',
+          },
+          ...(showReview
+            ? [
+                {
+                  to: `${basePath}/review`,
+                  label: 'Review',
+                  icon: <ClipboardCheck aria-hidden />,
+                  page: 'review' as const,
+                },
+              ]
+            : []),
+          {
+            to: `${basePath}/methodology`,
+            label: 'Methodology',
+            icon: <BookOpen aria-hidden />,
+            page: 'methodology',
+          },
+          ...(isPlatformAdmin
+            ? [
+                {
+                  to: '/admin/methodology',
+                  label: 'Methodology registry',
+                  icon: <ShieldCheck aria-hidden />,
+                  page: 'adminMethodology' as const,
+                },
+              ]
+            : []),
+          {
+            to: `${basePath}/settings`,
+            label: 'Settings',
+            icon: <Settings aria-hidden />,
+            page: 'settings',
+          },
+          {
+            to: `${basePath}/system`,
+            label: 'System status',
+            icon: <Activity aria-hidden />,
+            page: 'system',
+          },
+        ]
+      : []);
   const navigation = useNavigation();
 
   return (

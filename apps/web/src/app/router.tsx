@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AppShellSkeleton } from '@/components/skeletons';
 import { RequireAuth } from '@/features/auth/require-auth';
+import { AdminLayout } from './layouts/admin-layout';
 import { OrganisationLayout } from './layouts/organisation-layout';
 import { RouteErrorPage } from './route-error-page';
 import { pages } from './lazy-pages';
@@ -35,14 +36,25 @@ export const routes: RouteObject[] = [
     children: [
       // Where signing in lands: the user's first organisation.
       { path: 'app', element: <OrganisationRedirectPage /> },
-      // Platform administration: the methodology registry (no organisation data).
+      // Platform administration: the methodology registry (no organisation data), inside
+      // the app shell so administrators can always navigate on.
       {
-        path: 'admin/methodology',
-        lazy: async () => ({ Component: (await pages.adminMethodology()).AdminMethodologyPage }),
-      },
-      {
-        path: 'admin/methodology/:editionId',
-        lazy: async () => ({ Component: (await pages.adminMethodology()).AdminMethodologyPage }),
+        element: <AdminLayout />,
+        hydrateFallbackElement: <AppShellSkeleton />,
+        children: [
+          {
+            path: 'admin/methodology',
+            lazy: async () => ({
+              Component: (await pages.adminMethodology()).AdminMethodologyPage,
+            }),
+          },
+          {
+            path: 'admin/methodology/:editionId',
+            lazy: async () => ({
+              Component: (await pages.adminMethodology()).AdminMethodologyPage,
+            }),
+          },
+        ],
       },
       {
         path: 'o/:organisationId',
