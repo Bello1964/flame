@@ -136,25 +136,32 @@ URL shape: `/api/v1/organisations/:organisationId/<resource>`. Organisation-owne
 
 Implemented endpoints (all under `/api/v1`):
 
-| Method      | Path                                                                                                                                           | Permission                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| POST        | `/auth/login`                                                                                                                                  | public, rate-limited      |
-| GET         | `/auth/session`                                                                                                                                | signed in                 |
-| POST        | `/auth/logout`, `/auth/logout-all`                                                                                                             | signed in                 |
-| GET         | `/organisations/:organisationId`                                                                                                               | `organisation:read`       |
-| GET         | `/organisations/:organisationId/{facilities,assets,flare-sources}` (paged, `q`, `status`, parent filter)                                       | `hierarchy:read`          |
-| GET         | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:read`          |
-| POST        | `/organisations/:organisationId/{facilities,assets,flare-sources}`                                                                             | `hierarchy:write`         |
-| PATCH       | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:write`         |
-| POST        | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id/archive`                                                                 | `hierarchy:write`         |
-| GET         | `/organisations/:organisationId/activity-records` (paged; `status` = a status, `CURRENT` (default) or `ALL`; `claimedBy=me`; `sort=submitted`) | `activity:read`           |
-| GET         | `/organisations/:organisationId/activity-records/:id`, `/:id/history`                                                                          | `activity:read`           |
-| POST, PATCH | `/organisations/:organisationId/activity-records`, `/:id`, `/:id/withdraw`                                                                     | `activity:write`          |
-| POST        | `/organisations/:organisationId/activity-records/:id/{submit,recall}`                                                                          | `activity:submit`         |
-| POST        | `/organisations/:organisationId/activity-records/:id/{start-review,forward}`                                                                   | `activity:review`         |
-| POST        | `/organisations/:organisationId/activity-records/:id/{approve,reject}`                                                                         | `activity:approve`        |
-| POST        | `/organisations/:organisationId/activity-records/:id/{return,release-claim}`, `/bulk`                                                          | decided per record (§7.1) |
-| POST        | `/organisations/:organisationId/activity-records/:id/revise`                                                                                   | `activity:write`          |
+| Method           | Path                                                                                                                                           | Permission                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| POST             | `/auth/login`                                                                                                                                  | public, rate-limited                   |
+| GET              | `/auth/session`                                                                                                                                | signed in                              |
+| POST             | `/auth/logout`, `/auth/logout-all`                                                                                                             | signed in                              |
+| GET              | `/organisations/:organisationId`                                                                                                               | `organisation:read`                    |
+| GET              | `/organisations/:organisationId/{facilities,assets,flare-sources}` (paged, `q`, `status`, parent filter)                                       | `hierarchy:read`                       |
+| GET              | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:read`                       |
+| POST             | `/organisations/:organisationId/{facilities,assets,flare-sources}`                                                                             | `hierarchy:write`                      |
+| PATCH            | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:write`                      |
+| POST             | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id/archive`                                                                 | `hierarchy:write`                      |
+| GET              | `/organisations/:organisationId/activity-records` (paged; `status` = a status, `CURRENT` (default) or `ALL`; `claimedBy=me`; `sort=submitted`) | `activity:read`                        |
+| GET              | `/organisations/:organisationId/activity-records/:id`, `/:id/history`                                                                          | `activity:read`                        |
+| POST, PATCH      | `/organisations/:organisationId/activity-records`, `/:id`, `/:id/withdraw`                                                                     | `activity:write`                       |
+| POST             | `/organisations/:organisationId/activity-records/:id/{submit,recall}`                                                                          | `activity:submit`                      |
+| POST             | `/organisations/:organisationId/activity-records/:id/{start-review,forward}`                                                                   | `activity:review`                      |
+| POST             | `/organisations/:organisationId/activity-records/:id/{approve,reject}`                                                                         | `activity:approve`                     |
+| POST             | `/organisations/:organisationId/activity-records/:id/{return,release-claim}`, `/bulk`                                                          | decided per record (§7.1)              |
+| POST             | `/organisations/:organisationId/activity-records/:id/revise`                                                                                   | `activity:write`                       |
+| GET, POST        | `/organisations/:organisationId/flare-sources/:id/{gas-compositions,flare-efficiencies}`                                                       | `activity:read` / `activity:write`     |
+| POST             | `/organisations/:organisationId/{gas-compositions,flare-efficiencies}/:id/withdraw`                                                            | `activity:write`                       |
+| GET, POST        | `/organisations/:organisationId/activity-records/:id/calculations`                                                                             | `calculation:read` / `calculation:run` |
+| GET              | `/organisations/:organisationId/calculations[/:id[/history]]` (`status`, `claimedBy=me`, `sort=submitted`)                                     | `calculation:read`                     |
+| POST             | `/organisations/:organisationId/calculations/:id/{submit,recall,discard,start-review,release-claim,forward,approve,reject}`                    | decided per calculation (§8.1)         |
+| GET              | `/methodology/editions[/:id]`                                                                                                                  | public                                 |
+| GET, POST, PATCH | `/admin/methodology/editions[/:id[/draft,/approve,/withdraw,/parameters/:key]]`                                                                | Platform Administrator                 |
 
 Records are archived, never deleted. Archived records are read-only, cannot receive new children, and a parent cannot be archived while it has active children. A child cannot be moved to another parent.
 
@@ -162,18 +169,25 @@ Records are archived, never deleted. Archived records are read-only, cannot rece
 
 Data Entry Officer, Reviewer, Approver, Administrator, Organisation Owner, Viewer (per organisation, users may hold several) and Platform Administrator (platform-level, no implicit tenant data access). Initial permission matrix (`apps/api/src/modules/organisations/permissions.ts`), extended per module:
 
-| Permission               | Owner | Administrator | Approver | Reviewer | Data Entry | Viewer |
-| ------------------------ | ----- | ------------- | -------- | -------- | ---------- | ------ |
-| `organisation:read`      | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `hierarchy:read`         | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `hierarchy:write`        | ✓     | ✓             |          |          |            |        |
-| `organisation:settings`  | ✓     | ✓             |          |          |            |        |
-| `activity:read`          | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `activity:write`         | ✓     | ✓             |          |          | ✓          |        |
-| `activity:submit`        | ✓     | ✓             |          |          | ✓          |        |
-| `activity:review`        | ✓     |               |          | ✓        |            |        |
-| `activity:approve`       | ✓     |               | ✓        |          |            |        |
-| `activity:release-claim` | ✓     |               |          |          |            |        |
+| Permission                  | Owner | Administrator | Approver | Reviewer | Data Entry | Viewer |
+| --------------------------- | ----- | ------------- | -------- | -------- | ---------- | ------ |
+| `organisation:read`         | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `hierarchy:read`            | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `hierarchy:write`           | ✓     | ✓             |          |          |            |        |
+| `organisation:settings`     | ✓     | ✓             |          |          |            |        |
+| `activity:read`             | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `activity:write`            | ✓     | ✓             |          |          | ✓          |        |
+| `activity:submit`           | ✓     | ✓             |          |          | ✓          |        |
+| `activity:review`           | ✓     |               |          | ✓        |            |        |
+| `activity:approve`          | ✓     |               | ✓        |          |            |        |
+| `activity:release-claim`    | ✓     |               |          |          |            |        |
+| `calculation:read`          | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `calculation:run`           | ✓     | ✓             |          |          | ✓          |        |
+| `calculation:review`        | ✓     |               |          | ✓        |            |        |
+| `calculation:approve`       | ✓     |               | ✓        |          |            |        |
+| `calculation:release-claim` | ✓     |               |          |          |            |        |
+
+Gas analyses and flare efficiency records use `activity:read` and `activity:write`. The methodology registry is platform-level: approved editions are public, and only Platform Administrators (`users.isPlatformAdmin`) draft, edit, approve and withdraw editions; that grants no access to any organisation's data.
 
 Roles combine: an Administrator who should review or approve also holds the Reviewer or Approver role. On top of the matrix, separation of duties is decided per record (§7.1).
 
@@ -232,11 +246,28 @@ Decisions confirmed with the product owner on 2026-11-16.
 
 ## 8. Calculation integrity
 
-Each calculation result stores: emission-factor identifiers and versions, factor sources, methodology and version, GWP values and source, original and standardised inputs, assumptions, formula, calculation timestamp and calculation version.
+**Implemented** (Milestone 3, §8.1). Each calculation result stores: emission-factor identifiers and versions, factor sources, methodology and version, GWP values and source, original and standardised inputs, assumptions, formula, calculation timestamp and calculation version.
 
 - Recalculation creates a new version; historical results are never overwritten.
 - Calculations are blocked when inputs required by the methodology are missing.
 - No hardcoded factors. The illustrative "1 MMscf ≈ 55 tCO2e" figure must not be used as an approved factor.
+
+### 8.1 Emissions calculations and the methodology registry (Milestone 3)
+
+Decisions confirmed with the product owner on 2026-11-16, built on the reference in `.claude/skills/flare-calculator-helper/SKILL.md`. The values were checked against the source documents before use: IPCC 2006 Vol. 2 Ch. 4 (current corrected PDF), API Compendium (2009) §4.6, and the GHG Protocol's tabulation of AR5 GWPs.
+
+- **Methodology editions.** Every rule and number lives in a numbered edition of the methodology `flame-flaring-venting` (`methodology_editions`, `methodology_parameters`), not in code. An edition holds the overview, each route's formulas, every decision with its reason and references, the limitations, and every number with its source organisation, document, edition, page/table/equation, URL and the date it was checked. Edition 1 is loaded by the migration as a **draft**; nothing can be calculated until a Platform Administrator approves an edition.
+- **Who maintains it.** Platform Administrators. One prepares a draft (from an approved or superseded edition); a different one approves it. Anyone who created or edited a draft (read from the audit log) can't approve it; a CHECK constraint also stops the creator approving. Approving supersedes the previous edition, which stays published. Approved, superseded and withdrawn editions never change (trigger, even for the schema owner); only drafts are edited or withdrawn. One draft per methodology at a time. Every value must be greater than zero and a percentage at most 100, checked on each edit and again at approval. While no edition has ever been approved, a draft may be started from a withdrawn one (so withdrawing edition 1 is never a dead end).
+- **Public.** Approved and superseded editions (never drafts or withdrawn ones, and without naming the administrators involved) are readable without signing in at `/methodology` (API `GET /methodology/editions[/:id]`), so users, auditors and regulators can see how every figure is produced. Each decision and number has an anchor; a calculation's trace links to the exact number in the edition it used.
+- **Edition 1 numbers.** 42.3 × 10⁻³ kmol/m³ (IPCC p. 4.45; the exact ideal-gas value is not used, so results match IPCC's own arithmetic); molecular weights CH₄ 16.043, CO₂ 44.011; carbon numbers 1–5 (C₆+ from the analysis, no default); API defaults 98% carbon conversion, 2% uncombusted CH₄ for production and 0.5% for refinery flares; IPCC reference-case factors CO₂ 2.0, CH₄ 0.012, N₂O 0.000023 Gg per 10⁶ m³ flared (Tables 4.2.4/4.2.5 footnote e; the N₂O value was checked in four places and confirmed by the product owner); AR5 100-year GWPs CO₂ 1, CH₄ 28, N₂O 265 (the AR5 fossil-methane value 30 is not used); exact unit conversions.
+- **Routes.** _Composition flaring_ (primary): CO₂ from the hydrocarbon carbon converted at the efficiency plus the CO₂ already in the gas (API Eq. 4-15), unburned CH₄ (API Eq. 4-16), N₂O from the IPCC factor per volume flared. _IPCC reference-case flaring_: the three factors per volume flared, only with a recorded reason, labelled Estimated. _Composition venting_: all CH₄ and CO₂ in the gas, no combustion, no N₂O; gas through an unlit flare is recorded as venting. Production-based IPCC Tier 2 and "other gas release" are not offered.
+- **Inputs.** _Gas analyses_ per flare source: sample date, report reference, the date from which they apply, mole % of 12 components, C₆+ carbon number required when C₆+ > 0; the total must be 100% ± 0.5% as entered and is never rescaled. _Flare efficiency_ per flare source: measured test (with test date) or vendor specification (carbon-to-CO₂ % and uncombusted-CH₄ %), or a design requirement such as NUPRC's 98% DRE, which is recorded but never used as performance. Flare sources are marked **production** or **refinery**, which decides the default. Inputs are never edited; a correction is a new record and a mistaken one is withdrawn with a reason. A calculation uses the latest active record valid on or before the period start, and refuses when a different record starts inside the period.
+- **Running a calculation.** One calculation per **approved** activity record (`POST /activity-records/:id/calculations`, `calculation:run`), using the approved edition. Volume: the record's standardised total volume, else its derived volume; a rate without operating hours can't be calculated. The person running it chooses the route and, for composition flaring, the flare's recorded efficiency or the methodology default. Missing inputs return 409 `CALCULATION_BLOCKED` with a list of what is needed; nothing is assumed. Arithmetic: 40 significant digits; results stored to 20 decimal places.
+- **What a calculation keeps** (immutable; trigger): the edition, route, inputs snapshot (activity values, analysis, efficiency, and every edition parameter used with its source), the step-by-step trace (formula, substituted values, each value's origin or parameter key, result), engine version, CO₂, CH₄, N₂O (null for venting) in tonnes and tCO₂e, the data-quality label and its reasons.
+- **Data quality.** _Measured basis_ only when the activity was measured, the composition measured and (for flaring) the efficiency tested or vendor-specified; otherwise _Estimated_, with the reasons listed. The label always appears next to the figure. tCO₂e is labelled as emissions, never as carbon credits.
+- **Versions and review.** One open calculation per record (partial unique index). States: Calculated → Submitted → Under Review (claimed) → Awaiting Approval → Approved; Rejected (final, reason) and Discarded (before submission, reason). A correction is a new version; approving a version supersedes the previously approved one. Three-person rule: whoever ran or submitted it can't review or approve it, and its reviewer can't approve it (403 `SEPARATION_OF_DUTIES`). A calculation of an activity record that has since been revised is flagged and can't be approved (approval locks the record, so it can't race the revision's approval). A CHECK stops the person who ran a calculation being recorded as its approver, and the submission time and review claim change only on the transitions that set them. Every step is in `calculation_events` (append-only) and the audit log.
+- **Interface.** Flare source page: gas analyses and flare efficiency. Approved activity record: its calculation versions and _Calculate emissions_. Calculation page: result, quality reasons, inputs, the step-by-step trace with links into the methodology edition, actions and history. Review page: calculation queues. `/methodology` (public) and `/admin/methodology` (Platform Administrators).
+- **Out of scope.** Reports and period totals, NUPRC templates, uncertainty, evidence uploads, the production-based route, other gas releases.
 
 ## 9. Audit logging
 
@@ -288,5 +319,5 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
 - User invitation and membership management flow.
 - OpenAPI documentation generation for the implemented endpoints.
 - When to add PostgreSQL RLS.
-- Initial methodology and emission-factor sources for gas flaring (must come from documented, sourced references).
+- Methodology and emission-factor sources resolved 2026-11-16 (§8.1, edition 1); later changes are new editions.
 - Object-storage provider confirmation.

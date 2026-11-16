@@ -23,6 +23,7 @@ import {
   SelectRowCheckbox,
 } from '@/features/activity/bulk-actions';
 import { periodLabel } from '@/features/activity/labels';
+import { CalculationQueues } from '@/features/calculations/calculation-queues';
 import { useSelection } from '@/features/activity/use-selection';
 
 const PAGE_SIZE = 25;
@@ -96,8 +97,11 @@ export function ReviewPage() {
   );
   const [params, setParams] = useSearchParams();
   const current = queues.find((q) => q.id === params.get('queue')) ?? queues[0];
+  const canCalculations = organisation.canReviewCalculation || organisation.canApproveCalculation;
+  const kind =
+    params.get('kind') === 'calculations' && canCalculations ? 'calculations' : 'records';
 
-  if (!current) {
+  if (!current && !canCalculations) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Review</h1>
@@ -114,30 +118,65 @@ export function ReviewPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Review</h1>
         <p className="text-sm text-muted-foreground">
-          Activity records moving from submission to approval. Only approved records will feed
-          official reports.
+          Activity records and emissions calculations moving from submission to approval. Only
+          approved records and calculations will feed official reports.
         </p>
       </header>
 
-      <div
-        role="tablist"
-        aria-label="Review queues"
-        className="flex gap-1 overflow-x-auto border-b"
-      >
-        {queues.map((q) => (
-          <QueueTab
-            key={q.id}
-            orgId={orgId}
-            queue={q}
-            selected={q.id === current.id}
-            onSelect={() => {
-              setParams({ queue: q.id }, { replace: true });
-            }}
-          />
-        ))}
-      </div>
+      {canCalculations && (
+        <div
+          className="inline-flex rounded-md border p-0.5"
+          role="group"
+          aria-label="What to review"
+        >
+          {(
+            [
+              ['records', 'Activity records'],
+              ['calculations', 'Calculations'],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={kind === value ? 'default' : 'ghost'}
+              aria-pressed={kind === value}
+              onClick={() => {
+                setParams(value === 'records' ? {} : { kind: value }, { replace: true });
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
 
-      <QueuePanel key={current.id} orgId={orgId} queue={current} />
+      {kind === 'calculations' ? (
+        <CalculationQueues />
+      ) : !current ? (
+        <EmptyState title="Your roles don’t include reviewing or approving activity data" />
+      ) : (
+        <>
+          <div
+            role="tablist"
+            aria-label="Review queues"
+            className="flex gap-1 overflow-x-auto border-b"
+          >
+            {queues.map((q) => (
+              <QueueTab
+                key={q.id}
+                orgId={orgId}
+                queue={q}
+                selected={q.id === current.id}
+                onSelect={() => {
+                  setParams({ queue: q.id }, { replace: true });
+                }}
+              />
+            ))}
+          </div>
+
+          <QueuePanel key={current.id} orgId={orgId} queue={current} />
+        </>
+      )}
     </div>
   );
 }

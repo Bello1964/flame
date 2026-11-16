@@ -11,6 +11,7 @@ import type {
   DataResponse,
   FacilityDto,
   FlareSourceDto,
+  FlareService,
   FlareType,
   ListResponse,
 } from '@flame/shared';
@@ -62,6 +63,7 @@ export interface FlareSourceCreateBody {
   name: string;
   code: string;
   flareType?: FlareType | null;
+  flareService?: FlareService | null;
   description?: string | null;
 }
 

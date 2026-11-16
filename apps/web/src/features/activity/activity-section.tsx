@@ -36,7 +36,7 @@ export function ActivitySection({
     <section className="space-y-3">
       <SectionHeader
         title="Gas activity"
-        description="Operational quantities only: no emissions are calculated yet."
+        description="Operational quantities. Emissions are calculated from approved records, on each record's page."
         action={addButton}
       />
       <ActivityList

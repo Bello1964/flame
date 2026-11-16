@@ -2,8 +2,11 @@ import { createContext, use, useMemo, type ReactNode } from 'react';
 import type { MembershipSummary } from '@flame/shared';
 import {
   canApproveActivity,
+  canApproveCalculation,
   canManageSettings,
   canReviewActivity,
+  canReviewCalculation,
+  canRunCalculation,
   canWriteActivity,
   canWriteHierarchy,
 } from './permissions';
@@ -19,6 +22,10 @@ export interface ActiveOrganisation extends MembershipSummary {
   canReviewActivity: boolean;
   /** Display hint only; separation of duties is decided per record by the API. */
   canApproveActivity: boolean;
+  /** Display hints only; the API decides per calculation. */
+  canRunCalculation: boolean;
+  canReviewCalculation: boolean;
+  canApproveCalculation: boolean;
 }
 
 const OrganisationContext = createContext<ActiveOrganisation | null>(null);
@@ -38,6 +45,9 @@ export function OrganisationProvider({
       canManageSettings: canManageSettings(membership.roles),
       canReviewActivity: canReviewActivity(membership.roles),
       canApproveActivity: canApproveActivity(membership.roles),
+      canRunCalculation: canRunCalculation(membership.roles),
+      canReviewCalculation: canReviewCalculation(membership.roles),
+      canApproveCalculation: canApproveCalculation(membership.roles),
     }),
     [membership],
   );

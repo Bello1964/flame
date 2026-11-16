@@ -15,6 +15,14 @@ import { AuthService } from './modules/auth/auth.service.js';
 import { SessionService } from './modules/auth/session.service.js';
 import { activityRouter } from './modules/activity/activity.routes.js';
 import { workflowRouter } from './modules/workflow/workflow.routes.js';
+import { calculationsRouter } from './modules/calculations/calculations.routes.js';
+import { CalculationsService } from './modules/calculations/calculations.service.js';
+import { InputsService } from './modules/calculations/inputs.service.js';
+import {
+  methodologyAdminRouter,
+  methodologyPublicRouter,
+} from './modules/methodology/methodology.routes.js';
+import { MethodologyService } from './modules/methodology/methodology.service.js';
 import { WorkflowService } from './modules/workflow/workflow.service.js';
 import { ActivityService } from './modules/activity/activity.service.js';
 import { facilitiesRouter } from './modules/facilities/facilities.routes.js';
@@ -51,6 +59,9 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const activity = new ActivityService(prisma);
   const settings = new SettingsService(prisma);
   const workflow = new WorkflowService(prisma, activity, logger);
+  const methodology = new MethodologyService(prisma);
+  const inputs = new InputsService(prisma);
+  const calculations = new CalculationsService(prisma, methodology);
 
   app.use(
     `${API}/health`,
@@ -75,6 +86,10 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
 
   app.use(`${API}/auth`, authRouter(auth, sessions, config));
 
+  // Published methodology editions are public; drafts and approval are platform-level.
+  app.use(`${API}/methodology`, methodologyPublicRouter(methodology));
+  app.use(`${API}/admin/methodology`, methodologyAdminRouter(methodology));
+
   // Organisation-scoped API: auth → verified membership → per-route permission.
   const orgScoped = Router({ mergeParams: true });
   orgScoped.use(requireAuth, requireOrganisation(prisma));
@@ -82,6 +97,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   orgScoped.use(facilitiesRouter(facilities));
   orgScoped.use(activityRouter(activity, settings));
   orgScoped.use(workflowRouter(workflow));
+  orgScoped.use(calculationsRouter(calculations, inputs));
   app.use(`${API}/organisations/:organisationId`, orgScoped);
 
   app.use(notFoundHandler);

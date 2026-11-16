@@ -19,7 +19,12 @@ import { errorMessage } from '@/lib/api-client';
 import { formatDate } from '@/lib/format';
 import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useReviseActivity, useWorkflowAction } from './api';
-import { ACTION_CONFIG, blockedOverlaps, type WorkflowAction } from './workflow-config';
+import {
+  ACTION_CONFIG,
+  blockedOverlaps,
+  type ActionConfig,
+  type WorkflowAction,
+} from './workflow-config';
 
 /** Order of the buttons: decisions first, then the quieter options. */
 const ORDER: WorkflowAction[] = [
@@ -143,7 +148,7 @@ export function WorkflowActions({ record }: { record: ActivityRecordDto }) {
       {inlineError !== null && <ActionError error={inlineError} />}
       {open !== null && (
         <ActionDialog
-          action={open}
+          config={ACTION_CONFIG[open]}
           pending={busy}
           error={open === 'revise' ? revise.error : transition.error}
           onCancel={() => {
@@ -160,14 +165,15 @@ export function WorkflowActions({ record }: { record: ActivityRecordDto }) {
 
 /** Confirmation with an optional or required comment, kept in the record history. */
 export function ActionDialog({
-  action,
+  config,
   pending,
   error,
   onCancel,
   onConfirm,
   count,
 }: {
-  action: WorkflowAction;
+  /** The step's wording (label, tone and dialog text). */
+  config: ActionConfig;
   pending: boolean;
   error: unknown;
   onCancel: () => void;
@@ -175,7 +181,6 @@ export function ActionDialog({
   /** For bulk actions: how many records the action applies to. */
   count?: number;
 }) {
-  const config = ACTION_CONFIG[action];
   const dialog = config.dialog;
   const [comment, setComment] = useState('');
   const [touched, setTouched] = useState(false);

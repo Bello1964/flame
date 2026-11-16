@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 import {
   Ban,
@@ -388,7 +389,11 @@ export function LandingFooter() {
         <BrandLockup tone="light" />
         <p className="max-w-xl">
           Emissions figures are not carbon credits. {PRODUCT_NAME} does not claim regulatory
-          compliance or independent verification.
+          compliance or independent verification.{' '}
+          <Link to="/methodology" className="text-primary underline-offset-4 hover:underline">
+            Read how emissions are calculated
+          </Link>
+          .
         </p>
         <p>
           © {new Date().getFullYear()} {PRODUCT_NAME}

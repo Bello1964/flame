@@ -1,3 +1,4 @@
+import type { FlareService } from './calculations.js';
 export type RecordStatus = 'ACTIVE' | 'ARCHIVED';
 
 export const FLARE_TYPES = ['ELEVATED', 'GROUND', 'ENCLOSED', 'OTHER'] as const;
@@ -34,4 +35,6 @@ export interface AssetDto extends HierarchyRecord {
 export interface FlareSourceDto extends HierarchyRecord {
   assetId: string;
   flareType: FlareType | null;
+  /** Production or refinery service; decides which methodology defaults may apply. */
+  flareService: FlareService | null;
 }

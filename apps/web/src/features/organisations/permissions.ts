@@ -21,6 +21,18 @@ export function canApproveActivity(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'activity:approve');
 }
 
+export function canRunCalculation(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'calculation:run');
+}
+
+export function canReviewCalculation(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'calculation:review');
+}
+
+export function canApproveCalculation(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'calculation:approve');
+}
+
 export function canManageSettings(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'organisation:settings');
 }

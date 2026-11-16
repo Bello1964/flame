@@ -7,6 +7,7 @@ import type { AppConfig } from '../config/env.js';
 import { createLogger } from '../lib/logger.js';
 import { createPrismaClient } from '../lib/prisma.js';
 import { hashPassword } from '../modules/auth/password.js';
+import { readFileSync } from 'node:fs';
 import { inject } from 'vitest';
 import { testDatabaseUrl } from './test-database.js';
 
@@ -51,8 +52,10 @@ export async function resetDatabase(): Promise<void> {
   await ownerPrisma.$transaction([
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events DISABLE TRIGGER activity_record_events_no_truncate`,
-    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
+    ownerPrisma.$executeRaw`ALTER TABLE calculation_events DISABLE TRIGGER calculation_events_no_truncate`,
+    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, calculation_events, methodology_editions, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events ENABLE TRIGGER activity_record_events_no_truncate`,
+    ownerPrisma.$executeRaw`ALTER TABLE calculation_events ENABLE TRIGGER calculation_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_no_truncate`,
   ]);
 }
@@ -106,3 +109,36 @@ export async function login(app: Express, email: string, password = PASSWORD): P
 }
 
 export { CSRF_HEADER };
+
+/**
+ * Loads methodology edition 1 (as a draft) exactly as the migration does, by running the
+ * migration's own seed statements. resetDatabase removes it (editions reference users).
+ */
+export async function seedMethodology(): Promise<string> {
+  const sql = readFileSync(
+    new URL(
+      '../../prisma/migrations/20261116210000_emissions_calculations/migration.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const start = sql.indexOf('INSERT INTO "methodology_editions"');
+  const end = sql.lastIndexOf('COMMIT;');
+  const statements = sql
+    .slice(start, end)
+    .split(/;\s*\n(?=INSERT)/)
+    .map((s) => s.trim().replace(/;$/, ''));
+  for (const statement of statements) await ownerPrisma.$executeRawUnsafe(statement);
+  const edition = await ownerPrisma.methodologyEdition.findFirstOrThrow({ where: { edition: 1 } });
+  return edition.id;
+}
+
+/** Seeds edition 1 and approves it as the given Platform Administrator (via the database). */
+export async function approvedMethodology(approverId: string): Promise<string> {
+  const id = await seedMethodology();
+  await ownerPrisma.methodologyEdition.update({
+    where: { id },
+    data: { status: 'APPROVED', approvedAt: new Date(), approvedById: approverId },
+  });
+  return id;
+}

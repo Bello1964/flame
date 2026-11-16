@@ -34,5 +34,5 @@ export function toAssetDto(a: Asset): AssetDto {
 }
 
 export function toFlareSourceDto(s: FlareSource): FlareSourceDto {
-  return { ...base(s), assetId: s.assetId, flareType: s.flareType };
+  return { ...base(s), assetId: s.assetId, flareType: s.flareType, flareService: s.flareService };
 }

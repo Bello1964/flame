@@ -184,7 +184,7 @@ export function BulkActionBar({ selection }: { selection: Selection }) {
       )}
       {dialog !== null && (
         <ActionDialog
-          action={dialog}
+          config={ACTION_CONFIG[dialog]}
           count={targets(dialog).length}
           pending={bulk.isPending}
           error={bulk.error}

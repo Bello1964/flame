@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FLARE_TYPES } from '@flame/shared';
+import { FLARE_SERVICES, FLARE_TYPES } from '@flame/shared';
 
 const name = z.string().trim().min(1).max(200);
 const code = z
@@ -99,6 +99,8 @@ export const flareSourceCreateSchema = z.strictObject({
   name,
   code,
   flareType: z.enum(FLARE_TYPES).nullable().optional(),
+  /** Production or refinery service (decides which methodology defaults may apply). */
+  flareService: z.enum(FLARE_SERVICES).nullable().optional(),
   description: description.optional(),
 });
 

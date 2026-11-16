@@ -14,6 +14,7 @@ export const source: FlareSourceDto = {
   code: 'HP-1',
   description: null,
   flareType: 'ELEVATED',
+  flareService: null,
   status: 'ACTIVE',
   archivedAt: null,
   createdById: 'user-1',

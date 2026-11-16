@@ -54,14 +54,26 @@ describe('facility form schema', () => {
 });
 
 describe('flare source form', () => {
-  it('maps "not recorded" flare type to null', () => {
+  it('maps "not recorded" flare type and service to null', () => {
     const values = flareSourceFormSchema.parse({
       name: 'Stack 1',
       code: 'S1',
       flareType: 'NONE',
+      flareService: 'NONE',
       description: '',
     });
-    expect(toApi.flareSource(values).flareType).toBeNull();
+    expect(toApi.flareSource(values)).toMatchObject({ flareType: null, flareService: null });
+  });
+
+  it('sends the flare service when chosen', () => {
+    const values = flareSourceFormSchema.parse({
+      name: 'Stack 1',
+      code: 'S1',
+      flareType: 'ELEVATED',
+      flareService: 'REFINERY',
+      description: '',
+    });
+    expect(toApi.flareSource(values).flareService).toBe('REFINERY');
   });
 });
 

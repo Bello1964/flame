@@ -27,6 +27,14 @@ export const PERMISSIONS = {
   'activity:approve': ['ORGANISATION_OWNER', 'APPROVER'],
   // Release another reviewer's claim. A reviewer can always release their own.
   'activity:release-claim': ['ORGANISATION_OWNER'],
+  // Emissions calculations (ARCHITECTURAL_WORKFLOW.md §8.1), with the same separation of
+  // duties: whoever ran or submitted a calculation can't review or approve it, and its
+  // reviewer can't approve it.
+  'calculation:read': ROLES,
+  'calculation:run': ['ORGANISATION_OWNER', 'ADMINISTRATOR', 'DATA_ENTRY_OFFICER'],
+  'calculation:review': ['ORGANISATION_OWNER', 'REVIEWER'],
+  'calculation:approve': ['ORGANISATION_OWNER', 'APPROVER'],
+  'calculation:release-claim': ['ORGANISATION_OWNER'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
