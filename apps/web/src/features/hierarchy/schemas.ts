@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FLARE_TYPES, type FlareType } from '@carbon/shared';
+import { FLARE_TYPES, type FlareType } from '@flame/shared';
 
 /**
  * Client-side form validation mirroring the API's schemas

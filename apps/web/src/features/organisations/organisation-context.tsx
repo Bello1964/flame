@@ -1,5 +1,5 @@
 import { createContext, use, useMemo, type ReactNode } from 'react';
-import type { MembershipSummary } from '@carbon/shared';
+import type { MembershipSummary } from '@flame/shared';
 import { canManageSettings, canWriteActivity, canWriteHierarchy } from './permissions';
 
 export interface ActiveOrganisation extends MembershipSummary {

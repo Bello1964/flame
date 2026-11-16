@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/format';
 import { StatusBadge } from './status-badge';
 import { NotRecorded } from './record-list';
-import type { RecordStatus } from '@carbon/shared';
+import type { RecordStatus } from '@flame/shared';
 
 export interface Crumb {
   /** Null while the name is still loading; a placeholder shape is shown instead. */

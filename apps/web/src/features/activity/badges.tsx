@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, FileText, Flame, Wind } from 'lucide-react';
-import type { ActivityRecordStatus, ActivityType, ActivityWarning } from '@carbon/shared';
+import type { ActivityRecordStatus, ActivityType, ActivityWarning } from '@flame/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ACTIVITY_TYPE_LABELS, isFlaring } from './labels';

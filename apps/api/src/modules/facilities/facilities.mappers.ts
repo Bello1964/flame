@@ -1,4 +1,4 @@
-import type { AssetDto, FacilityDto, FlareSourceDto } from '@carbon/shared';
+import type { AssetDto, FacilityDto, FlareSourceDto } from '@flame/shared';
 import type { Asset, Facility, FlareSource } from '../../generated/prisma/client.js';
 
 /** Explicit response shapes: only listed fields leave the API; decimals become exact strings. */

@@ -1,5 +1,5 @@
 {
-  "name": "@carbon/api",
+  "name": "@flame/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "db:create-app-user": "tsx --env-file-if-exists=.env scripts/create-app-user.ts"
   },
   "dependencies": {
-    "@carbon/shared": "^0.1.0",
+    "@flame/shared": "^0.1.0",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "argon2": "^0.45.2",

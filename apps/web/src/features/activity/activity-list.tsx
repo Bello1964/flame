@@ -6,7 +6,7 @@ import {
   VOLUME_UNIT_LABELS,
   type ActivityRecordDto,
   type ActivityType,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import {

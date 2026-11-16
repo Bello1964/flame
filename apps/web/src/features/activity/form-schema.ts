@@ -9,7 +9,7 @@ import {
   VOLUME_UNITS,
   type ActivityRecordDto,
   type OrganisationSettingsDto,
-} from '@carbon/shared';
+} from '@flame/shared';
 import type { ActivityFields } from './api';
 import { isCanonicalCondition } from './labels';
 

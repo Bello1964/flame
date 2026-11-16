@@ -5,7 +5,7 @@ import type {
   MeasurementMethod,
   PressureUnit,
   TemperatureUnit,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { formatDate } from '@/lib/format';
 
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { RequestHandler } from 'express';
-import { CSRF_HEADER } from '@carbon/shared';
+import { CSRF_HEADER } from '@flame/shared';
 import { AppError } from '../lib/errors.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

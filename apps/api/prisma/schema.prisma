@@ -1,5 +1,5 @@
-// Prisma schema for the Flame API (internal package @carbon/api).
-// Every schema change must go through `npm run prisma:migrate -w @carbon/api`.
+// Prisma schema for the Flame API (internal package @flame/api).
+// Every schema change must go through `npm run prisma:migrate -w @flame/api`.
 // See docs/architecture/ARCHITECTURAL_WORKFLOW.md.
 
 generator client {

@@ -1,7 +1,7 @@
 import request from 'supertest';
 import type { Express } from 'express';
 import type { Role } from '../generated/prisma/client.js';
-import { CSRF_HEADER, type DataResponse, type SessionResponse } from '@carbon/shared';
+import { CSRF_HEADER, type DataResponse, type SessionResponse } from '@flame/shared';
 import { createApp, type AppDependencies } from '../app.js';
 import type { AppConfig } from '../config/env.js';
 import { createLogger } from '../lib/logger.js';
@@ -10,7 +10,7 @@ import { hashPassword } from '../modules/auth/password.js';
 import { inject } from 'vitest';
 import { testDatabaseUrl } from './test-database.js';
 
-/** Connected as the restricted carbon_app login, exactly like the API in production. */
+/** Connected as the restricted flame_app login, exactly like the API in production. */
 export const prisma = createPrismaClient(inject('appDatabaseUrl'));
 /** Connected as the schema owner. Only for resetting the database between tests. */
 export const ownerPrisma = createPrismaClient(testDatabaseUrl());
@@ -23,7 +23,7 @@ export const testConfig: AppConfig = {
   webOrigin: WEB_ORIGIN,
   trustProxy: 0,
   session: {
-    cookieName: 'carbon_sid',
+    cookieName: 'flame_sid',
     secureCookie: false,
     idleTimeoutMs: 60 * 60_000,
     absoluteTimeoutMs: 12 * 3_600_000,

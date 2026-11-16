@@ -23,7 +23,7 @@ beforeEach(async () => {
 
 function sessionCookie(setCookie: string[] | string | undefined): string {
   const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
-  const cookie = cookies.find((c) => c.startsWith('carbon_sid='));
+  const cookie = cookies.find((c) => c.startsWith('flame_sid='));
   if (!cookie) throw new Error('No session cookie set');
   return cookie;
 }
@@ -333,7 +333,7 @@ describe('sessions', () => {
   it('rejects a forged or unknown cookie', async () => {
     const res = await request(app)
       .get('/api/v1/auth/session')
-      .set('Cookie', 'carbon_sid=forged-token-value');
+      .set('Cookie', 'flame_sid=forged-token-value');
     expect(res.status).toBe(401);
   });
 

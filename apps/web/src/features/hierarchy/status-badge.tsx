@@ -1,5 +1,5 @@
 import { Archive, CircleCheck } from 'lucide-react';
-import type { RecordStatus } from '@carbon/shared';
+import type { RecordStatus } from '@flame/shared';
 import { Badge } from '@/components/ui/badge';
 
 /** Status as text plus icon, never colour alone. */

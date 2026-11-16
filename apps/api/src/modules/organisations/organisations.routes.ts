@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { DataResponse } from '@carbon/shared';
+import type { DataResponse } from '@flame/shared';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import { organisationOf, requirePermission } from '../../middleware/organisation-context.js';
 

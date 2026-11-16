@@ -1,5 +1,5 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
-import { DUPLICATE_ERROR_CODE } from '@carbon/shared';
+import { DUPLICATE_ERROR_CODE } from '@flame/shared';
 import { ApiError, errorMessage, fieldErrorsOf } from '@/lib/api-client';
 
 /** Fields named by a 409 DUPLICATE response; empty when none are named. */

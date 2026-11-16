@@ -14,7 +14,7 @@ import type {
   RateUnit,
   TemperatureUnit,
   VolumeUnit,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { apiGet, apiSend, withQuery } from '@/lib/api-client';
 
 export type ActivityStatusFilter = 'DRAFT' | 'WITHDRAWN' | 'ALL';

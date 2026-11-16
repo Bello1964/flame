@@ -1,4 +1,4 @@
-import { OVERLAP_UNCONFIRMED_CODE, type OverlapErrorDetails } from '@carbon/shared';
+import { OVERLAP_UNCONFIRMED_CODE, type OverlapErrorDetails } from '@flame/shared';
 import type { ActivityRecord, Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { AppError, conflict, notFound } from '../../lib/errors.js';
 import { exact } from '../../lib/decimal.js';

@@ -7,7 +7,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { DataResponse, SessionResponse } from '@carbon/shared';
+import type { DataResponse, SessionResponse } from '@flame/shared';
 import { ApiError, apiGet, apiSend, setCsrfToken } from '@/lib/api-client';
 
 export const sessionQueryKey = ['session'] as const;

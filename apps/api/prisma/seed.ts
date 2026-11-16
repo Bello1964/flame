@@ -3,7 +3,7 @@
  * Creates no operational or emissions data. Refuses to run in production.
  *
  * Required env: SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD (min 12 chars).
- * Run: npm run db:seed -w @carbon/api
+ * Run: npm run db:seed -w @flame/api
  */
 import { createPrismaClient } from '../src/lib/prisma.js';
 import { hashPassword } from '../src/modules/auth/password.js';

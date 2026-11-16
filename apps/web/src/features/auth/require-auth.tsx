@@ -1,6 +1,6 @@
 import { createContext, use } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
-import type { SessionResponse } from '@carbon/shared';
+import type { SessionResponse } from '@flame/shared';
 import { ErrorState, FullPageState } from '@/components/page-state';
 import { AppShellSkeleton } from '@/components/skeletons';
 import { useSession } from './session';

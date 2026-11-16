@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
-import type { MembershipSummary, SessionResponse } from '@carbon/shared';
+import type { MembershipSummary, SessionResponse } from '@flame/shared';
 import { unauthorized } from '../../lib/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { verifyAgainstDummy, verifyPassword } from './password.js';

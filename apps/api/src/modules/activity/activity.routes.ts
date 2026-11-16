@@ -4,7 +4,7 @@ import type {
   DataResponse,
   ListResponse,
   OrganisationSettingsDto,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { authOf, parse } from '../../lib/request.js';
 import { organisationOf, requirePermission } from '../../middleware/organisation-context.js';
 import type { Actor } from '../facilities/facilities.service.js';

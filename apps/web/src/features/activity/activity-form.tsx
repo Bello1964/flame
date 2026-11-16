@@ -18,7 +18,7 @@ import {
   VOLUME_UNITS,
   type ActivityRecordDto,
   type OrganisationSettingsDto,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

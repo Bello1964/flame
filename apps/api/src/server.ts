@@ -10,7 +10,7 @@ const prisma = createPrismaClient(env.DATABASE_URL);
 
 const config = toAppConfig(env);
 
-// The API must connect as a restricted carbon_app login, never as the schema owner.
+// The API must connect as a restricted flame_app login, never as the schema owner.
 try {
   await assertRestrictedAppRole(prisma, logger, config.isProduction);
 } catch (err) {

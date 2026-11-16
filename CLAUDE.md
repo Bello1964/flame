@@ -1,6 +1,6 @@
 # Project Overview
 
-- **Product:** **Flame**, a multi-tenant enterprise carbon accounting and carbon-credit commerce system. "Flame" is the name people see; internal identifiers (packages `@carbon/*`, databases, cookie) keep their current names for now.
+- **Product:** **Flame**, a multi-tenant enterprise carbon accounting and carbon-credit commerce system. Internal identifiers use the same name: packages `@flame/*`, databases `flame` / `flame_test`, app role `flame_app`, cookie `flame_sid`.
 - **Initial market:** Nigeria and West Africa, targeting oil and gas organisations.
 - **Initial product:** An enterprise carbon-management platform focused on gas-flaring activity data and emissions accounting.
 - **Purpose:** Manage operational activity data, calculate greenhouse gas emissions, maintain supporting evidence, generate reports, and manage emissions-reduction activities.

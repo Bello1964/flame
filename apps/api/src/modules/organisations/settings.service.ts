@@ -1,4 +1,4 @@
-import type { OrganisationSettingsDto } from '@carbon/shared';
+import type { OrganisationSettingsDto } from '@flame/shared';
 import type { Organisation, PrismaClient } from '../../generated/prisma/client.js';
 import { AppError } from '../../lib/errors.js';
 import { exact } from '../../lib/decimal.js';

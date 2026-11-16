@@ -8,7 +8,7 @@ import {
   RATE_UNITS,
   TEMPERATURE_UNITS,
   VOLUME_UNITS,
-} from '@carbon/shared';
+} from '@flame/shared';
 
 /**
  * Validation of activity-record input. Rules: ARCHITECTURAL_WORKFLOW.md §4.1.

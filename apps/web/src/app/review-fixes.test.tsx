@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import type { AssetDto } from '@carbon/shared';
+import type { AssetDto } from '@flame/shared';
 import {
   facility,
   list,

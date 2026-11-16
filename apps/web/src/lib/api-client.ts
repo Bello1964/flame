@@ -1,4 +1,4 @@
-import { CSRF_HEADER, type ApiErrorBody } from '@carbon/shared';
+import { CSRF_HEADER, type ApiErrorBody } from '@flame/shared';
 
 export class ApiError extends Error {
   constructor(

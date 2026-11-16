@@ -13,7 +13,7 @@ import type {
   FlareSourceDto,
   FlareType,
   ListResponse,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { ApiError, apiGet, apiSend, withQuery } from '@/lib/api-client';
 
 export type HierarchyResource = 'facilities' | 'assets' | 'flare-sources';
