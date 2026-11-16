@@ -14,6 +14,11 @@ export const PERMISSIONS = {
   'organisation:read': ROLES,
   'hierarchy:read': ROLES,
   'hierarchy:write': ['ORGANISATION_OWNER', 'ADMINISTRATOR'],
+  // Default reference condition and other organisation-level settings.
+  'organisation:settings': ['ORGANISATION_OWNER', 'ADMINISTRATOR'],
+  'activity:read': ROLES,
+  // Create, edit and withdraw draft activity records (ARCHITECTURAL_WORKFLOW.md §4.1).
+  'activity:write': ['ORGANISATION_OWNER', 'ADMINISTRATOR', 'DATA_ENTRY_OFFICER'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

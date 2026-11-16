@@ -59,6 +59,7 @@ export function facility(overrides: Partial<FacilityDto> = {}): FacilityDto {
     country: 'NG',
     latitude: null,
     longitude: null,
+    timeZone: 'Africa/Lagos',
     ...overrides,
   };
 }

@@ -17,3 +17,31 @@ const count = new Intl.NumberFormat('en-GB');
 export function formatCount(n: number): string {
   return count.format(n);
 }
+
+/**
+ * A decimal string for display, with at most `maxDecimals` decimal places and no
+ * trailing zeros. Display only: the API's exact value is never replaced by this.
+ */
+export function formatDecimal(value: string, maxDecimals = 6): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  const smallest = 10 ** -maxDecimals;
+  // Never show a non-zero value as 0: say how small it is instead.
+  if (n !== 0 && Math.abs(n) < smallest) {
+    return `${n < 0 ? '> −' : '< '}${smallest.toFixed(maxDecimals)}`;
+  }
+  return new Intl.NumberFormat('en-GB', { maximumFractionDigits: maxDecimals }).format(n);
+}
+
+/** "2026-01-10" → "10 Jan 2026" (a calendar date, no time-zone shift). */
+export function formatDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  return Number.isNaN(d.getTime())
+    ? isoDate
+    : new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(d);
+}

@@ -21,6 +21,8 @@ interface RecordFormDialogProps {
   isDirty: boolean;
   /** For edits: nothing to save until a field changes. */
   requireChanges?: boolean;
+  /** Wider dialog for long forms. */
+  wide?: boolean;
   formError: string | null;
   onSubmit: (e: SyntheticEvent<HTMLFormElement>) => void;
   children: ReactNode;
@@ -35,6 +37,7 @@ export function RecordFormDialog({
   submitting,
   isDirty,
   requireChanges = false,
+  wide = false,
   formError,
   onSubmit,
   children,
@@ -50,7 +53,11 @@ export function RecordFormDialog({
         if (!submitting) onOpenChange(next);
       }}
     >
-      <DialogContent onInteractOutside={guard} onEscapeKeyDown={guard} className="sm:max-w-xl">
+      <DialogContent
+        onInteractOutside={guard}
+        onEscapeKeyDown={guard}
+        className={wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

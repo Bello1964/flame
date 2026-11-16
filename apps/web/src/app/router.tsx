@@ -45,6 +45,14 @@ export const routes: RouteObject[] = [
             lazy: async () => ({ Component: (await pages.flareSource()).FlareSourcePage }),
           },
           {
+            path: 'activity-records/:recordId',
+            lazy: async () => ({ Component: (await pages.activityRecord()).ActivityRecordPage }),
+          },
+          {
+            path: 'settings',
+            lazy: async () => ({ Component: (await pages.settings()).SettingsPage }),
+          },
+          {
             path: 'system',
             lazy: async () => ({ Component: (await pages.system()).HomePage }),
           },

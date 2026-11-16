@@ -43,6 +43,18 @@ export const facilityFormSchema = z.object({
     .regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code, e.g. NG'),
   latitude: coordinate(90),
   longitude: coordinate(180),
+  timeZone: z
+    .string()
+    .trim()
+    .min(1, 'Enter a time zone')
+    .refine((v) => {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: v });
+        return v.includes('/') || v === 'UTC';
+      } catch {
+        return false;
+      }
+    }, 'Use an IANA time zone such as Africa/Lagos'),
 });
 
 export const assetFormSchema = z.object({ name, code, assetType: shortText, description });
@@ -84,6 +96,7 @@ export const toApi = {
     // Coordinates stay strings so no precision is lost before the API stores them as decimals.
     latitude: textOrNull(v.latitude),
     longitude: textOrNull(v.longitude),
+    timeZone: v.timeZone.trim(),
   }),
   asset: (v: AssetFormValues) => ({
     name: v.name.trim(),

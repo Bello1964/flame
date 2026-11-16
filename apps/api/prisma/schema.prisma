@@ -40,6 +40,11 @@ model User {
   createdAssets       Asset[]       @relation("AssetCreatedBy")
   createdFlareSources FlareSource[] @relation("FlareSourceCreatedBy")
 
+  createdActivityRecords   ActivityRecord[] @relation("ActivityRecordCreatedBy")
+  updatedActivityRecords   ActivityRecord[] @relation("ActivityRecordUpdatedBy")
+  withdrawnActivityRecords ActivityRecord[] @relation("ActivityRecordWithdrawnBy")
+  acknowledgedOverlaps     ActivityRecord[] @relation("ActivityRecordOverlapAcknowledgedBy")
+
   @@map("users")
 }
 
@@ -73,21 +78,33 @@ enum OrganisationStatus {
 }
 
 model Organisation {
-  id        String             @id @default(uuid(7)) @db.Uuid
-  name      String             @db.VarChar(200)
+  id                              String             @id @default(uuid(7)) @db.Uuid
+  name                            String             @db.VarChar(200)
   /// URL-safe unique identifier.
-  slug      String             @unique @db.VarChar(100)
+  slug                            String             @unique @db.VarChar(100)
   /// ISO 3166-1 alpha-2.
-  country   String             @default("NG") @db.Char(2)
-  status    OrganisationStatus @default(ACTIVE)
-  createdAt DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+  country                         String             @default("NG") @db.Char(2)
+  status                          OrganisationStatus @default(ACTIVE)
+  /// Default source reference condition that prefills new activity records. Initially
+  /// ISO 13443 (15 °C, 101.325 kPa absolute). See ARCHITECTURAL_WORKFLOW.md §4.1.
+  defaultReferenceTemperature     Decimal            @default(15) @db.Decimal(30, 10)
+  defaultReferenceTemperatureUnit TemperatureUnit    @default(CELSIUS)
+  defaultReferencePressure        Decimal            @default(101.325) @db.Decimal(30, 10)
+  defaultReferencePressureUnit    PressureUnit       @default(KPA_ABS)
+  /// Compressibility factors for the default condition (at it, and at ISO 13443) with their
+  /// source. Only when the default differs from ISO 13443; they prefill matching records.
+  defaultZSource                  Decimal?           @db.Decimal(12, 6)
+  defaultZReference               Decimal?           @db.Decimal(12, 6)
+  defaultCompressibilitySource    String?            @db.VarChar(500)
+  createdAt                       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt                       DateTime           @updatedAt @db.Timestamptz(3)
 
-  memberships  Membership[]
-  facilities   Facility[]
-  assets       Asset[]
-  flareSources FlareSource[]
-  auditLogs    AuditLog[]
+  memberships     Membership[]
+  facilities      Facility[]
+  assets          Asset[]
+  flareSources    FlareSource[]
+  activityRecords ActivityRecord[]
+  auditLogs       AuditLog[]
 
   @@map("organisations")
 }
@@ -146,6 +163,8 @@ model Facility {
   country        String       @default("NG") @db.Char(2)
   latitude       Decimal?     @db.Decimal(9, 6)
   longitude      Decimal?     @db.Decimal(9, 6)
+  /// IANA time zone that defines activity days and periods at this facility.
+  timeZone       String       @default("Africa/Lagos") @db.VarChar(64)
   status         RecordStatus @default(ACTIVE)
   archivedAt     DateTime?    @db.Timestamptz(3)
   createdById    String       @db.Uuid
@@ -210,13 +229,164 @@ model FlareSource {
   createdAt      DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
 
-  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  asset        Asset        @relation(fields: [organisationId, assetId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy    User         @relation("FlareSourceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organisation    Organisation     @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset           Asset            @relation(fields: [organisationId, assetId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User             @relation("FlareSourceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  activityRecords ActivityRecord[]
 
   @@unique([organisationId, code])
+  @@unique([organisationId, id])
   @@index([organisationId, assetId])
   @@map("flare_sources")
+}
+
+// ─── Gas activity data (Milestone 2) ─────────────────────────────────────────
+// Operational quantities only; no emissions are calculated from these records yet.
+// Rules: docs/architecture/ARCHITECTURAL_WORKFLOW.md §4.1.
+
+enum ActivityRecordKind {
+  DAILY
+  PERIOD
+}
+
+enum ActivityType {
+  ROUTINE_FLARING
+  NON_ROUTINE_FLARING
+  EMERGENCY_FLARING
+  VENTING
+  OTHER_RELEASE
+}
+
+enum MeasurementBasis {
+  MEASURED
+  ESTIMATED
+}
+
+enum MeasurementMethod {
+  METERED
+  CALCULATED
+  ENGINEERING_ESTIMATE
+  OTHER
+}
+
+enum ActivityDataSource {
+  MANUAL
+}
+
+enum ActivityRecordStatus {
+  DRAFT
+  WITHDRAWN
+}
+
+enum RateUnit {
+  MMSCF_PER_DAY
+  SM3_PER_DAY
+  MMSM3_PER_DAY
+}
+
+enum VolumeUnit {
+  MMSCF
+  BCF
+  SM3
+  MMSM3
+}
+
+enum TemperatureUnit {
+  CELSIUS
+  FAHRENHEIT
+  KELVIN
+}
+
+/// Absolute pressure only; gauge pressure is not accepted.
+enum PressureUnit {
+  KPA_ABS
+  BAR_ABS
+  PSIA
+}
+
+model ActivityRecord {
+  id                   String             @id @default(uuid(7)) @db.Uuid
+  organisationId       String             @db.Uuid
+  flareSourceId        String             @db.Uuid
+  kind                 ActivityRecordKind
+  activityType         ActivityType
+  /// Required for OTHER_RELEASE.
+  otherTypeDescription String?            @db.VarChar(500)
+  /// Inclusive local dates in timeZone. A daily record has periodStart = periodEnd.
+  periodStart          DateTime           @db.Date
+  periodEnd            DateTime           @db.Date
+  /// The facility's time zone when the record was saved.
+  timeZone             String             @db.VarChar(64)
+
+  // Quantities as submitted: exact decimal plus the text exactly as entered.
+  averageRate         Decimal?    @db.Decimal(30, 10)
+  averageRateInput    String?     @db.VarChar(40)
+  rateUnit            RateUnit?
+  totalVolume         Decimal?    @db.Decimal(30, 10)
+  totalVolumeInput    String?     @db.VarChar(40)
+  volumeUnit          VolumeUnit?
+  operatingHours      Decimal?    @db.Decimal(30, 10)
+  operatingHoursInput String?     @db.VarChar(40)
+
+  // Source reference condition (absolute) and compressibility factors.
+  referenceTemperature      Decimal         @db.Decimal(30, 10)
+  referenceTemperatureInput String          @db.VarChar(40)
+  referenceTemperatureUnit  TemperatureUnit
+  referencePressure         Decimal         @db.Decimal(30, 10)
+  referencePressureInput    String          @db.VarChar(40)
+  referencePressureUnit     PressureUnit
+  /// Required when the source condition differs from the canonical one.
+  zSource                   Decimal?        @db.Decimal(12, 6)
+  zSourceInput              String?         @db.VarChar(40)
+  zReference                Decimal?        @db.Decimal(12, 6)
+  zReferenceInput           String?         @db.VarChar(40)
+  /// Where the Z values come from (e.g. the organisation default's source). Only with Z.
+  compressibilitySource     String?         @db.VarChar(500)
+
+  measurementBasis    MeasurementBasis
+  /// Required when ESTIMATED.
+  estimateExplanation String?            @db.VarChar(2000)
+  measurementMethod   MeasurementMethod
+  /// Required when OTHER.
+  methodDescription   String?            @db.VarChar(500)
+  dataSource          ActivityDataSource @default(MANUAL)
+  notes               String?            @db.VarChar(2000)
+
+  // Standardised to the canonical condition (ISO 13443), computed server-side at save.
+  standardRateMmscfd  Decimal? @db.Decimal(40, 20)
+  standardVolumeMmscf Decimal? @db.Decimal(40, 20)
+  /// rate × operatingHours / 24, only when both are present.
+  derivedVolumeMmscf  Decimal? @db.Decimal(40, 20)
+  /// (P_src / P_ref) × (T_ref / T_src) × (Z_ref / Z_src); 1 at the canonical condition.
+  correctionFactor    Decimal  @db.Decimal(40, 20)
+  conversionVersion   String   @db.VarChar(40)
+  /// Formula, constants and absolute inputs used, for reproduction.
+  conversionDetails   Json
+  standardisedAt      DateTime @db.Timestamptz(3)
+
+  status                  ActivityRecordStatus @default(DRAFT)
+  withdrawnAt             DateTime?            @db.Timestamptz(3)
+  withdrawnById           String?              @db.Uuid
+  withdrawalReason        String?              @db.VarChar(2000)
+  /// Set when the user saved despite an overlap warning.
+  overlapAcknowledgedAt   DateTime?            @db.Timestamptz(3)
+  overlapAcknowledgedById String?              @db.Uuid
+
+  createdById String   @db.Uuid
+  updatedById String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  organisation          Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  flareSource           FlareSource  @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy             User         @relation("ActivityRecordCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy             User         @relation("ActivityRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  withdrawnBy           User?        @relation("ActivityRecordWithdrawnBy", fields: [withdrawnById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  overlapAcknowledgedBy User?        @relation("ActivityRecordOverlapAcknowledgedBy", fields: [overlapAcknowledgedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organisationId, flareSourceId, activityType, periodStart])
+  @@index([organisationId, status])
+  @@map("activity_records")
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ const FIELDS = [
   'country',
   'latitude',
   'longitude',
+  'timeZone',
 ] as const satisfies readonly (keyof FacilityFormValues)[];
 
 function defaultsFrom(record?: FacilityDto): FacilityFormValues {
@@ -31,6 +32,7 @@ function defaultsFrom(record?: FacilityDto): FacilityFormValues {
     country: record?.country ?? 'NG',
     latitude: record?.latitude ?? '',
     longitude: record?.longitude ?? '',
+    timeZone: record?.timeZone ?? 'Africa/Lagos',
   };
 }
 
@@ -145,6 +147,22 @@ export function FacilityFormDialog({
           )}
         </FormField>
       </div>
+      <FormField
+        label="Time zone"
+        required
+        description="IANA name, e.g. Africa/Lagos. Defines the calendar day of activity records at this facility."
+        error={errors.timeZone?.message}
+      >
+        {(c) => (
+          <Input
+            autoComplete="off"
+            spellCheck={false}
+            className="sm:max-w-xs"
+            {...c}
+            {...register('timeZone')}
+          />
+        )}
+      </FormField>
       <FormField label="Description" error={errors.description?.message}>
         {(c) => <Textarea rows={3} {...c} {...register('description')} />}
       </FormField>

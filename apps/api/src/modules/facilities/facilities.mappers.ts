@@ -25,6 +25,7 @@ export function toFacilityDto(f: Facility): FacilityDto {
     country: f.country,
     latitude: f.latitude?.toString() ?? null,
     longitude: f.longitude?.toString() ?? null,
+    timeZone: f.timeZone,
   };
 }
 

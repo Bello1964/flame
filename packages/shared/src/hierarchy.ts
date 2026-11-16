@@ -22,6 +22,8 @@ export interface FacilityDto extends HierarchyRecord {
   /** Decimal degrees as strings to preserve exact precision. */
   latitude: string | null;
   longitude: string | null;
+  /** IANA time zone that defines activity days and periods, e.g. "Africa/Lagos". */
+  timeZone: string;
 }
 
 export interface AssetDto extends HierarchyRecord {

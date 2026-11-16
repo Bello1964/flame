@@ -13,10 +13,13 @@ import { requireOrganisation } from './middleware/organisation-context.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { SessionService } from './modules/auth/session.service.js';
+import { activityRouter } from './modules/activity/activity.routes.js';
+import { ActivityService } from './modules/activity/activity.service.js';
 import { facilitiesRouter } from './modules/facilities/facilities.routes.js';
 import { FacilitiesService } from './modules/facilities/facilities.service.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.routes.js';
 import { organisationRouter } from './modules/organisations/organisations.routes.js';
+import { SettingsService } from './modules/organisations/settings.service.js';
 
 export interface AppDependencies {
   logger: Logger;
@@ -43,6 +46,8 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const sessions = new SessionService(prisma, config.session);
   const auth = new AuthService(prisma, sessions);
   const facilities = new FacilitiesService(prisma);
+  const activity = new ActivityService(prisma);
+  const settings = new SettingsService(prisma);
 
   app.use(
     `${API}/health`,
@@ -72,6 +77,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   orgScoped.use(requireAuth, requireOrganisation(prisma));
   orgScoped.use(organisationRouter(prisma));
   orgScoped.use(facilitiesRouter(facilities));
+  orgScoped.use(activityRouter(activity, settings));
   app.use(`${API}/organisations/:organisationId`, orgScoped);
 
   app.use(notFoundHandler);
