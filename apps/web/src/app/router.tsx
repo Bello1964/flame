@@ -53,6 +53,10 @@ export const routes: RouteObject[] = [
             lazy: async () => ({ Component: (await pages.activityRecord()).ActivityRecordPage }),
           },
           {
+            path: 'review',
+            lazy: async () => ({ Component: (await pages.review()).ReviewPage }),
+          },
+          {
             path: 'settings',
             lazy: async () => ({ Component: (await pages.settings()).SettingsPage }),
           },

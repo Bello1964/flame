@@ -4,6 +4,7 @@ import { preloadAllPagesWhenIdle } from '../lazy-pages';
 import { EmptyState } from '@/components/page-state';
 import { Button } from '@/components/ui/button';
 import { useCurrentSession } from '@/features/auth/require-auth';
+import { canApproveActivity, canReviewActivity } from '@/features/organisations/permissions';
 import { OrganisationProvider } from '@/features/organisations/organisation-context';
 import { OrganisationSwitcher } from '@/features/organisations/organisation-switcher';
 import { AppLayout } from './app-layout';
@@ -29,6 +30,7 @@ export function OrganisationLayout() {
     <OrganisationProvider membership={membership}>
       <AppLayout
         basePath={`/o/${membership.organisationId}`}
+        showReview={canReviewActivity(membership.roles) || canApproveActivity(membership.roles)}
         organisationSlot={<OrganisationSwitcher />}
       />
     </OrganisationProvider>

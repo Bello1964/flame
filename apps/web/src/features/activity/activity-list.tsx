@@ -1,6 +1,7 @@
 import { useSearchParams, Link } from 'react-router';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
+  ACTIVITY_RECORD_STATUSES,
   ACTIVITY_TYPES,
   RATE_UNIT_LABELS,
   VOLUME_UNIT_LABELS,
@@ -23,7 +24,9 @@ import { formatCount, formatDecimal } from '@/lib/format';
 import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useActivityList, type ActivityStatusFilter } from './api';
 import { ActivityStatusBadge, ActivityTypeBadge, WarningCount } from './badges';
-import { ACTIVITY_TYPE_LABELS, BASIS_LABELS, periodLabel } from './labels';
+import { BulkActionBar, SelectAllCheckbox, SelectRowCheckbox } from './bulk-actions';
+import { useSelection } from './use-selection';
+import { ACTIVITY_TYPE_LABELS, BASIS_LABELS, STATUS_LABELS, periodLabel } from './labels';
 
 const PAGE_SIZE = 25;
 
@@ -31,7 +34,8 @@ function parseType(v: string | null): ActivityType | undefined {
   return ACTIVITY_TYPES.find((t) => t === v);
 }
 function parseStatus(v: string | null): ActivityStatusFilter {
-  return v === 'WITHDRAWN' || v === 'ALL' ? v : 'DRAFT';
+  if (v === 'ALL') return v;
+  return ACTIVITY_RECORD_STATUSES.find((s) => s === v) ?? 'CURRENT';
 }
 
 /** The quantity as entered, with its unit; never mixed with standardised values. */
@@ -103,7 +107,9 @@ export function ActivityList({
   const rows = query.data?.data ?? [];
   const total = query.data?.meta.total ?? 0;
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const filtered = activityType !== undefined || status !== 'DRAFT';
+  const filtered = activityType !== undefined || status !== 'CURRENT';
+  const selection = useSelection(rows);
+  const selecting = selection.selectable.length > 0;
 
   return (
     <div className="space-y-3">
@@ -128,12 +134,16 @@ export function ActivityList({
           className="sm:w-44"
           value={status}
           onChange={(e) => {
-            set({ astatus: e.target.value === 'DRAFT' ? undefined : e.target.value });
+            set({ astatus: e.target.value === 'CURRENT' ? undefined : e.target.value });
           }}
         >
-          <option value="DRAFT">Drafts</option>
-          <option value="WITHDRAWN">Withdrawn</option>
-          <option value="ALL">All statuses</option>
+          <option value="CURRENT">Current records</option>
+          {ACTIVITY_RECORD_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABELS[s]}
+            </option>
+          ))}
+          <option value="ALL">All, including closed</option>
         </NativeSelect>
         {query.isFetching && !query.isPending && (
           <span role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -175,6 +185,7 @@ export function ActivityList({
         )
       ) : (
         <>
+          <BulkActionBar selection={selection} />
           <div className="rounded-md border bg-card">
             <Table>
               <caption className="sr-only">
@@ -183,6 +194,11 @@ export function ActivityList({
               </caption>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
+                  {selecting && (
+                    <TableHead className="w-8">
+                      <SelectAllCheckbox selection={selection} />
+                    </TableHead>
+                  )}
                   <TableHead>Period</TableHead>
                   <TableHead className="hidden sm:table-cell">Type</TableHead>
                   <TableHead className="hidden md:table-cell">Rate (entered)</TableHead>
@@ -200,7 +216,15 @@ export function ActivityList({
               </TableHeader>
               <TableBody>
                 {rows.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow
+                    key={r.id}
+                    className={selection.isSelected(r.id) ? 'bg-accent/40' : undefined}
+                  >
+                    {selecting && (
+                      <TableCell className="w-8">
+                        <SelectRowCheckbox selection={selection} record={r} />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Link
                         to={`/o/${organisationId}/activity-records/${r.id}`}
@@ -208,10 +232,10 @@ export function ActivityList({
                       >
                         {periodLabel(r)}
                       </Link>
-                      {/* On phones, type (and withdrawn status) sit under the period. */}
+                      {/* On phones, type and status sit under the period. */}
                       <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
                         <ActivityTypeBadge type={r.activityType} />
-                        {r.status === 'WITHDRAWN' && <ActivityStatusBadge status={r.status} />}
+                        <ActivityStatusBadge status={r.status} />
                         {r.warnings.some((w) => w.code !== 'NO_EVIDENCE') && (
                           <WarningCount warnings={r.warnings} />
                         )}

@@ -1,5 +1,7 @@
 import type {
+  ActivityEventType,
   ActivityRecordDto,
+  ActivityRecordStatus,
   ActivityType,
   MeasurementBasis,
   MeasurementMethod,
@@ -22,6 +24,36 @@ export function isFlaring(type: ActivityType): boolean {
     type === 'ROUTINE_FLARING' || type === 'NON_ROUTINE_FLARING' || type === 'EMERGENCY_FLARING'
   );
 }
+
+/** The workflow states as people read them (ARCHITECTURAL_WORKFLOW.md §7.1). */
+export const STATUS_LABELS: Record<ActivityRecordStatus, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under review',
+  NEEDS_CORRECTION: 'Needs correction',
+  AWAITING_APPROVAL: 'Awaiting approval',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  SUPERSEDED: 'Superseded',
+  WITHDRAWN: 'Withdrawn',
+};
+
+/** History entries, phrased as what the person did. */
+export const EVENT_LABELS: Record<ActivityEventType, string> = {
+  CREATED: 'Created',
+  EDITED: 'Edited',
+  SUBMITTED: 'Submitted for review',
+  RECALLED: 'Recalled to draft',
+  REVIEW_STARTED: 'Started review',
+  CLAIM_RELEASED: 'Released the review',
+  FORWARDED: 'Forwarded for approval',
+  RETURNED: 'Returned for correction',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  WITHDRAWN: 'Withdrew the record',
+  REVISION_CREATED: 'Started a revision',
+  SUPERSEDED: 'Superseded by an approved revision',
+};
 
 export const BASIS_LABELS: Record<MeasurementBasis, string> = {
   MEASURED: 'Measured',

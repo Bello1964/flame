@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigation } from 'react-router';
 import { BrandLockup } from '@/components/brand';
-import { Activity, Factory, Settings } from 'lucide-react';
+import { Activity, ClipboardCheck, Factory, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
 import { preloadPage, type PageName } from '../lazy-pages';
@@ -20,10 +20,13 @@ interface NavItem {
 export function AppLayout({
   organisationSlot,
   basePath,
+  showReview = false,
 }: {
   organisationSlot?: ReactNode;
   /** Organisation route prefix, e.g. /o/:id. Without it, only the account menu shows. */
   basePath?: string;
+  /** Show the review queues (the user can review or approve). A display aid only. */
+  showReview?: boolean;
 }) {
   const nav: NavItem[] = basePath
     ? [
@@ -33,6 +36,16 @@ export function AppLayout({
           icon: <Factory aria-hidden />,
           page: 'facilities',
         },
+        ...(showReview
+          ? [
+              {
+                to: `${basePath}/review`,
+                label: 'Review',
+                icon: <ClipboardCheck aria-hidden />,
+                page: 'review' as const,
+              },
+            ]
+          : []),
         {
           to: `${basePath}/settings`,
           label: 'Settings',
