@@ -512,6 +512,18 @@ describe('the app shell on narrow screens', () => {
     });
     expect(requests.some((r) => r.method === 'POST' && r.path === '/auth/logout')).toBe(true);
   });
+
+  it('does not tell a non-administrator without an organisation that they administer the registry', async () => {
+    mockApi(
+      on('GET', '/auth/session', () => ({
+        status: 200,
+        body: { data: sessionWith([], ADA) },
+      })),
+    );
+    renderApp('/admin/methodology');
+    expect(await screen.findByText('For Platform Administrators only')).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
 });
 
 describe('the methodology registry navigation', () => {

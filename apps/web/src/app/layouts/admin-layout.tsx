@@ -12,7 +12,7 @@ import { AppLayout, type NavItem } from './app-layout';
  * Administrators without one see a notice explaining that and offering to switch account.
  */
 export function AdminLayout() {
-  const { memberships } = useCurrentSession();
+  const { memberships, user } = useCurrentSession();
   const first = memberships[0];
   useEffect(preloadAllPagesWhenIdle, []);
 
@@ -47,5 +47,7 @@ export function AdminLayout() {
           },
         ]),
   ];
-  return <AppLayout items={items} notice={first ? undefined : <NoOrganisationNotice />} />;
+  // Only for administrators: others here see the page's own "administrators only" state.
+  const notice = !first && user.isPlatformAdmin ? <NoOrganisationNotice /> : undefined;
+  return <AppLayout items={items} notice={notice} />;
 }

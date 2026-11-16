@@ -164,6 +164,20 @@ describe('organisation access', () => {
     expect(await screen.findByText('No organisation access yet')).toBeInTheDocument();
   });
 
+  it('says so when signing out from the no-organisation page fails', async () => {
+    mockApi(
+      signedInAs(),
+      on('POST', '/auth/logout', () => ({
+        status: 500,
+        body: { error: { code: 'INTERNAL_ERROR', message: 'Something went wrong' } },
+      })),
+    );
+    renderApp('/app');
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByText(/Could not sign out/)).toBeInTheDocument();
+    expect(screen.getByText('No organisation access yet')).toBeInTheDocument();
+  });
+
   it('never shows records from the previous organisation after switching', async () => {
     mockApi(
       signedInAs(membership(ORG_A, ['VIEWER']), membership(ORG_B, ['VIEWER'])),
