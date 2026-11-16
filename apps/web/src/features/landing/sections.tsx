@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { BrandLockup } from '@/components/brand';
 import { Button } from '@/components/ui/button';
+import flareDusk from '@/assets/landing/flare3.webp';
 import { PrimaryAction } from './primary-action';
 import { cn } from '@/lib/utils';
 import { CONTACT_EMAIL, PRODUCT_NAME } from '@/lib/brand';
@@ -341,6 +342,16 @@ export function ClosingCta() {
   return (
     <section aria-labelledby="cta-heading" className="px-4 pb-20 md:px-8 md:pb-28">
       <div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl bg-forest px-6 py-14 text-center text-mint md:px-12">
+        {/* Decorative: a gas flare at dusk, muted under a Forest overlay so the text stays legible. */}
+        <img
+          src={flareDusk}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 size-full object-cover object-[55%_40%]"
+        />
+        <div className="absolute inset-0 bg-forest/80" aria-hidden />
         <div className="flame-grid absolute inset-0" aria-hidden />
         <div className="relative mx-auto max-w-2xl space-y-6">
           <h2 id="cta-heading" className="text-3xl font-semibold tracking-tight text-balance">
