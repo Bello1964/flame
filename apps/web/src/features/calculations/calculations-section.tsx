@@ -321,7 +321,7 @@ export function CalculationsSection({ record }: { record: ActivityRecordDto }) {
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Link
-                      to={`/methodology/editions/${c.edition.id}`}
+                      to={`/o/${orgId}/methodology/editions/${c.edition.id}`}
                       className="text-primary underline-offset-4 hover:underline"
                     >
                       Edition {c.edition.edition}

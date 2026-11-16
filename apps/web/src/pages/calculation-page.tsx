@@ -148,6 +148,7 @@ function Step({
   index: number;
   editionId: string;
 }) {
+  const { organisationId } = useOrganisation();
   return (
     <li className="rounded-md border bg-card p-4">
       <h3 className="font-medium">
@@ -179,7 +180,11 @@ function Step({
                 <td className="py-1.5">
                   {v.parameterKey ? (
                     <Link
-                      to={methodologyLink(editionId, parameterAnchor(v.parameterKey))}
+                      to={methodologyLink(
+                        editionId,
+                        parameterAnchor(v.parameterKey),
+                        `/o/${organisationId}`,
+                      )}
                       className="text-primary underline-offset-4 hover:underline"
                     >
                       {v.label}
@@ -433,7 +438,7 @@ export function CalculationPage() {
             <dt className="text-xs font-medium text-muted-foreground">Methodology</dt>
             <dd className="text-sm">
               <Link
-                to={methodologyLink(c.edition.id)}
+                to={methodologyLink(c.edition.id, undefined, base)}
                 className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
               >
                 <BookOpen className="size-4" aria-hidden />
