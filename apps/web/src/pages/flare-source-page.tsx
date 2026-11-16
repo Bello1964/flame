@@ -6,8 +6,9 @@ import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useHierarchyRecord } from '@/features/hierarchy/api';
 import { ArchiveDialog } from '@/features/hierarchy/archive-dialog';
 import { FlareSourceFormDialog } from '@/features/hierarchy/flare-source-form';
-import { FLARE_TYPE_LABELS } from '@/features/hierarchy/schemas';
+import { FLARE_SERVICE_LABELS, FLARE_TYPE_LABELS } from '@/features/hierarchy/schemas';
 import { ActivitySection } from '@/features/activity/activity-section';
+import { CalculationInputsSection } from '@/features/calculations/inputs-section';
 import {
   ArchivedNotice,
   Breadcrumbs,
@@ -92,12 +93,19 @@ export function FlareSourcePage() {
           { label: 'Facility', value: facilityName ?? <InlineSkeleton /> },
           { label: 'Asset', value: assetName ?? <InlineSkeleton /> },
           { label: 'Flare type', value: s.flareType ? FLARE_TYPE_LABELS[s.flareType] : null },
+          {
+            label: 'Flare service',
+            value: s.flareService ? FLARE_SERVICE_LABELS[s.flareService] : null,
+          },
           { label: 'Description', value: s.description },
         ]}
         timestamps={s}
       />
       <div className="pt-4">
         <ActivitySection flareSource={s} />
+      </div>
+      <div className="pt-4">
+        <CalculationInputsSection flareSource={s} />
       </div>
 
       {editing && (

@@ -18,12 +18,32 @@ export const routes: RouteObject[] = [
   // Public: everyone can read the landing page, signed in or not.
   { path: '/', element: <LandingPage />, errorElement: <RouteErrorPage /> },
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
+  // Public: the calculation methodology, every published edition.
+  {
+    path: '/methodology',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.methodology()).MethodologyPage }),
+  },
+  {
+    path: '/methodology/editions/:editionId',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.methodology()).MethodologyPage }),
+  },
   {
     element: <RequireAuth />,
     errorElement: <RouteErrorPage />,
     children: [
       // Where signing in lands: the user's first organisation.
       { path: 'app', element: <OrganisationRedirectPage /> },
+      // Platform administration: the methodology registry (no organisation data).
+      {
+        path: 'admin/methodology',
+        lazy: async () => ({ Component: (await pages.adminMethodology()).AdminMethodologyPage }),
+      },
+      {
+        path: 'admin/methodology/:editionId',
+        lazy: async () => ({ Component: (await pages.adminMethodology()).AdminMethodologyPage }),
+      },
       {
         path: 'o/:organisationId',
         element: <OrganisationLayout />,
@@ -51,6 +71,10 @@ export const routes: RouteObject[] = [
           {
             path: 'activity-records/:recordId',
             lazy: async () => ({ Component: (await pages.activityRecord()).ActivityRecordPage }),
+          },
+          {
+            path: 'calculations/:calculationId',
+            lazy: async () => ({ Component: (await pages.calculation()).CalculationPage }),
           },
           {
             path: 'review',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FLARE_TYPES, type FlareType } from '@flame/shared';
+import { FLARE_SERVICES, FLARE_TYPES, type FlareService, type FlareType } from '@flame/shared';
 
 /**
  * Client-side form validation mirroring the API's schemas
@@ -60,17 +60,24 @@ export const facilityFormSchema = z.object({
 export const assetFormSchema = z.object({ name, code, assetType: shortText, description });
 
 export const NO_FLARE_TYPE = 'NONE';
+export const NO_FLARE_SERVICE = 'NONE';
 
 export const flareSourceFormSchema = z.object({
   name,
   code,
   flareType: z.enum([NO_FLARE_TYPE, ...FLARE_TYPES]),
+  flareService: z.enum([NO_FLARE_SERVICE, ...FLARE_SERVICES]),
   description,
 });
 
 export type FacilityFormValues = z.infer<typeof facilityFormSchema>;
 export type AssetFormValues = z.infer<typeof assetFormSchema>;
 export type FlareSourceFormValues = z.infer<typeof flareSourceFormSchema>;
+
+export const FLARE_SERVICE_LABELS: Record<FlareService, string> = {
+  PRODUCTION: 'Production (upstream or processing)',
+  REFINERY: 'Refinery',
+};
 
 export const FLARE_TYPE_LABELS: Record<FlareType, string> = {
   ELEVATED: 'Elevated',
@@ -108,6 +115,7 @@ export const toApi = {
     name: v.name.trim(),
     code: v.code.trim(),
     flareType: v.flareType === NO_FLARE_TYPE ? null : v.flareType,
+    flareService: v.flareService === NO_FLARE_SERVICE ? null : v.flareService,
     description: textOrNull(v.description),
   }),
 };

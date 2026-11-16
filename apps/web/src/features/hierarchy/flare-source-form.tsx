@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { FLARE_TYPES, type FlareSourceDto } from '@flame/shared';
+import { FLARE_SERVICES, FLARE_TYPES, type FlareSourceDto } from '@flame/shared';
 import { FormField } from '@/components/form-field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +21,9 @@ import {
   changedFields,
   FLARE_TYPE_LABELS,
   flareSourceFormSchema,
+  NO_FLARE_SERVICE,
   NO_FLARE_TYPE,
+  FLARE_SERVICE_LABELS,
   toApi,
   type FlareSourceFormValues,
 } from './schemas';
@@ -30,6 +32,7 @@ const FIELDS = [
   'name',
   'code',
   'flareType',
+  'flareService',
   'description',
 ] as const satisfies readonly (keyof FlareSourceFormValues)[];
 
@@ -56,6 +59,7 @@ export function FlareSourceFormDialog(props: Props) {
       name: record?.name ?? '',
       code: record?.code ?? '',
       flareType: record?.flareType ?? NO_FLARE_TYPE,
+      flareService: record?.flareService ?? NO_FLARE_SERVICE,
       description: record?.description ?? '',
     },
   });
@@ -136,6 +140,33 @@ export function FlareSourceFormDialog(props: Props) {
                   {FLARE_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
                       {FLARE_TYPE_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        )}
+      </FormField>
+      <FormField
+        label="Flare service"
+        description="Decides which methodology default applies when no tested or vendor efficiency exists (production 2%, refinery 0.5% uncombusted methane)."
+        error={errors.flareService?.message}
+      >
+        {(c) => (
+          <Controller
+            control={control}
+            name="flareService"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger {...c} onBlur={field.onBlur} ref={field.ref}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_FLARE_SERVICE}>Not recorded</SelectItem>
+                  {FLARE_SERVICES.map((service) => (
+                    <SelectItem key={service} value={service}>
+                      {FLARE_SERVICE_LABELS[service]}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigation } from 'react-router';
 import { BrandLockup } from '@/components/brand';
-import { Activity, ClipboardCheck, Factory, Settings } from 'lucide-react';
+import { Activity, BookOpen, ClipboardCheck, Factory, Settings, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
 import { preloadPage, type PageName } from '../lazy-pages';
@@ -21,12 +21,15 @@ export function AppLayout({
   organisationSlot,
   basePath,
   showReview = false,
+  isPlatformAdmin = false,
 }: {
   organisationSlot?: ReactNode;
   /** Organisation route prefix, e.g. /o/:id. Without it, only the account menu shows. */
   basePath?: string;
   /** Show the review queues (the user can review or approve). A display aid only. */
   showReview?: boolean;
+  /** Show the methodology registry administration. A display aid only. */
+  isPlatformAdmin?: boolean;
 }) {
   const nav: NavItem[] = basePath
     ? [
@@ -43,6 +46,22 @@ export function AppLayout({
                 label: 'Review',
                 icon: <ClipboardCheck aria-hidden />,
                 page: 'review' as const,
+              },
+            ]
+          : []),
+        {
+          to: '/methodology',
+          label: 'Methodology',
+          icon: <BookOpen aria-hidden />,
+          page: 'methodology',
+        },
+        ...(isPlatformAdmin
+          ? [
+              {
+                to: '/admin/methodology',
+                label: 'Methodology registry',
+                icon: <ShieldCheck aria-hidden />,
+                page: 'adminMethodology' as const,
               },
             ]
           : []),

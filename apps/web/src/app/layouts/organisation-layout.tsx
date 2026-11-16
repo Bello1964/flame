@@ -16,7 +16,7 @@ import { AppLayout } from './app-layout';
  */
 export function OrganisationLayout() {
   const { organisationId } = useParams();
-  const { memberships } = useCurrentSession();
+  const { memberships, user } = useCurrentSession();
   const membership = memberships.find((m) => m.organisationId === organisationId);
 
   // Fetch the remaining pages' code in the background so moving between them is instant.
@@ -30,6 +30,7 @@ export function OrganisationLayout() {
     <OrganisationProvider membership={membership}>
       <AppLayout
         basePath={`/o/${membership.organisationId}`}
+        isPlatformAdmin={user.isPlatformAdmin}
         showReview={canReviewActivity(membership.roles) || canApproveActivity(membership.roles)}
         organisationSlot={<OrganisationSwitcher />}
       />

@@ -10,6 +10,9 @@ export const pages = {
   system: () => import('@/pages/home-page'),
   activityRecord: () => import('@/pages/activity-record-page'),
   review: () => import('@/pages/review-page'),
+  calculation: () => import('@/pages/calculation-page'),
+  methodology: () => import('@/pages/methodology-page'),
+  adminMethodology: () => import('@/pages/admin-methodology-page'),
   settings: () => import('@/pages/settings-page'),
 };
 

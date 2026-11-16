@@ -25,6 +25,7 @@ import { WithdrawDialog } from '@/features/activity/withdraw-dialog';
 import { WorkflowActions } from '@/features/activity/workflow-actions';
 import { WorkflowNotice } from '@/features/activity/workflow-notice';
 import { HistoryTimeline } from '@/features/activity/history-timeline';
+import { CalculationsSection } from '@/features/calculations/calculations-section';
 import {
   ACTIVITY_TYPE_LABELS,
   BASIS_LABELS,
@@ -350,6 +351,8 @@ export function ActivityRecordPage() {
           ].map((item) => ({ ...item, value: item.value === false ? null : item.value }))}
         />
       </Panel>
+
+      <CalculationsSection record={r} />
 
       <Panel
         title="History"
