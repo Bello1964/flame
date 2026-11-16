@@ -6,12 +6,14 @@ import { useLogout } from '@/features/auth/session';
 
 /** "/app" sends the user into their first organisation (memberships are sorted by name). */
 export function OrganisationRedirectPage() {
-  const { memberships } = useCurrentSession();
+  const { memberships, user } = useCurrentSession();
   const logout = useLogout();
   const navigate = useNavigate();
   const first = memberships[0];
 
   if (first) return <Navigate to={`/o/${first.organisationId}/facilities`} replace />;
+  // A Platform Administrator without organisation access works in the registry.
+  if (user.isPlatformAdmin) return <Navigate to="/admin/methodology" replace />;
 
   return (
     <FullPageState>

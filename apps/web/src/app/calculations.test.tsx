@@ -252,7 +252,7 @@ describe('the public methodology page', () => {
     mockApi(on('GET', '/methodology/editions', () => list([])));
     renderApp('/methodology');
     expect(
-      await screen.findByText('No methodology edition has been approved yet'),
+      await screen.findByText('Waiting for a Platform Administrator to approve an edition'),
     ).toBeInTheDocument();
   });
 });
@@ -283,11 +283,11 @@ describe('a calculation page', () => {
     expect(screen.getByText('Why this result is estimated')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'IPCC N2O emission factor' })).toHaveAttribute(
       'href',
-      `/methodology/editions/${EDITION_1}#param-ipcc-direct-n2o`,
+      `/o/${ORG_A}/methodology/editions/${EDITION_1}#param-ipcc-direct-n2o`,
     );
     expect(screen.getByRole('link', { name: /edition 1/ })).toHaveAttribute(
       'href',
-      `/methodology/editions/${EDITION_1}`,
+      `/o/${ORG_A}/methodology/editions/${EDITION_1}`,
     );
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
 
@@ -433,5 +433,63 @@ describe('recording a gas analysis', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record analysis' }));
     expect(await within(dialog).findByText(/total 92%/)).toBeInTheDocument();
     expect(requests.some((r) => r.method === 'POST')).toBe(false);
+  });
+});
+
+describe('the methodology inside the app', () => {
+  it('opens in the app shell and points administrators to the registry while none is approved', async () => {
+    mockApi(
+      signedInAs(['ORGANISATION_OWNER'], true),
+      on('GET', '/methodology/editions', () => list([])),
+    );
+    renderApp(`/o/${ORG_A}/methodology`);
+    expect(
+      await screen.findByText('Waiting for a Platform Administrator to approve an edition'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open the methodology registry/ })).toHaveAttribute(
+      'href',
+      '/admin/methodology',
+    );
+    // The app navigation is still there, with Methodology as the current page.
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('link', { name: 'Methodology' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+});
+
+describe('the app shell on narrow screens', () => {
+  it('names every icon-only navigation link and puts organisation and account in compact menus', async () => {
+    mockApi(
+      signedInAs(['ORGANISATION_OWNER']),
+      on('GET', '/methodology/editions', () => list([])),
+    );
+    renderApp(`/o/${ORG_A}/methodology`);
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    for (const link of within(nav).getAllByRole('link')) {
+      // Named for screen readers, and on hover through the title.
+      expect(link).toHaveAccessibleName();
+      expect(link.getAttribute('title')).toBe(link.textContent);
+    }
+    expect(screen.getByRole('button', { name: /^Organisation: Delta Energy/ })).toHaveAttribute(
+      'title',
+      'Delta Energy',
+    );
+    expect(screen.getAllByRole('button', { name: 'Account: Ada Obi' }).length).toBeGreaterThan(0);
+  });
+
+  it('sends a Platform Administrator without an organisation to the registry', async () => {
+    mockApi(
+      on('GET', '/auth/session', () => ({
+        status: 200,
+        body: { data: sessionWith([], { ...ADA, isPlatformAdmin: true }) },
+      })),
+      on('GET', '/admin/methodology/editions', () => list([])),
+    );
+    renderApp('/app');
+    expect(
+      await screen.findByRole('heading', { name: 'Methodology registry' }),
+    ).toBeInTheDocument();
   });
 });

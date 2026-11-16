@@ -1,11 +1,12 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router';
-import { ArrowRight, History } from 'lucide-react';
+import { ArrowRight, History, ShieldCheck } from 'lucide-react';
 import { BrandLockup } from '@/components/brand';
 import { EmptyState, ErrorState, LoadingState } from '@/components/page-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
+import { useCurrentSession } from '@/features/auth/require-auth';
 import { EditionView } from '@/features/methodology/edition-view';
 import { usePublishedEdition, usePublishedEditions } from '@/features/methodology/api';
 import { EDITION_STATUS_LABELS } from '@/features/calculations/labels';
@@ -19,7 +20,7 @@ export function PublicShell({ children, aside }: { children: ReactNode; aside?: 
           <Link
             to="/"
             aria-label="Flame home"
-            className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+            className="min-w-0 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
           >
             <BrandLockup subtitle="Calculation methodology" />
           </Link>
@@ -41,6 +42,30 @@ export function PublicShell({ children, aside }: { children: ReactNode; aside?: 
   );
 }
 
+/** Inside the app the page sits in the normal shell (sidebar and all); only the editions list is added. */
+function InAppFrame({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_14rem]">
+      <div className="min-w-0">{children}</div>
+      {aside && <aside className="xl:sticky xl:top-6 xl:self-start">{aside}</aside>}
+    </div>
+  );
+}
+
+/** Platform Administrators get a way to the registry from the empty state. */
+function RegistryLink() {
+  const { user } = useCurrentSession();
+  if (!user.isPlatformAdmin) return null;
+  return (
+    <Button asChild>
+      <Link to="/admin/methodology">
+        <ShieldCheck aria-hidden />
+        Open the methodology registry
+      </Link>
+    </Button>
+  );
+}
+
 /** Scrolls to #anchor once the content it points at has rendered. */
 function useScrollToHash(ready: boolean) {
   const { hash } = useLocation();
@@ -51,11 +76,15 @@ function useScrollToHash(ready: boolean) {
 }
 
 /**
- * /methodology and /methodology/editions/:editionId. Every published edition stays
- * readable, so any past result can be traced to the exact rules and numbers it used.
+ * The calculation methodology: /methodology[/editions/:id] publicly, and
+ * /o/:organisationId/methodology[/editions/:id] inside the app. Every published edition
+ * stays readable, so any past result can be traced to the exact rules and numbers it used.
  */
 export function MethodologyPage() {
-  const { editionId } = useParams();
+  const { editionId, organisationId } = useParams();
+  const inApp = organisationId !== undefined;
+  const base = inApp ? `/o/${organisationId}/methodology` : '/methodology';
+  const Frame = inApp ? InAppFrame : PublicShell;
   const editions = usePublishedEditions();
   const current = editions.data?.find((e) => e.status === 'APPROVED');
   const edition = usePublishedEdition(editionId);
@@ -64,33 +93,37 @@ export function MethodologyPage() {
   if (!editionId) {
     if (editions.isPending) {
       return (
-        <PublicShell>
+        <Frame>
           <LoadingState label="Loading the methodology" />
-        </PublicShell>
+        </Frame>
       );
     }
     if (editions.isError) {
       return (
-        <PublicShell>
+        <Frame>
           <ErrorState
             title="Could not load the methodology"
             error={editions.error}
             onRetry={() => void editions.refetch()}
           />
-        </PublicShell>
+        </Frame>
       );
     }
     if (!current) {
       return (
-        <PublicShell>
-          <EmptyState
-            title="No methodology edition has been approved yet"
-            description="Emissions can only be calculated once a Platform Administrator approves an edition. It will be published here, with every decision and number explained."
-          />
-        </PublicShell>
+        <Frame>
+          <div className="space-y-6">
+            <h1 className="text-2xl font-semibold">Calculation methodology</h1>
+            <EmptyState
+              title="Waiting for a Platform Administrator to approve an edition"
+              description="Edition 1 has been prepared with every decision and number explained. It is published here, and emissions can be calculated, once a Platform Administrator approves it in the methodology registry."
+              action={inApp ? <RegistryLink /> : undefined}
+            />
+          </div>
+        </Frame>
       );
     }
-    return <Navigate to={`/methodology/editions/${current.id}`} replace />;
+    return <Navigate to={`${base}/editions/${current.id}`} replace />;
   }
 
   const aside = (
@@ -101,7 +134,7 @@ export function MethodologyPage() {
           {editions.data.map((e) => (
             <li key={e.id}>
               <Link
-                to={`/methodology/editions/${e.id}`}
+                to={`${base}/editions/${e.id}`}
                 aria-current={e.id === editionId ? 'page' : undefined}
                 className={cn(
                   'block rounded-md px-3 py-2 text-sm hover:bg-muted',
@@ -124,7 +157,7 @@ export function MethodologyPage() {
   );
 
   return (
-    <PublicShell aside={aside}>
+    <Frame aside={aside}>
       {edition.isPending ? (
         <LoadingState label="Loading this edition" />
       ) : edition.isError ? (
@@ -133,7 +166,7 @@ export function MethodologyPage() {
           description="It may not exist, or it hasn’t been approved."
           action={
             <Button asChild variant="outline">
-              <Link to="/methodology">See the current edition</Link>
+              <Link to={base}>See the current edition</Link>
             </Button>
           }
         />
@@ -148,7 +181,7 @@ export function MethodologyPage() {
                   A newer edition is in use. Results calculated with this edition keep it, and it
                   stays here for reference.{' '}
                   <Link
-                    to={`/methodology/editions/${current.id}`}
+                    to={`${base}/editions/${current.id}`}
                     className="text-primary underline underline-offset-4"
                   >
                     See edition {current.edition}
@@ -159,6 +192,6 @@ export function MethodologyPage() {
           }
         />
       )}
-    </PublicShell>
+    </Frame>
   );
 }

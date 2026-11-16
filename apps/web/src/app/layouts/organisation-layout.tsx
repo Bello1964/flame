@@ -33,6 +33,7 @@ export function OrganisationLayout() {
         isPlatformAdmin={user.isPlatformAdmin}
         showReview={canReviewActivity(membership.roles) || canApproveActivity(membership.roles)}
         organisationSlot={<OrganisationSwitcher />}
+        organisationCompactSlot={<OrganisationSwitcher compact />}
       />
     </OrganisationProvider>
   );

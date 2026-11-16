@@ -73,6 +73,14 @@ export const routes: RouteObject[] = [
             lazy: async () => ({ Component: (await pages.activityRecord()).ActivityRecordPage }),
           },
           {
+            path: 'methodology',
+            lazy: async () => ({ Component: (await pages.methodology()).MethodologyPage }),
+          },
+          {
+            path: 'methodology/editions/:editionId',
+            lazy: async () => ({ Component: (await pages.methodology()).MethodologyPage }),
+          },
+          {
             path: 'calculations/:calculationId',
             lazy: async () => ({ Component: (await pages.calculation()).CalculationPage }),
           },

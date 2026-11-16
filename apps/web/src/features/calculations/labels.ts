@@ -90,6 +90,7 @@ export const PARAMETER_KIND_ORDER: MethodologyParameterKind[] = [
 export const parameterAnchor = (key: string) => `param-${key.replace(/[^a-z0-9]+/gi, '-')}`;
 export const decisionAnchor = (key: string) => `decision-${key}`;
 
-export function methodologyLink(editionId: string, anchor?: string) {
-  return `/methodology/editions/${editionId}${anchor ? `#${anchor}` : ''}`;
+/** In the app pass the organisation base (/o/:id) so the page opens inside the app shell. */
+export function methodologyLink(editionId: string, anchor?: string, base = '') {
+  return `${base}/methodology/editions/${editionId}${anchor ? `#${anchor}` : ''}`;
 }
