@@ -1,4 +1,6 @@
 import { Navigate, useNavigate } from 'react-router';
+import { toast } from 'sonner';
+import { ApiError, errorMessage } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { EmptyState, FullPageState } from '@/components/page-state';
 import { useCurrentSession } from '@/features/auth/require-auth';
@@ -25,7 +27,14 @@ export function OrganisationRedirectPage() {
             variant="outline"
             disabled={logout.isPending}
             onClick={() => {
-              logout.mutate(false, { onSuccess: () => void navigate('/login', { replace: true }) });
+              logout.mutate(false, {
+                onSuccess: () => void navigate('/login', { replace: true }),
+                onError: (error) => {
+                  // 401: the session had already ended; the app has returned to sign-in.
+                  if (error instanceof ApiError && error.status === 401) return;
+                  toast.error(`Could not sign out. ${errorMessage(error)}`);
+                },
+              });
             }}
           >
             Sign out

@@ -34,6 +34,7 @@ export function AppLayout({
   showReview = false,
   isPlatformAdmin = false,
   items,
+  notice,
 }: {
   organisationSlot?: ReactNode;
   /** The organisation as a compact menu, for the narrow top bar. */
@@ -46,6 +47,8 @@ export function AppLayout({
   isPlatformAdmin?: boolean;
   /** Navigation for pages outside an organisation (e.g. platform administration). */
   items?: NavItem[];
+  /** Shown above every page in this shell (e.g. a Platform Administrator without an organisation). */
+  notice?: ReactNode;
 }) {
   const nav: NavItem[] =
     items ??
@@ -164,6 +167,7 @@ export function AppLayout({
       </aside>
 
       <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 md:px-8 md:py-8 print:max-w-none print:p-0">
+        {notice}
         {/* Keyed by organisation so per-page state (filters, open dialogs) resets on switch. */}
         <Outlet key={basePath} />
       </main>
