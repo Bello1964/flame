@@ -3,8 +3,8 @@ import { Link } from 'react-router';
 import { AlertTriangle, Info } from 'lucide-react';
 import type {
   ActivityTypeRowDto,
+  CrossTypeTotalDto,
   EmissionsReportDto,
-  EmissionsTotalsDto,
   FlareSourceReportDto,
   ReportCoverageDto,
   ReportSectionDto,
@@ -33,13 +33,13 @@ function Num({ value, unit }: { value: string | null; unit?: string }) {
 }
 
 /** N₂O for venting is "not applicable", never 0. */
-function N2o({ e }: { e: EmissionsTotalsDto | null }) {
+function N2o({ e }: { e: CrossTypeTotalDto | null }) {
   if (!e) return <span className="text-muted-foreground">—</span>;
   if (e.n2oTonnes === null) return <span className="text-xs text-muted-foreground">n/a</span>;
   return <Num value={e.n2oTonnes} />;
 }
 
-function hasEstimated(e: EmissionsTotalsDto | null): boolean {
+function hasEstimated(e: CrossTypeTotalDto | null): boolean {
   return e !== null && Number(e.estimatedCo2eTonnes) > 0;
 }
 
@@ -142,6 +142,9 @@ export function CoverageNotice({ report }: { report: EmissionsReportDto }) {
         (c.calculationsInProgress > 0
           ? ` (${formatCount(c.calculationsInProgress)} ${plural(c.calculationsInProgress, 'calculation', 'calculations')} in progress)`
           : ''),
+    c.calculationsInProgress > 0 &&
+      c.approvedRecordsAwaitingCalculation === 0 &&
+      `${formatCount(c.calculationsInProgress)} ${plural(c.calculationsInProgress, 'recalculation is', 'recalculations are')} in progress; the approved versions count until they are replaced`,
     c.recordsNotYetApproved > 0 &&
       `${formatCount(c.recordsNotYetApproved)} ${plural(c.recordsNotYetApproved, 'record is', 'records are')} still in review or draft`,
     c.openRevisions > 0 &&
@@ -281,8 +284,8 @@ export function TypeSummary({ report }: { report: EmissionsReportDto }) {
         “Volume calculated” is the volume behind the approved tCO₂e; “Approved volume” is every
         approved record, calculated or not. The difference is what isn’t calculated yet.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-sm">
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full min-w-[52rem] text-sm print:min-w-0">
           <TypeTableHead first="Activity type" />
           <tbody>
             <TypeRows
@@ -361,8 +364,8 @@ export function Breakdown({ report, orgPath }: { report: EmissionsReportDto; org
                       <span className="text-muted-foreground">{s.code}</span>
                     </p>
                     <DayCoverage source={s} />
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[52rem] text-sm">
+                    <div className="overflow-x-auto print:overflow-visible">
+                      <table className="w-full min-w-[52rem] text-sm print:min-w-0">
                         <TypeTableHead first="Activity type" />
                         <tbody>
                           <TypeRows section={s} totalLabel="Flare source total (tCO₂e only)" />
@@ -472,8 +475,8 @@ export function UnplacedRecords({
         These approved records start or end outside {report.period.label}, so they aren’t counted
         here. They count in any longer period that contains all their dates.
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-sm">
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full min-w-[36rem] text-sm print:min-w-0">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th scope="col" className="py-2 pr-3 font-medium">

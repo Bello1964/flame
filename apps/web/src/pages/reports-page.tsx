@@ -1,5 +1,8 @@
 import { Link } from 'react-router';
-import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { ChevronLeft, ChevronRight, Download, Loader2, Printer } from 'lucide-react';
+import { errorMessage } from '@/lib/api-client';
 import { ACTIVITY_TYPES, REPORT_GRANULARITIES, type ReportGranularity } from '@flame/shared';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,7 +11,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/page-state';
 import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useHierarchyList } from '@/features/hierarchy/api';
 import { ACTIVITY_TYPE_LABELS } from '@/features/activity/labels';
-import { csvHref, useEmissionsReport, useEmissionsTrend } from '@/features/reporting/api';
+import { downloadCsv, useEmissionsReport, useEmissionsTrend } from '@/features/reporting/api';
 import {
   convertPeriod,
   currentPeriod,
@@ -58,6 +61,7 @@ export function ReportsPage() {
   const previous = shiftPeriod(params.period, -1);
   const next = shiftPeriod(params.period, 1);
   const data = report.data;
+  const [downloading, setDownloading] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -76,11 +80,27 @@ export function ReportsPage() {
               Print view
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href={csvHref(orgId, params)} download>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={downloading}
+            onClick={() => {
+              setDownloading(true);
+              downloadCsv(orgId, params)
+                .catch((error: unknown) => {
+                  toast.error(`The CSV couldn’t be downloaded. ${errorMessage(error)}`);
+                })
+                .finally(() => {
+                  setDownloading(false);
+                });
+            }}
+          >
+            {downloading ? (
+              <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : (
               <Download aria-hidden />
-              Download CSV
-            </a>
+            )}
+            Download CSV
           </Button>
         </div>
       </header>

@@ -266,8 +266,13 @@ describe('what counts in a report', () => {
       n2oTonnes: flaring.results.n2oTonnes,
       estimatedCo2eTonnes: flaring.results.co2eTonnes,
       measuredBasisCo2eTonnes: venting.results.co2eTonnes,
-      volumeCalculatedMmscf: '20.5',
     });
+    // Flared and vented gas are never added together as one volume.
+    expect(r.summary.total).not.toHaveProperty('volumeCalculatedMmscf');
+    expect(r.facilities[0]?.total).not.toHaveProperty('volumeCalculatedMmscf');
+    const csv = await w.viewer.agent.get(`${base(w.org)}/reports/emissions.csv?period=2026-02`);
+    expect(csv.text).not.toContain('20.5');
+    expect(csv.text).toContain('not added across activity types');
 
     const filtered = await report('2026-02', '&activityType=VENTING');
     expect(filtered.summary.byType.map((t) => t.activityType)).toEqual(['VENTING']);
@@ -298,6 +303,63 @@ describe('what counts in a report', () => {
     expect(march?.byType.ROUTINE_FLARING).toBe(calc.results.co2eTonnes);
     expect(march?.byType.VENTING).toBeNull();
     expect(trend.months.find((m) => m.key === '2026-04')?.total).toBeNull();
+  });
+});
+
+describe('versions and longer periods', () => {
+  it('counts the approved version once while a recalculation is in progress', async () => {
+    const record = await approvedRecord('2026-01-10');
+    const v1 = await calculation(record);
+    await calculation(record, false, {
+      route: 'IPCC_REFERENCE_FLARING',
+      fallbackReason: 'Re-run with corrected notes',
+    });
+    const r = await report('2026-01');
+    expect(routine(r)?.emissions).toMatchObject({
+      calculationCount: 1,
+      co2eTonnes: v1.results.co2eTonnes,
+    });
+    expect(routine(r)?.coverage).toMatchObject({
+      approvedRecordsCalculated: 1,
+      approvedRecordsAwaitingCalculation: 0,
+      calculationsInProgress: 1,
+    });
+    expect(r.calculations.map((c) => c.id)).toEqual([v1.id]);
+  });
+
+  it('places a record crossing 31 December in neither year', async () => {
+    const record = await approvedRecord('2025-12-30', {
+      kind: 'PERIOD',
+      periodEnd: '2026-01-02',
+    });
+    await calculation(record);
+    for (const period of ['2025', '2026', '2025-Q4', '2026-Q1']) {
+      const r = await report(period);
+      expect(r.summary.total, period).toBeNull();
+      expect(
+        r.unplaced.map((u) => u.activityRecordId),
+        period,
+      ).toEqual([record]);
+    }
+  });
+
+  it('gives a shorter trend at the 2000 floor and checks its facility filter', async () => {
+    const early = await w.viewer.agent.get(
+      `${base(w.org)}/reports/emissions/trend?endMonth=2000-03`,
+    );
+    expect(early.status).toBe(200);
+    expect(early.body.data.months.map((m: { key: string }) => m.key)).toEqual([
+      '2000-01',
+      '2000-02',
+      '2000-03',
+    ]);
+    expect(
+      (
+        await w.ownerB.agent.get(
+          `${base(w.orgB)}/reports/emissions/trend?endMonth=2026-01&facilityId=${w.facility}`,
+        )
+      ).status,
+    ).toBe(404);
   });
 });
 
@@ -342,6 +404,12 @@ describe('access to reports', () => {
 
   it('exports a CSV with the basis, full precision and the calculations used, and audits it', async () => {
     const calc = await calculation(await approvedRecord('2026-01-10'));
+    // A name a spreadsheet would run as a formula is exported as text.
+    const renamed = await w.owner.agent
+      .patch(`${base(w.org)}/flare-sources/${w.source}`)
+      .set(CSRF_HEADER, w.owner.csrfToken)
+      .send({ name: '=HYPERLINK("http://x","y")' });
+    expect(renamed.status, JSON.stringify(renamed.body)).toBe(200);
     const res = await w.viewer.agent.get(
       `${base(w.org)}/reports/emissions.csv?period=2026-Q1&facilityId=${w.facility}`,
     );
@@ -356,6 +424,8 @@ describe('access to reports', () => {
     expect(text).toContain('F-1 Bonny');
     expect(text).toContain(calc.id);
     expect(text).toContain(calc.results.co2eTonnes);
+    expect(text).toContain(`"'=HYPERLINK(""http://x"",""y"")"`);
+    expect(text).not.toMatch(/(^|,)=HYPERLINK/m);
 
     const audit = await prisma.auditLog.findFirst({ where: { action: 'report.exported' } });
     expect(audit).toMatchObject({ organisationId: w.org, entityType: 'emissions_report' });

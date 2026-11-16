@@ -104,17 +104,6 @@ export function trailingMonths(endMonth: string, count = 12): ReportPeriodDto[] 
   return months;
 }
 
-/** Today's calendar date in an IANA time zone. */
-export function todayIn(timeZone: string, now: Date = new Date()): string {
-  // en-CA formats as YYYY-MM-DD.
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
-
 /** Days of [start, end] up to and including `today`; 0 for a period that hasn't begun. */
 export function daysElapsed(start: string, end: string, today: string): number {
   if (today < start) return 0;

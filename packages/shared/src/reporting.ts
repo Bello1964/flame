@@ -74,10 +74,16 @@ export interface ActivityTypeRowDto {
   coverage: ReportCoverageDto;
 }
 
+/**
+ * Emissions summed across activity types. It has no volume: flared and vented gas (and
+ * the flaring types) are never added together as one volume (§8.2).
+ */
+export type CrossTypeTotalDto = Omit<EmissionsTotalsDto, 'volumeCalculatedMmscf'>;
+
 export interface ReportSectionDto {
   byType: ActivityTypeRowDto[];
-  /** The sum of the per-type emissions above; null when there are none. */
-  total: EmissionsTotalsDto | null;
+  /** The sum of the per-type emissions above (no volume); null when there are none. */
+  total: CrossTypeTotalDto | null;
 }
 
 export interface DayCoverageDto {

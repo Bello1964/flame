@@ -17,7 +17,8 @@ import { recordAudit } from '../audit/audit.service.js';
 import { isoDateOf } from '../activity/activity.repository.js';
 import type { Caller } from '../activity/activity.service.js';
 import { aggregate, isPlaced, type ReportRecordRow } from './aggregate.js';
-import { todayIn, trailingMonths } from './period.js';
+import { todayIn } from '../../lib/dates.js';
+import { trailingMonths } from './period.js';
 
 /** Calculations that are neither approved nor closed. */
 const IN_PROGRESS = ['CALCULATED', 'SUBMITTED', 'UNDER_REVIEW', 'AWAITING_APPROVAL'] as const;

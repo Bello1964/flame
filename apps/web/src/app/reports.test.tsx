@@ -18,7 +18,7 @@ import {
   renderApp,
   sessionWith,
 } from '@/test/render-app';
-import { niceTicks } from '@/features/reporting/chart-scale';
+import { niceTicks, tooltipLeft } from '@/features/reporting/chart-scale';
 import { convertPeriod, shiftPeriod, trendEndMonth } from '@/features/reporting/periods';
 
 /** Sample data for interface tests only: not real operational or emissions data. */
@@ -179,6 +179,13 @@ describe('period navigation', () => {
     expect(trendEndMonth('2026')).toBe('2026-12');
   });
 
+  it('keeps the chart readout inside the chart', () => {
+    expect(tooltipLeft(56, 20, 300)).toBe(80);
+    expect(tooltipLeft(200, 20, 300)).toBe(20);
+    expect(tooltipLeft(100, 40, 280)).toBe(104);
+    expect(tooltipLeft(120, 10, 280)).toBeLessThanOrEqual(280 - 176);
+  });
+
   it('chooses round gridlines covering the largest value', () => {
     expect(niceTicks(1058.65)).toEqual([0, 500, 1000, 1500]);
     expect(niceTicks(0)).toEqual([0]);
@@ -221,11 +228,7 @@ describe('the reports page', () => {
     expect(screen.getByRole('heading', { name: 'Not placed in this period' })).toBeInTheDocument();
     expect(screen.getByText('Total, all activity types (tCO₂e only)')).toBeInTheDocument();
 
-    // The CSV link carries the same period and filters.
-    expect(screen.getByRole('link', { name: /Download CSV/ })).toHaveAttribute(
-      'href',
-      `/api/v1/organisations/${ORG_A}/reports/emissions.csv?period=2026-01`,
-    );
+    expect(screen.getByRole('button', { name: /Download CSV/ })).toBeEnabled();
     // The trend ends with the report's last month.
     expect(requests.some((r) => r.path.endsWith('/trend?endMonth=2026-01'))).toBe(true);
 
@@ -260,6 +263,60 @@ describe('the reports page', () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it('reads each month aloud on focus, notes recalculations, and reports a failed export', async () => {
+    const recalculating = report({
+      summary: {
+        byType: [
+          {
+            activityType: 'ROUTINE_FLARING',
+            emissions: totals(),
+            approvedVolumeMmscf: '20',
+            coverage: coverage({
+              approvedRecords: 1,
+              approvedRecordsAwaitingCalculation: 0,
+              calculationsInProgress: 1,
+            }),
+          },
+        ],
+        total: totals(),
+      },
+      unplaced: [],
+    });
+    mockApi(
+      signedIn(),
+      on('GET', `/organisations/${ORG_A}/facilities`, () => list([])),
+      on('GET', `/organisations/${ORG_A}/reports/emissions`, () => ({
+        status: 200,
+        body: { data: recalculating },
+      })),
+      on('GET', `/organisations/${ORG_A}/reports/emissions/trend`, () => ({
+        status: 200,
+        body: { data: trend() },
+      })),
+      on('GET', `/organisations/${ORG_A}/reports/emissions.csv`, () => ({
+        status: 401,
+        body: { error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } },
+      })),
+    );
+    renderApp(`/o/${ORG_A}/reports?period=2026-01`);
+
+    expect(
+      await screen.findByText(/1 recalculation is in progress; the approved versions count/),
+    ).toBeInTheDocument();
+
+    const january = screen.getByRole('img', { name: /^January 2026: 1,058.65 tCO₂e/ });
+    expect(january).toHaveAccessibleName(/Routine flaring 1,058.65.*includes estimated/);
+    fireEvent.focus(january);
+    expect(screen.getByText('Includes estimated figures')).toBeInTheDocument();
+    fireEvent.blur(january);
+    expect(screen.queryByText('Includes estimated figures')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Download CSV/ }));
+    expect(
+      await screen.findByText(/The CSV couldn’t be downloaded\. Authentication required/),
+    ).toBeInTheDocument();
   });
 
   it('says plainly when there are no approved figures', async () => {

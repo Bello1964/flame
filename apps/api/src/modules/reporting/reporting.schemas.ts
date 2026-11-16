@@ -30,7 +30,7 @@ export const trendQuerySchema = z.strictObject({
     .string()
     .trim()
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use a month such as 2026-03')
-    .refine((v) => v >= '2000-12', 'The trend can end no earlier than December 2000'),
+    .refine((v) => v >= '2000-01', 'The trend can end no earlier than January 2000'),
   ...filters,
 });
 

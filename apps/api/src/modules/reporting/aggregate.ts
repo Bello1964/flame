@@ -4,6 +4,7 @@ import {
   type ActivityType,
   type ActivityTypeRowDto,
   type AssetReportDto,
+  type CrossTypeTotalDto,
   type CalculationRoute,
   type DataQuality,
   type DayCoverageDto,
@@ -200,7 +201,21 @@ class Section {
         };
       },
     );
-    return { byType, total: total.dto() };
+    const sum = total.dto();
+    // Never a volume across activity types: drop it from the total.
+    const crossType: CrossTypeTotalDto | null =
+      sum === null
+        ? null
+        : {
+            calculationCount: sum.calculationCount,
+            co2Tonnes: sum.co2Tonnes,
+            ch4Tonnes: sum.ch4Tonnes,
+            n2oTonnes: sum.n2oTonnes,
+            co2eTonnes: sum.co2eTonnes,
+            measuredBasisCo2eTonnes: sum.measuredBasisCo2eTonnes,
+            estimatedCo2eTonnes: sum.estimatedCo2eTonnes,
+          };
+    return { byType, total: crossType };
   }
 }
 

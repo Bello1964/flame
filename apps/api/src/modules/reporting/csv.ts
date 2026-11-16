@@ -1,5 +1,6 @@
 import {
   type ActivityType,
+  type CrossTypeTotalDto,
   type EmissionsReportDto,
   type EmissionsTotalsDto,
   type ReportCoverageDto,
@@ -37,8 +38,12 @@ const BOM = String.fromCharCode(0xfeff);
 const row = (values: (string | number | null)[]) => values.map(cell).join(',');
 
 const NA = 'not applicable';
+/** Volumes are never added across activity types. */
+const NOT_ADDED = 'not added across activity types';
 
-function emissionsCells(e: EmissionsTotalsDto | null): (string | number | null)[] {
+function emissionsCells(
+  e: EmissionsTotalsDto | CrossTypeTotalDto | null,
+): (string | number | null)[] {
   if (!e) return [0, null, null, null, null, null, null, null];
   return [
     e.calculationCount,
@@ -48,7 +53,7 @@ function emissionsCells(e: EmissionsTotalsDto | null): (string | number | null)[
     e.co2eTonnes,
     e.measuredBasisCo2eTonnes,
     e.estimatedCo2eTonnes,
-    e.volumeCalculatedMmscf,
+    'volumeCalculatedMmscf' in e ? e.volumeCalculatedMmscf : NOT_ADDED,
   ];
 }
 
@@ -97,7 +102,7 @@ export function reportCsv(report: EmissionsReportDto): string {
     ),
     row([
       ...prefix,
-      'Total, all activity types (sum of the rows above; tCO2e only)',
+      'Total, all activity types (emissions only; volumes are not added across types)',
       ...emissionsCells(section.total),
     ]),
   ];

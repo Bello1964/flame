@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EmissionsTrendDto, TrendMonthDto } from '@flame/shared';
 import { Button } from '@/components/ui/button';
 import { formatDecimal } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ACTIVITY_TYPE_LABELS } from '@/features/activity/labels';
-import { HEIGHT, PAD, SERIES, niceTicks } from './chart-scale';
+import { HEIGHT, PAD, SERIES, TOOLTIP_WIDTH, niceTicks, tooltipLeft } from './chart-scale';
 
 /**
  * Twelve months of approved tCO₂e, stacked by activity type (hand-built SVG; no chart
@@ -22,26 +22,49 @@ function shortMonth(key: string): string {
   return month === 1 ? `${name} ${key.slice(2, 4)}` : name;
 }
 
+/**
+ * Measures the chart container. A callback ref, so a container mounted again (after the
+ * table view) is observed afresh.
+ */
 function useWidth() {
-  const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
-  useEffect(() => {
-    const el = ref.current;
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => {
+    if (el.clientWidth > 0) setWidth(Math.max(280, Math.floor(el.clientWidth)));
+    const next = new ResizeObserver(([entry]) => {
       if (entry) setWidth(Math.max(280, Math.floor(entry.contentRect.width)));
     });
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-    };
+    next.observe(el);
+    observer.current = next;
   }, []);
+  useEffect(
+    () => () => {
+      observer.current?.disconnect();
+    },
+    [],
+  );
   return { ref, width };
+}
+
+/** What a screen reader announces for a month column. */
+function monthSummary(m: TrendMonthDto): string {
+  if (m.total === null) return `${m.label}: no approved calculations`;
+  const parts = SERIES.filter((s) => m.byType[s.type] !== null).map(
+    (s) => `${ACTIVITY_TYPE_LABELS[s.type]} ${formatDecimal(m.byType[s.type] ?? '0', 3)}`,
+  );
+  const estimated = m.includesEstimated ? ', includes estimated figures' : '';
+  return `${m.label}: ${formatDecimal(m.total, 3)} tCO₂e (${parts.join(', ')})${estimated}`;
 }
 
 function Tooltip({ month }: { month: TrendMonthDto }) {
   return (
-    <div className="pointer-events-none rounded-md border bg-popover px-3 py-2 text-xs shadow-sm">
+    <div
+      className="pointer-events-none rounded-md border bg-popover px-3 py-2 text-xs shadow-sm"
+      style={{ width: TOOLTIP_WIDTH }}
+    >
       <p className="font-medium">{month.label}</p>
       {month.total === null ? (
         <p className="text-muted-foreground">No approved calculations</p>
@@ -86,6 +109,26 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
   const barW = Math.max(6, Math.min(36, slot * 0.6));
   const y = (v: number) => PAD.top + plotH - (top > 0 ? (v / top) * plotH : 0);
   const hovered = hover === null ? undefined : months[hover];
+  const container = useRef<HTMLDivElement | null>(null);
+  const setContainer = useCallback(
+    (el: HTMLDivElement | null) => {
+      container.current = el;
+      ref(el);
+    },
+    [ref],
+  );
+
+  // A tap elsewhere closes the readout (touch screens never send mouse-leave).
+  useEffect(() => {
+    if (hover === null) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || !container.current?.contains(e.target)) setHover(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+    };
+  }, [hover]);
 
   return (
     <div className="space-y-3">
@@ -118,13 +161,13 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
       {asTable ? (
         <TrendTable trend={trend} />
       ) : (
-        <div ref={ref} className="relative">
+        <div ref={setContainer} className="relative">
           <svg
             width={width}
             height={HEIGHT}
             viewBox={`0 0 ${String(width)} ${String(HEIGHT)}`}
-            role="img"
-            aria-label={`Approved emissions in tCO₂e per month, ${months[0]?.label ?? ''} to ${months[months.length - 1]?.label ?? ''}. Use “Show as table” for the values.`}
+            role="group"
+            aria-label={`Approved emissions in tCO₂e per month, ${months[0]?.label ?? ''} to ${months[months.length - 1]?.label ?? ''}. Move through the months with Tab, or use “Show as table”.`}
             className="block max-w-full"
           >
             {ticks.map((t) => (
@@ -195,18 +238,31 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
                   >
                     {shortMonth(m.key)}
                   </text>
-                  {/* Hit target: the whole month column. */}
+                  {/* Hit target: the whole month column, for mouse, touch and keyboard. */}
                   <rect
                     x={PAD.left + slot * i}
                     y={PAD.top}
                     width={slot}
                     height={plotH}
                     fill="transparent"
+                    role="img"
+                    tabIndex={0}
+                    aria-label={monthSummary(m)}
+                    className="outline-none focus-visible:stroke-ring focus-visible:stroke-2"
                     onMouseEnter={() => {
                       setHover(i);
                     }}
                     onMouseLeave={() => {
                       setHover(null);
+                    }}
+                    onFocus={() => {
+                      setHover(i);
+                    }}
+                    onBlur={() => {
+                      setHover(null);
+                    }}
+                    onClick={() => {
+                      setHover((h) => (h === i ? null : i));
                     }}
                   />
                 </g>
@@ -216,11 +272,8 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
           {hovered && hover !== null && (
             <div
               className="absolute top-2 z-10"
-              style={
-                PAD.left + slot * hover + slot / 2 > width / 2
-                  ? { right: width - (PAD.left + slot * hover) + 4 }
-                  : { left: PAD.left + slot * (hover + 1) + 4 }
-              }
+              aria-hidden
+              style={{ left: tooltipLeft(PAD.left + slot * hover, slot, width) }}
             >
               <Tooltip month={hovered} />
             </div>

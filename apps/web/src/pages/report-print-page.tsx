@@ -51,7 +51,7 @@ export function ReportPrintPage() {
         </Button>
         <Button
           size="sm"
-          disabled={!report.data || !trend.data}
+          disabled={!report.data}
           onClick={() => {
             window.print();
           }}

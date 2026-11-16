@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { aggregate, coveredDays, type ReportRecordRow } from './aggregate.js';
 import { cell } from './csv.js';
-import { daysElapsed, parsePeriod, todayIn, trailingMonths } from './period.js';
+import { todayIn } from '../../lib/dates.js';
+import { daysElapsed, parsePeriod, trailingMonths } from './period.js';
 
 describe('report periods', () => {
   it('parses months, calendar quarters and years', () => {
@@ -129,8 +130,9 @@ describe('aggregation', () => {
       co2eTonnes: '123456789012345678.42345678901234567891',
       measuredBasisCo2eTonnes: '0.2',
       estimatedCo2eTonnes: '123456789012345678.22345678901234567891',
-      volumeCalculatedMmscf: '1.3',
     });
+    expect(result.summary.total).not.toHaveProperty('volumeCalculatedMmscf');
+    expect(result.summary.byType[0]?.emissions?.volumeCalculatedMmscf).toBe('1.3');
   });
 
   it('never counts a record that is not approved, and never sums volumes across types', () => {
