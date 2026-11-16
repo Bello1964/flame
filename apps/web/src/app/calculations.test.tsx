@@ -492,6 +492,26 @@ describe('the app shell on narrow screens', () => {
       await screen.findByRole('heading', { name: 'Methodology registry' }),
     ).toBeInTheDocument();
   });
+
+  it('tells a Platform Administrator without an organisation how to reach one, and switches account', async () => {
+    const { requests } = mockApi(
+      on('GET', '/auth/session', () => ({
+        status: 200,
+        body: { data: sessionWith([], { ...ADA, isPlatformAdmin: true }) },
+      })),
+      on('GET', '/admin/methodology/editions', () => list([])),
+      on('POST', '/auth/logout', () => ({ status: 204 })),
+    );
+    const { router } = renderApp('/admin/methodology');
+    expect(
+      await screen.findByRole('note', { name: 'This account has no organisation access' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out and switch account' }));
+    await vi.waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login');
+    });
+    expect(requests.some((r) => r.method === 'POST' && r.path === '/auth/logout')).toBe(true);
+  });
 });
 
 describe('the methodology registry navigation', () => {
@@ -502,6 +522,8 @@ describe('the methodology registry navigation', () => {
     );
     renderApp('/admin/methodology');
     const nav = await screen.findByRole('navigation', { name: 'Main' });
+    // An administrator who belongs to an organisation sees no notice.
+    expect(screen.queryByText('This account has no organisation access')).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Methodology registry' })).toHaveAttribute(
       'aria-current',
       'page',

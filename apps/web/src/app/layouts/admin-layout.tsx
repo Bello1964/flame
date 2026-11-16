@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BookOpen, Factory, ShieldCheck } from 'lucide-react';
 import { useCurrentSession } from '@/features/auth/require-auth';
+import { NoOrganisationNotice } from '@/features/auth/no-organisation-notice';
 import { preloadAllPagesWhenIdle } from '../lazy-pages';
 import { AppLayout, type NavItem } from './app-layout';
 
@@ -8,6 +9,7 @@ import { AppLayout, type NavItem } from './app-layout';
  * Shell for platform administration pages (outside any organisation): the same sidebar
  * and narrow-screen top bar as the rest of the app, with the registry, the published
  * methodology and, for administrators who belong to an organisation, a way back to it.
+ * Administrators without one see a notice explaining that and offering to switch account.
  */
 export function AdminLayout() {
   const { memberships } = useCurrentSession();
@@ -45,5 +47,5 @@ export function AdminLayout() {
           },
         ]),
   ];
-  return <AppLayout items={items} />;
+  return <AppLayout items={items} notice={first ? undefined : <NoOrganisationNotice />} />;
 }
