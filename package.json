@@ -1,5 +1,5 @@
 {
-  "name": "carbon-accounting",
+  "name": "flame",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -10,9 +10,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev:api": "npm run dev -w @carbon/api",
-    "dev:web": "npm run dev -w @carbon/web",
-    "build:shared": "npm run build -w @carbon/shared",
+    "dev:api": "npm run dev -w @flame/api",
+    "dev:web": "npm run dev -w @flame/web",
+    "build:shared": "npm run build -w @flame/shared",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
     "test": "npm run build:shared && npm run test --workspaces --if-present",

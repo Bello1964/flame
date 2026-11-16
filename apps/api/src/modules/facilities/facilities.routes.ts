@@ -1,5 +1,5 @@
 import { Router, type Request } from 'express';
-import type { DataResponse, ListResponse } from '@carbon/shared';
+import type { DataResponse, ListResponse } from '@flame/shared';
 import { authOf, parse } from '../../lib/request.js';
 import { organisationOf, requirePermission } from '../../middleware/organisation-context.js';
 import type { Actor, FacilitiesService } from './facilities.service.js';

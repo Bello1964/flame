@@ -11,7 +11,7 @@ import {
   TEMPERATURE_UNIT_LABELS,
   TEMPERATURE_UNITS,
   type OrganisationSettingsDto,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { FormField } from '@/components/form-field';
 import { ErrorState } from '@/components/page-state';
 import { RecordPageSkeleton } from '@/components/skeletons';

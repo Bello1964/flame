@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROLES, type Role } from '@carbon/shared';
+import { ROLES, type Role } from '@flame/shared';
 import { canWriteHierarchy } from './permissions';
 
 describe('canWriteHierarchy (shared permission matrix)', () => {

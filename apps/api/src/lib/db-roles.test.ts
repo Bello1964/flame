@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ensureAppLogin } from './db-roles.js';
 import { testDatabaseUrl } from '../test/test-database.js';
 
-const PROBE = 'carbon_role_probe';
+const PROBE = 'flame_role_probe';
 const PASSWORD = 'probe-password-123';
 
 let owner: pg.Client;
@@ -25,10 +25,10 @@ afterAll(async () => {
 });
 
 describe('ensureAppLogin', () => {
-  it('creates a new login in carbon_app', async () => {
+  it('creates a new login in flame_app', async () => {
     await expect(ensureAppLogin(owner, PROBE, PASSWORD)).resolves.toBe('created');
     const member = await owner.query<{ m: boolean }>(
-      `SELECT pg_has_role($1, 'carbon_app', 'MEMBER') AS m`,
+      `SELECT pg_has_role($1, 'flame_app', 'MEMBER') AS m`,
       [PROBE],
     );
     expect(member.rows[0]?.m).toBe(true);
@@ -48,9 +48,9 @@ describe('ensureAppLogin', () => {
   ])('refuses to take over an existing role with %s', async (attribute) => {
     await owner.query(`CREATE ROLE ${PROBE} LOGIN ${attribute}`);
     await expect(ensureAppLogin(owner, PROBE, PASSWORD)).rejects.toThrow(/Refusing/);
-    // The role was left untouched: still not a member of carbon_app.
+    // The role was left untouched: still not a member of flame_app.
     const member = await owner.query<{ m: boolean }>(
-      `SELECT pg_has_role($1, 'carbon_app', 'MEMBER') AS m`,
+      `SELECT pg_has_role($1, 'flame_app', 'MEMBER') AS m`,
       [PROBE],
     );
     expect(member.rows[0]?.m).toBe(attribute === 'SUPERUSER');

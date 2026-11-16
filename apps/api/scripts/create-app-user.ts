@@ -5,8 +5,8 @@
  *   MIGRATION_DATABASE_URL  schema owner — used here to create the login
  *   DATABASE_URL            the login to create: its username and password are taken from this URL
  *
- * Run after migrations: npm run db:create-app-user -w @carbon/api
- * Safe to re-run: an existing login gets its password updated and its carbon_app membership confirmed.
+ * Run after migrations: npm run db:create-app-user -w @flame/api
+ * Safe to re-run: an existing login gets its password updated and its flame_app membership confirmed.
  */
 import pg from 'pg';
 import { ensureAppLogin } from '../src/lib/db-roles.js';

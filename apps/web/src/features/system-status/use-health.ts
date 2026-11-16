@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { HealthResponse } from '@carbon/shared';
+import type { HealthResponse } from '@flame/shared';
 import { apiGet } from '@/lib/api-client';
 
 export function useHealth() {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { HealthResponse } from '@carbon/shared';
+import type { HealthResponse } from '@flame/shared';
 
 /** Returns true when the database is reachable. Injected so tests need no database. */
 export type DatabaseCheck = () => Promise<boolean>;

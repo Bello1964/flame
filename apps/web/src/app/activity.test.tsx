@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import type { ActivityRecordDto, FlareSourceDto, Role } from '@carbon/shared';
+import type { ActivityRecordDto, FlareSourceDto, Role } from '@flame/shared';
 import { list, membership, mockApi, on, ORG_A, renderApp, sessionWith } from '@/test/render-app';
 
 afterEach(() => {

@@ -1,5 +1,5 @@
 import { Prisma } from '../../generated/prisma/client.js';
-import type { PressureUnit, RateUnit, TemperatureUnit, VolumeUnit } from '@carbon/shared';
+import type { PressureUnit, RateUnit, TemperatureUnit, VolumeUnit } from '@flame/shared';
 
 /**
  * Standardisation of gas activity quantities to the platform's canonical reference

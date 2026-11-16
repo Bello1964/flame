@@ -90,11 +90,11 @@ describe('startup role check', () => {
   });
 
   it('refuses, in production, a login that could delete audit entries', async () => {
-    const name = 'carbon_role_delete_probe';
+    const name = 'flame_role_delete_probe';
     const password = 'delete-probe-password-1';
     await ownerPrisma.$executeRawUnsafe(`DROP ROLE IF EXISTS ${name}`);
     await ownerPrisma.$executeRawUnsafe(
-      `CREATE ROLE ${name} LOGIN PASSWORD '${password}' IN ROLE carbon_app`,
+      `CREATE ROLE ${name} LOGIN PASSWORD '${password}' IN ROLE flame_app`,
     );
     await ownerPrisma.$executeRawUnsafe(`GRANT DELETE ON audit_logs TO ${name}`);
     const url = new URL(testDatabaseUrl());
@@ -160,7 +160,7 @@ describe('app role privileges across all tables', () => {
         LEFT JOIN information_schema.role_table_grants g
           ON g.table_schema = t.table_schema
          AND g.table_name = t.table_name
-         AND g.grantee = 'carbon_app'
+         AND g.grantee = 'flame_app'
        WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
        GROUP BY t.table_name
        ORDER BY t.table_name`;

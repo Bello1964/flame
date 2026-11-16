@@ -7,7 +7,7 @@ import {
   TEMPERATURE_UNIT_LABELS,
   VOLUME_UNIT_LABELS,
   type ActivityRecordDto,
-} from '@carbon/shared';
+} from '@flame/shared';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatDateTime, formatDecimal } from '@/lib/format';
 import { useOrganisation } from '@/features/organisations/organisation-context';

@@ -1,10 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { z } from 'zod';
-import {
-  DUPLICATE_ERROR_CODE,
-  type ApiErrorBody,
-  type DuplicateErrorDetails,
-} from '@carbon/shared';
+import { DUPLICATE_ERROR_CODE, type ApiErrorBody, type DuplicateErrorDetails } from '@flame/shared';
 import { Prisma } from '../generated/prisma/client.js';
 import { AppError, notFound } from '../lib/errors.js';
 import { uniqueViolationFields } from '../lib/unique-violation.js';

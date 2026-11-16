@@ -1,9 +1,9 @@
 /** Default matches docker-compose.yml; override with TEST_DATABASE_URL (e.g. in CI). */
 const DEFAULT_TEST_DATABASE_URL =
-  'postgresql://carbon:carbon_local_dev_only@localhost:5434/carbon_accounting_test';
+  'postgresql://flame:flame_local_dev_only@localhost:5434/flame_test';
 
-/** Test-only login for the restricted carbon_app role, created by the global setup. */
-const TEST_APP_USER = 'carbon_app_test';
+/** Test-only login for the restricted flame_app role, created by the global setup. */
+const TEST_APP_USER = 'flame_app_test';
 
 declare module 'vitest' {
   export interface ProvidedContext {

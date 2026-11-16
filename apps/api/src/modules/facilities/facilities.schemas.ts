@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FLARE_TYPES } from '@carbon/shared';
+import { FLARE_TYPES } from '@flame/shared';
 
 const name = z.string().trim().min(1).max(200);
 const code = z

@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { vi } from 'vitest';
-import type { FacilityDto, MembershipSummary, Role, SessionResponse } from '@carbon/shared';
+import type { FacilityDto, MembershipSummary, Role, SessionResponse } from '@flame/shared';
 import { routes } from '@/app/router';
 import { Toaster } from '@/components/ui/sonner';
 import { createQueryClient } from '@/lib/query-client';

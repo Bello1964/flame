@@ -1,7 +1,7 @@
-import { hasPermission, type Role } from '@carbon/shared';
+import { hasPermission, type Role } from '@flame/shared';
 
 /**
- * Uses the same permission matrix the API enforces (@carbon/shared), so the interface
+ * Uses the same permission matrix the API enforces (@flame/shared), so the interface
  * offers exactly the actions the user's roles allow. This is a display aid, not a
  * control: the API checks every request and its answer is authoritative.
  */

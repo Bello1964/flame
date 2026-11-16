@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CSRF_HEADER } from '@carbon/shared';
+import { CSRF_HEADER } from '@flame/shared';
 import { createLogger } from './logger.js';
 import request from 'supertest';
 import {
@@ -41,7 +41,7 @@ describe('request logging', () => {
     expect(logs).toContain('"x-csrf-token":"[REDACTED]"');
     expect(logs).toContain('"cookie":"[REDACTED]"');
     expect(logs).not.toContain(csrfToken);
-    expect(logs).not.toMatch(/carbon_sid=[^;"[]/);
+    expect(logs).not.toMatch(/flame_sid=[^;"[]/);
   });
 
   it('warns once when a proxy header arrives but TRUST_PROXY is 0', async () => {

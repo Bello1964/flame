@@ -59,7 +59,7 @@ export function toAppConfig(env: Env): AppConfig {
     trustProxy: env.TRUST_PROXY,
     session: {
       // __Host- prefix requires Secure, Path=/ and no Domain — only usable over HTTPS.
-      cookieName: isProduction ? '__Host-carbon_sid' : 'carbon_sid',
+      cookieName: isProduction ? '__Host-flame_sid' : 'flame_sid',
       secureCookie: isProduction,
       idleTimeoutMs: env.SESSION_IDLE_MINUTES * 60_000,
       absoluteTimeoutMs: env.SESSION_ABSOLUTE_HOURS * 3_600_000,

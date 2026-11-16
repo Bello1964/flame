@@ -1,4 +1,4 @@
-import { CANONICAL_REFERENCE, type ActivityRecordDto, type ActivityWarning } from '@carbon/shared';
+import { CANONICAL_REFERENCE, type ActivityRecordDto, type ActivityWarning } from '@flame/shared';
 import { Prisma, type ActivityRecord } from '../../generated/prisma/client.js';
 import { exact } from '../../lib/decimal.js';
 import { isoDateOf } from './activity.repository.js';

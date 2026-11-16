@@ -7,7 +7,7 @@ import {
   type Response,
 } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
-import type { DataResponse, SessionResponse } from '@carbon/shared';
+import type { DataResponse, SessionResponse } from '@flame/shared';
 import type { AppConfig } from '../../config/env.js';
 import { authOf, parse, requestMeta } from '../../lib/request.js';
 import { requireAuth } from '../../middleware/authenticate.js';

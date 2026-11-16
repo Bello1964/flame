@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import type { PrismaClient } from '../generated/prisma/client.js';
 
 /** The NOLOGIN group role created by the audit_log_hardening migration. */
-export const APP_GROUP_ROLE = 'carbon_app';
+export const APP_GROUP_ROLE = 'flame_app';
 
 const ROLE_NAME = /^[a-z_][a-z0-9_]{0,62}$/;
 
@@ -28,7 +28,7 @@ function privilegedReasons(r: ExistingRole): string[] {
 }
 
 /**
- * Creates (or updates the password of) a LOGIN role that is a member of carbon_app.
+ * Creates (or updates the password of) a LOGIN role that is a member of flame_app.
  * An existing role is only reused if it is a plain login that owns nothing.
  * Note: the password is sent inside the CREATE/ALTER ROLE statement, so it can appear
  * in server logs if PostgreSQL's log_statement is set to 'ddl' or 'all'.
@@ -144,7 +144,7 @@ export async function assertRestrictedAppRole(
 
   const message =
     `Database role "${privileges.role}" can modify or own audit_logs. ` +
-    'Connect the API as a carbon_app login (see npm run db:create-app-user -w @carbon/api).';
+    'Connect the API as a flame_app login (see npm run db:create-app-user -w @flame/api).';
   if (isProduction) throw new Error(message);
   logger.warn({ privileges }, message);
 }
