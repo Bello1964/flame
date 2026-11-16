@@ -20,7 +20,7 @@ import type {
   TemperatureUnit,
   VolumeUnit,
 } from '@flame/shared';
-import { apiGet, apiSend, withQuery } from '@/lib/api-client';
+import { ApiError, apiGet, apiSend, withQuery } from '@/lib/api-client';
 
 /** CURRENT: everything except withdrawn, rejected and superseded records. */
 export type ActivityStatusFilter = ActivityRecordStatus | 'CURRENT' | 'ALL';
@@ -135,6 +135,19 @@ export function useActivityHistory(orgId: string, id: string) {
   });
 }
 
+/**
+ * After the API refuses a step (403 or 409), the record has probably changed (e.g.
+ * someone else claimed it), so refetch it rather than keep offering stale actions.
+ */
+function useRefreshOnRefusal(orgId: string) {
+  const queryClient = useQueryClient();
+  return async (error: unknown) => {
+    if (error instanceof ApiError && (error.status === 403 || error.status === 409)) {
+      await queryClient.invalidateQueries({ queryKey: activityKeys.all(orgId) });
+    }
+  };
+}
+
 function useAfterActivityWrite(orgId: string) {
   const queryClient = useQueryClient();
   return async (record: ActivityRecordDto) => {
@@ -192,6 +205,7 @@ export function useWithdrawActivity(orgId: string, id: string) {
 /** Submit, review, forward, return, approve, reject, recall or release a review claim. */
 export function useWorkflowAction(orgId: string, id: string) {
   const afterWrite = useAfterActivityWrite(orgId);
+  const onError = useRefreshOnRefusal(orgId);
   return useMutation({
     mutationFn: async ({ action, comment }: { action: TransitionAction; comment?: string }) =>
       (
@@ -202,12 +216,14 @@ export function useWorkflowAction(orgId: string, id: string) {
         )
       ).data,
     onSuccess: afterWrite,
+    onError,
   });
 }
 
 /** Starts a revision of an approved record; resolves to the new draft. */
 export function useReviseActivity(orgId: string, id: string) {
   const afterWrite = useAfterActivityWrite(orgId);
+  const onError = useRefreshOnRefusal(orgId);
   return useMutation({
     mutationFn: async () =>
       (
@@ -217,6 +233,7 @@ export function useReviseActivity(orgId: string, id: string) {
         )
       ).data,
     onSuccess: afterWrite,
+    onError,
   });
 }
 

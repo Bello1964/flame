@@ -330,7 +330,7 @@ export class ActivityService {
     const ids = records.map((r) => r.id);
     const [candidates, involvement, revisions] = await Promise.all([
       repo.overlapCandidates(db, organisationId, records),
-      repo.involvementOf(db, organisationId, ids),
+      repo.involvementOf(db, organisationId, records),
       repo.revisionsOf(db, organisationId, ids),
     ]);
     return records.map((r) => {

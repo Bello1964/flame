@@ -147,7 +147,7 @@ export function WorkflowNotice({ record: r }: { record: ActivityRecordDto }) {
                   className="text-primary underline underline-offset-4"
                   to={link(r.supersededById)}
                 >
-                  Open the current version
+                  Open the revision that replaced it
                 </Link>
               </>
             )}

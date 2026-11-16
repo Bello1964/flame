@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useBulkActivityAction } from './api';
 import { periodLabel } from './labels';
-import { ActionDialog } from './workflow-actions';
+import { ActionDialog, ActionError } from './workflow-actions';
 import { ACTION_CONFIG } from './workflow-config';
 import type { Selection } from './use-selection';
 
@@ -157,6 +157,7 @@ export function BulkActionBar({ selection }: { selection: Selection }) {
           </Button>
         </div>
       )}
+      {dialog === null && bulk.isError && <ActionError error={bulk.error} />}
       {failures.length > 0 && (
         <div role="alert" className="text-sm">
           <p className="font-medium text-destructive">

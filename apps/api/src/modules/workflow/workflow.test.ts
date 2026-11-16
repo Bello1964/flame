@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActivityRecordDto, ActivityRecordEventDto } from '@flame/shared';
 import {
   CSRF_HEADER,
@@ -13,6 +13,7 @@ import {
   type LoggedIn,
 } from '../../test/context.js';
 import type { Role } from '../../generated/prisma/client.js';
+import { WorkflowService } from './workflow.service.js';
 
 const app = makeApp();
 const base = (orgId: string) => `/api/v1/organisations/${orgId}`;
@@ -651,5 +652,78 @@ describe('database safeguards', () => {
     await expect(
       ownerPrisma.$executeRaw`DELETE FROM activity_record_events WHERE "activityRecordId" = ${r.id}::uuid`,
     ).rejects.toThrow(/append-only/);
+  });
+});
+
+describe('review follow-ups', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reports every record in a bulk request even when one fails unexpectedly', async () => {
+    const a = await create(w.entry, '2026-01-10');
+    const b = await create(w.entry, '2026-01-11');
+    const c = await create(w.entry, '2026-01-12');
+    const proto = WorkflowService.prototype as unknown as {
+      apply: (...args: unknown[]) => unknown;
+    };
+    const original = proto.apply;
+    let calls = 0;
+    vi.spyOn(proto, 'apply').mockImplementation(function (this: unknown, ...args: unknown[]) {
+      calls += 1;
+      if (calls === 2) throw new Error('connection reset');
+      return original.apply(this, args);
+    });
+
+    const res = await post(w.entry, `${records(w.orgA)}/bulk`, {
+      action: 'submit',
+      ids: [a.id, b.id, c.id],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([
+      { id: a.id, ok: true, status: 'SUBMITTED' },
+      { id: b.id, ok: false, error: { code: 'INTERNAL_ERROR', message: expect.any(String) } },
+      { id: c.id, ok: true, status: 'SUBMITTED' },
+    ]);
+    expect(JSON.stringify(res.body)).not.toMatch(/connection reset/);
+  });
+
+  it('counts the stored creator as involved even without a history entry', async () => {
+    const template = await create(w.entry, '2026-01-10');
+    const row = await prisma.activityRecord.findUniqueOrThrow({ where: { id: template.id } });
+    const { id: _id, createdAt: _c, updatedAt: _u, conversionDetails, ...values } = row;
+    // Written without a CREATED event, as an older API version might have done.
+    const orphan = await prisma.activityRecord.create({
+      data: {
+        ...values,
+        conversionDetails: conversionDetails ?? {},
+        periodStart: new Date('2026-01-11T00:00:00Z'),
+        periodEnd: new Date('2026-01-11T00:00:00Z'),
+        createdById: w.entryReviewer.session.user.id,
+        updatedById: w.entryReviewer.session.user.id,
+      },
+    });
+    await expectOk(w.entry, orphan.id, 'submit');
+    const res = await act(w.entryReviewer, orphan.id, 'start-review');
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('SEPARATION_OF_DUTIES');
+  });
+
+  it('keeps identity, approvals and claims from being rewritten in the database', async () => {
+    const draft = await create(w.entry, '2026-01-10');
+    await expect(
+      prisma.$executeRaw`UPDATE activity_records SET "createdById" = ${w.owner.session.user.id}::uuid WHERE id = ${draft.id}::uuid`,
+    ).rejects.toThrow(/identity and lineage/);
+
+    await expectOk(w.entry, draft.id, 'submit');
+    await expectOk(w.reviewer, draft.id, 'start-review');
+    await expect(
+      ownerPrisma.$executeRaw`UPDATE activity_records SET "claimedById" = ${w.reviewer2.session.user.id}::uuid WHERE id = ${draft.id}::uuid`,
+    ).rejects.toThrow(/only with a status change/);
+
+    const approved = await approvedRecord('2026-01-12');
+    await expect(
+      ownerPrisma.$executeRaw`UPDATE activity_records SET status = 'SUPERSEDED', "supersededAt" = now(), "approvedById" = ${w.owner.session.user.id}::uuid WHERE id = ${approved.id}::uuid`,
+    ).rejects.toThrow(/who approved it/);
   });
 });

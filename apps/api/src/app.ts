@@ -50,7 +50,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const facilities = new FacilitiesService(prisma);
   const activity = new ActivityService(prisma);
   const settings = new SettingsService(prisma);
-  const workflow = new WorkflowService(prisma, activity);
+  const workflow = new WorkflowService(prisma, activity, logger);
 
   app.use(
     `${API}/health`,

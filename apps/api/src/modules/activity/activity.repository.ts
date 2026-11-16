@@ -178,15 +178,20 @@ export interface Involvement {
 
 /**
  * Who has been involved with each record and who has reviewed it, read from the
- * append-only history. Separation of duties (§7.1) is decided from this.
+ * append-only history. Separation of duties (§7.1) is decided from this. The stored
+ * creator always counts too, so a record whose history is incomplete (e.g. written by an
+ * older API version during a deploy) never loses its creator's involvement.
  */
 export async function involvementOf(
   db: Db,
   organisationId: string,
-  recordIds: string[],
+  records: { id: string; createdById: string }[],
 ): Promise<Map<string, Involvement>> {
   const result = new Map<string, Involvement>();
-  for (const id of recordIds) result.set(id, { involved: new Set(), reviewers: new Set() });
+  for (const r of records) {
+    result.set(r.id, { involved: new Set([r.createdById]), reviewers: new Set() });
+  }
+  const recordIds = records.map((r) => r.id);
   if (recordIds.length === 0) return result;
   const events = await db.activityRecordEvent.findMany({
     where: {

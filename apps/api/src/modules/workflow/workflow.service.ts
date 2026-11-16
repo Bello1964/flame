@@ -14,6 +14,7 @@ import type {
   Prisma,
   PrismaClient,
 } from '../../generated/prisma/client.js';
+import type { Logger } from 'pino';
 import { AppError, conflict, forbidden, notFound } from '../../lib/errors.js';
 import * as repo from '../activity/activity.repository.js';
 import type { ActivityService, Caller } from '../activity/activity.service.js';
@@ -89,6 +90,7 @@ export class WorkflowService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly activity: ActivityService,
+    private readonly logger: Logger,
   ) {}
 
   async act(
@@ -104,7 +106,8 @@ export class WorkflowService {
 
   /**
    * Applies one action to many records. Each record is handled in its own transaction,
-   * so one refusal doesn't hold back the rest; the result says what happened to each.
+   * so one refusal (or an unexpected failure) doesn't hold back the rest; the result says
+   * what happened to each, including records committed before a later one failed.
    */
   async bulk(caller: Caller, input: BulkInput): Promise<BulkActivityResult[]> {
     if (commentRequired(input.action) && !input.comment) throw reasonMissing();
@@ -116,8 +119,22 @@ export class WorkflowService {
         );
         results.push({ id, ok: true, status });
       } catch (err) {
-        if (!(err instanceof AppError)) throw err;
-        results.push({ id, ok: false, error: { code: err.code, message: err.message } });
+        if (err instanceof AppError) {
+          results.push({ id, ok: false, error: { code: err.code, message: err.message } });
+          continue;
+        }
+        this.logger.error(
+          { err, recordId: id, action: input.action, organisationId: caller.organisationId },
+          'Bulk workflow action failed for one record',
+        );
+        results.push({
+          id,
+          ok: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Could not be updated because of an unexpected error. Try again.',
+          },
+        });
       }
     }
     return results;
@@ -207,7 +224,7 @@ export class WorkflowService {
     const source = await repo.findFlareSourceForActivity(tx, org, record.flareSourceId);
     if (!source) throw notFound('Flare source not found');
 
-    const inv = (await repo.involvementOf(tx, org, [id])).get(id) ?? {
+    const inv = (await repo.involvementOf(tx, org, [record])).get(id) ?? {
       involved: new Set<string>(),
       reviewers: new Set<string>(),
     };
