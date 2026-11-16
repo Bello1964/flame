@@ -137,9 +137,10 @@ const APPEND_ONLY = ['INSERT', 'SELECT'];
 const NONE: string[] = [];
 const EXPECTED_APP_PRIVILEGES: Record<string, string[]> = {
   _prisma_migrations: NONE,
-  // Drafts are edited in place (every change audited); approved, immutable records
-  // arrive with the review workflow and will be append-only.
-  activity_records: CRUD,
+  // Never deleted: drafts and records returned for correction are edited in place
+  // (every change audited and in the history); a trigger freezes everything else.
+  activity_record_events: APPEND_ONLY,
+  activity_records: ['INSERT', 'SELECT', 'UPDATE'],
   assets: CRUD,
   audit_logs: APPEND_ONLY,
   facilities: CRUD,

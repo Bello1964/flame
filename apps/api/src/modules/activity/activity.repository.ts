@@ -1,4 +1,4 @@
-import type { ActivityType, Prisma } from '../../generated/prisma/client.js';
+import type { ActivityRecordStatus, ActivityType, Prisma } from '../../generated/prisma/client.js';
 import type { Db } from '../audit/audit.service.js';
 import type { ActivityListQuery } from './activity.schemas.js';
 
@@ -17,19 +17,80 @@ export function isoDateOf(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export async function listRecords(db: Db, organisationId: string, query: ActivityListQuery) {
+/** Records that still count: everything except withdrawn, rejected and superseded. */
+export const CURRENT_STATUSES: ActivityRecordStatus[] = [
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'NEEDS_CORRECTION',
+  'AWAITING_APPROVAL',
+  'APPROVED',
+];
+
+/** Submitted or approved: these block an overlapping record from being submitted. */
+export const COMMITTED_STATUSES: ActivityRecordStatus[] = [
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'AWAITING_APPROVAL',
+  'APPROVED',
+];
+
+/** A revision that is still being worked on (at most one per record). */
+export const OPEN_REVISION_STATUSES: ActivityRecordStatus[] = [
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'NEEDS_CORRECTION',
+  'AWAITING_APPROVAL',
+];
+
+/** Related rows every response needs: where the record is, and who holds or approved it. */
+export const recordInclude = {
+  flareSource: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      status: true,
+      asset: { select: { facility: { select: { name: true } } } },
+    },
+  },
+  claimedBy: { select: { name: true } },
+  approvedBy: { select: { name: true } },
+} satisfies Prisma.ActivityRecordInclude;
+
+export type RecordWithRelations = Prisma.ActivityRecordGetPayload<{
+  include: typeof recordInclude;
+}>;
+
+export async function listRecords(
+  db: Db,
+  organisationId: string,
+  query: ActivityListQuery,
+  userId: string,
+) {
   const where: Prisma.ActivityRecordWhereInput = {
     organisationId,
     ...(query.flareSourceId ? { flareSourceId: query.flareSourceId } : {}),
     ...(query.activityType ? { activityType: query.activityType } : {}),
-    ...(query.status === 'ALL' ? {} : { status: query.status }),
+    ...(query.status === 'ALL'
+      ? {}
+      : query.status === 'CURRENT'
+        ? { status: { in: CURRENT_STATUSES } }
+        : { status: query.status }),
+    ...(query.claimedBy === 'me' ? { claimedById: userId } : {}),
     ...(query.from ? { periodEnd: { gte: dateOf(query.from) } } : {}),
     ...(query.to ? { periodStart: { lte: dateOf(query.to) } } : {}),
   };
+  const orderBy: Prisma.ActivityRecordOrderByWithRelationInput[] =
+    query.sort === 'submitted'
+      ? [{ submittedAt: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }]
+      : [{ periodStart: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }];
   const [items, total] = await Promise.all([
     db.activityRecord.findMany({
       where,
-      orderBy: [{ periodStart: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+      include: recordInclude,
+      orderBy,
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
     }),
@@ -42,9 +103,14 @@ export function findRecord(db: Db, organisationId: string, id: string) {
   return db.activityRecord.findFirst({ where: { id, organisationId } });
 }
 
+export function findRecordWithRelations(db: Db, organisationId: string, id: string) {
+  return db.activityRecord.findFirst({ where: { id, organisationId }, include: recordInclude });
+}
+
 /**
- * Draft records of the same flare source and activity type whose inclusive date range
- * intersects [periodStart, periodEnd]. Withdrawn records never count.
+ * Records of the same flare source and activity type, in the given statuses, whose
+ * inclusive date range intersects [periodStart, periodEnd]. `excludeIds` leaves out the
+ * record itself and the record it revises (a revision replaces it, so they don't clash).
  */
 export function findOverlapping(
   db: Db,
@@ -53,25 +119,27 @@ export function findOverlapping(
   activityType: ActivityType,
   periodStart: Date,
   periodEnd: Date,
-  excludeId?: string,
+  statuses: ActivityRecordStatus[],
+  excludeIds: (string | null | undefined)[] = [],
 ) {
+  const exclude = excludeIds.filter((id): id is string => typeof id === 'string');
   return db.activityRecord.findMany({
     where: {
       organisationId,
       flareSourceId,
       activityType,
-      status: 'DRAFT',
+      status: { in: statuses },
       periodStart: { lte: periodEnd },
       periodEnd: { gte: periodStart },
-      ...(excludeId ? { id: { not: excludeId } } : {}),
+      ...(exclude.length > 0 ? { id: { notIn: exclude } } : {}),
     },
-    select: { id: true, periodStart: true, periodEnd: true },
+    select: { id: true, periodStart: true, periodEnd: true, status: true },
     orderBy: [{ periodStart: 'asc' }, { id: 'asc' }],
   });
 }
 
 /**
- * Draft records that could overlap any of `records` (same flare sources, date range
+ * Current records that could overlap any of `records` (same flare sources, date range
  * spanning them all). The caller pairs them up in memory; one query per page.
  */
 export function overlapCandidates(
@@ -85,7 +153,7 @@ export function overlapCandidates(
   return db.activityRecord.findMany({
     where: {
       organisationId,
-      status: 'DRAFT',
+      status: { in: CURRENT_STATUSES },
       flareSourceId: { in: [...new Set(records.map((r) => r.flareSourceId))] },
       periodStart: { lte: new Date(Math.max(...ends)) },
       periodEnd: { gte: new Date(Math.min(...starts)) },
@@ -96,6 +164,91 @@ export function overlapCandidates(
       activityType: true,
       periodStart: true,
       periodEnd: true,
+      revisionOfId: true,
+    },
+  });
+}
+
+export interface Involvement {
+  /** Created, edited or submitted the record. */
+  involved: Set<string>;
+  /** Started a review of the record. */
+  reviewers: Set<string>;
+}
+
+/**
+ * Who has been involved with each record and who has reviewed it, read from the
+ * append-only history. Separation of duties (§7.1) is decided from this.
+ */
+export async function involvementOf(
+  db: Db,
+  organisationId: string,
+  recordIds: string[],
+): Promise<Map<string, Involvement>> {
+  const result = new Map<string, Involvement>();
+  for (const id of recordIds) result.set(id, { involved: new Set(), reviewers: new Set() });
+  if (recordIds.length === 0) return result;
+  const events = await db.activityRecordEvent.findMany({
+    where: {
+      organisationId,
+      activityRecordId: { in: recordIds },
+      type: { in: ['CREATED', 'EDITED', 'SUBMITTED', 'REVIEW_STARTED'] },
+    },
+    select: { activityRecordId: true, type: true, actorId: true },
+  });
+  for (const e of events) {
+    const entry = result.get(e.activityRecordId);
+    if (!entry) continue;
+    if (e.type === 'REVIEW_STARTED') entry.reviewers.add(e.actorId);
+    else entry.involved.add(e.actorId);
+  }
+  return result;
+}
+
+/** Revisions of the given records that are still open, or that replaced them. */
+export function revisionsOf(db: Db, organisationId: string, recordIds: string[]) {
+  if (recordIds.length === 0) return Promise.resolve([]);
+  return db.activityRecord.findMany({
+    where: {
+      organisationId,
+      revisionOfId: { in: recordIds },
+      status: { in: [...OPEN_REVISION_STATUSES, 'APPROVED', 'SUPERSEDED'] },
+    },
+    select: { id: true, revisionOfId: true, status: true },
+  });
+}
+
+export function listEvents(db: Db, organisationId: string, recordId: string) {
+  return db.activityRecordEvent.findMany({
+    where: { organisationId, activityRecordId: recordId },
+    include: { actor: { select: { id: true, name: true } } },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+}
+
+export interface NewEvent {
+  organisationId: string;
+  activityRecordId: string;
+  type: Prisma.ActivityRecordEventCreateManyInput['type'];
+  fromStatus: ActivityRecordStatus | null;
+  toStatus: ActivityRecordStatus;
+  actorId: string;
+  comment?: string | null;
+  details?: Prisma.InputJsonValue;
+}
+
+/** Appends to a record's history. Pass the transaction client so it commits with the change. */
+export async function addEvent(db: Db, event: NewEvent): Promise<void> {
+  await db.activityRecordEvent.create({
+    data: {
+      organisationId: event.organisationId,
+      activityRecordId: event.activityRecordId,
+      type: event.type,
+      fromStatus: event.fromStatus,
+      toStatus: event.toStatus,
+      actorId: event.actorId,
+      comment: event.comment ?? null,
+      ...(event.details === undefined ? {} : { details: event.details }),
     },
   });
 }

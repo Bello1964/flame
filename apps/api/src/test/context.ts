@@ -42,14 +42,17 @@ export function makeApp(overrides: Partial<AppDependencies> = {}): Express {
 
 /**
  * Wipes all tables between tests. Only the schema owner can do this: it switches off the
- * audit log's TRUNCATE guard inside one transaction, so the guard is back on before commit.
+ * TRUNCATE guards of the audit log and the activity record history inside one transaction,
+ * so they are back on before commit.
  * The app role used by the tests cannot do any of this. Test database only.
  */
 export async function resetDatabase(): Promise<void> {
   testDatabaseUrl(); // re-assert the _test guard before a destructive statement
   await ownerPrisma.$transaction([
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_no_truncate`,
-    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
+    ownerPrisma.$executeRaw`ALTER TABLE activity_record_events DISABLE TRIGGER activity_record_events_no_truncate`,
+    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
+    ownerPrisma.$executeRaw`ALTER TABLE activity_record_events ENABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_no_truncate`,
   ]);
 }

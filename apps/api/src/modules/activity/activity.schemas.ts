@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ACTIVITY_RECORD_KINDS,
+  ACTIVITY_RECORD_STATUSES,
   ACTIVITY_TYPES,
   MEASUREMENT_BASES,
   MEASUREMENT_METHODS,
@@ -209,7 +210,12 @@ export const activityListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
   flareSourceId: z.uuid().optional(),
   activityType: z.enum(ACTIVITY_TYPES).optional(),
-  status: z.enum(['DRAFT', 'WITHDRAWN', 'ALL']).default('DRAFT'),
+  /** A single status, CURRENT (all but withdrawn, rejected and superseded) or ALL. */
+  status: z.enum([...ACTIVITY_RECORD_STATUSES, 'CURRENT', 'ALL']).default('CURRENT'),
+  /** Only records the requesting user is reviewing. */
+  claimedBy: z.enum(['me']).optional(),
+  /** period: newest period first (default); submitted: longest-waiting first (queues). */
+  sort: z.enum(['period', 'submitted']).default('period'),
   /** Records whose period ends on or after this date. */
   from: isoDate.optional(),
   /** Records whose period starts on or before this date. */
