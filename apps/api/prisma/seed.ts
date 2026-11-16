@@ -1,8 +1,10 @@
 /**
- * Development seed: one organisation and one owner account so you can sign in locally.
+ * Development seed: one organisation, one owner account and optional Platform
+ * Administrators, so you can sign in locally.
  * Creates no operational or emissions data. Refuses to run in production.
  *
  * Required env: SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD (min 12 chars).
+ * Optional: SEED_PLATFORM_ADMIN_1_EMAIL/_PASSWORD and _2_ (Platform Administrators).
  * Run: npm run db:seed -w @flame/api
  */
 import { createPrismaClient } from '../src/lib/prisma.js';
@@ -41,7 +43,30 @@ async function main(): Promise<void> {
       update: {},
       create: { userId: user.id, organisationId: org.id, roles: ['ORGANISATION_OWNER'] },
     });
-    logger.info({ organisation: org.slug, user: user.email }, 'Seed complete');
+
+    // Optional Platform Administrators (no organisation membership): approving a
+    // methodology edition needs one who didn't prepare it, so two can be seeded.
+    const admins: string[] = [];
+    for (const n of ['1', '2']) {
+      const adminEmail = process.env[`SEED_PLATFORM_ADMIN_${n}_EMAIL`]?.trim().toLowerCase();
+      const adminPassword = process.env[`SEED_PLATFORM_ADMIN_${n}_PASSWORD`];
+      if (!adminEmail) continue;
+      if (!adminPassword || adminPassword.length < 12) {
+        throw new Error(`Set SEED_PLATFORM_ADMIN_${n}_PASSWORD (min 12 characters).`);
+      }
+      await prisma.user.upsert({
+        where: { email: adminEmail },
+        update: {},
+        create: {
+          email: adminEmail,
+          name: `Platform Administrator ${n}`,
+          passwordHash: await hashPassword(adminPassword),
+          isPlatformAdmin: true,
+        },
+      });
+      admins.push(adminEmail);
+    }
+    logger.info({ organisation: org.slug, user: user.email, admins }, 'Seed complete');
   } finally {
     await prisma.$disconnect();
   }
