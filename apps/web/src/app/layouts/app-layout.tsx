@@ -16,7 +16,8 @@ interface NavItem {
 /**
  * Application shell. A sidebar on wider screens. On narrow screens it becomes a top bar:
  * the brand on the left, the organisation and account as compact menus on the right,
- * and the navigation beneath as icons only (each named on hover and to screen readers).
+ * and the navigation beneath as centred icons a fixed gap apart (each named on hover
+ * and to screen readers).
  */
 export function AppLayout({
   organisationSlot,
@@ -108,7 +109,7 @@ export function AppLayout({
 
         {nav.length > 0 && (
           <nav aria-label="Main" className="px-2 pb-2 md:flex-1 md:pb-3">
-            <ul className="flex justify-between gap-1 md:flex-col md:justify-start">
+            <ul className="flex flex-wrap justify-center gap-2 md:flex-col md:flex-nowrap md:justify-start md:gap-1">
               {nav.map((item) => (
                 <li key={item.to}>
                   <NavLink
