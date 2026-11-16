@@ -35,6 +35,8 @@ export const PERMISSIONS = {
   'calculation:review': ['ORGANISATION_OWNER', 'REVIEWER'],
   'calculation:approve': ['ORGANISATION_OWNER', 'APPROVER'],
   'calculation:release-claim': ['ORGANISATION_OWNER'],
+  // Emissions reports (ARCHITECTURAL_WORKFLOW.md §8.2): approved calculations only.
+  'report:read': ROLES,
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

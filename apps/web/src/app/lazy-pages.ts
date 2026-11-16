@@ -14,6 +14,8 @@ export const pages = {
   methodology: () => import('@/pages/methodology-page'),
   adminMethodology: () => import('@/pages/admin-methodology-page'),
   settings: () => import('@/pages/settings-page'),
+  reports: () => import('@/pages/reports-page'),
+  reportPrint: () => import('@/pages/report-print-page'),
 };
 
 export type PageName = keyof typeof pages;

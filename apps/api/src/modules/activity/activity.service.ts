@@ -6,6 +6,7 @@ import {
 } from '@flame/shared';
 import type { ActivityRecord, Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { AppError, conflict, forbidden, notFound } from '../../lib/errors.js';
+import { todayIn } from '../../lib/dates.js';
 import { exact } from '../../lib/decimal.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { changeSet, withStoredValues } from '../audit/change-set.js';
@@ -37,16 +38,6 @@ function fieldError(field: string, message: string): AppError {
     formErrors: [],
     fieldErrors: { [field]: [message] },
   });
-}
-
-/** Today's date (YYYY-MM-DD) in an IANA time zone. */
-function todayIn(timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
 }
 
 /** Keys compared to decide whether an update changes anything (all scalar columns). */

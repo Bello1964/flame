@@ -97,6 +97,14 @@ export const routes: RouteObject[] = [
             lazy: async () => ({ Component: (await pages.calculation()).CalculationPage }),
           },
           {
+            path: 'reports',
+            lazy: async () => ({ Component: (await pages.reports()).ReportsPage }),
+          },
+          {
+            path: 'reports/print',
+            lazy: async () => ({ Component: (await pages.reportPrint()).ReportPrintPage }),
+          },
+          {
             path: 'review',
             lazy: async () => ({ Component: (await pages.review()).ReviewPage }),
           },
