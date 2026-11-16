@@ -435,7 +435,8 @@ export function calculate(input: EngineInput): EngineResult {
     }
   }
 
-  // tCO₂e with the edition's GWP values.
+  // tCO₂e with the edition's GWP values; origins name the steps as titled above.
+  const stepTitle = (key: string) => `Step "${steps.find((s) => s.key === key)?.title ?? key}"`;
   const gCo2 = p('gwp.co2');
   const gCh4 = p('gwp.ch4');
   const gN2o = n2o === null ? null : p('gwp.n2o');
@@ -454,10 +455,10 @@ export function calculate(input: EngineInput): EngineResult {
         label: 'Carbon dioxide',
         value: show(co2),
         unit: 't',
-        origin: 'Step "Carbon dioxide"',
+        origin: stepTitle('co2'),
       },
       { ...gCo2.ref, symbol: 'GWP_CO₂' },
-      { symbol: 'CH₄', label: 'Methane', value: show(ch4), unit: 't', origin: 'Step "Methane"' },
+      { symbol: 'CH₄', label: 'Methane', value: show(ch4), unit: 't', origin: stepTitle('ch4') },
       { ...gCh4.ref, symbol: 'GWP_CH₄' },
       ...(n2o === null || !gN2o
         ? []
@@ -467,7 +468,7 @@ export function calculate(input: EngineInput): EngineResult {
               label: 'Nitrous oxide',
               value: show(n2o),
               unit: 't',
-              origin: 'Step "Nitrous oxide"',
+              origin: stepTitle('n2o'),
             },
             { ...gN2o.ref, symbol: 'GWP_N₂O' },
           ]),

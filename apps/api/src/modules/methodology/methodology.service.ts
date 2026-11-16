@@ -12,7 +12,7 @@ import type {
   PrismaClient,
 } from '../../generated/prisma/client.js';
 import { exact } from '../../lib/decimal.js';
-import { conflict, notFound } from '../../lib/errors.js';
+import { AppError, conflict, notFound } from '../../lib/errors.js';
 import { recordAudit, type Db } from '../audit/audit.service.js';
 import { requiredParameters } from '../calculations/engine.js';
 import type { EditionUpdate, ParameterUpdate } from './methodology.schemas.js';
@@ -77,6 +77,22 @@ export function toParameterDto(p: MethodologyParameter): MethodologyParameterDto
   };
 }
 
+/**
+ * Every number the engine multiplies or divides by is a positive quantity, and a
+ * percentage can't exceed 100. Returns why a value can't be used, or null.
+ */
+export function valueProblem(value: string, unit: string): string | null {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 'must be greater than zero';
+  if (unit.trim() === '%' && n > 100) return 'a percentage can be at most 100';
+  return null;
+}
+
+/** The public view names no people: approval is shown by date only. */
+function toPublicDto(e: EditionWithRelations): MethodologyEditionDto {
+  return { ...toDto(e), createdBy: null, approvedBy: null };
+}
+
 function toDto(e: EditionWithRelations): MethodologyEditionDto {
   return {
     ...summary(e),
@@ -117,7 +133,7 @@ export class MethodologyService {
       include: editionInclude,
     });
     if (!e) throw notFound('Methodology edition not found');
-    return toDto(e);
+    return toPublicDto(e);
   }
 
   /** The edition new calculations use: the approved one. */
@@ -155,10 +171,20 @@ export class MethodologyService {
   async draftFrom(admin: PlatformAdmin, sourceId: string): Promise<MethodologyEditionDto> {
     const id = await this.prisma.$transaction(async (tx) => {
       const source = await tx.methodologyEdition.findFirst({
-        where: { id: sourceId, status: { in: [...PUBLISHED] } },
+        where: { id: sourceId, status: { in: [...PUBLISHED, 'WITHDRAWN'] } },
         include: { parameters: true },
       });
       if (!source) throw notFound('Methodology edition not found');
+      // A withdrawn edition is a starting point only while nothing has ever been approved
+      // (otherwise drafts start from the published editions).
+      if (source.status === 'WITHDRAWN') {
+        const published = await tx.methodologyEdition.count({
+          where: { code: source.code, status: { in: [...PUBLISHED] } },
+        });
+        if (published > 0) {
+          throw conflict('Start a draft from a published edition instead of a withdrawn one');
+        }
+      }
       const draft = await tx.methodologyEdition.findFirst({
         where: { code: source.code, status: 'DRAFT' },
         select: { id: true },
@@ -215,6 +241,16 @@ export class MethodologyService {
         where: { editionId_key: { editionId: id, key } },
       });
       if (!existing) throw notFound('Parameter not found');
+      const problem = valueProblem(
+        input.value ?? exact(existing.value),
+        input.unit ?? existing.unit,
+      );
+      if (problem) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Invalid request', {
+          formErrors: [],
+          fieldErrors: { value: [problem] },
+        });
+      }
       const { retrievedOn, ...rest } = input;
       // Only the fields sent; an absent field leaves the stored value unchanged.
       const changed = Object.fromEntries(
@@ -259,6 +295,15 @@ export class MethodologyService {
       const missing = [...new Set(CALCULATION_ROUTES.flatMap(requiredParameters))].filter(
         (k) => !keys.has(k),
       );
+      const invalid = (
+        await tx.methodologyParameter.findMany({ where: { editionId: id } })
+      ).flatMap((p) => {
+        const problem = valueProblem(exact(p.value), p.unit);
+        return problem ? [`${p.key}: ${problem}`] : [];
+      });
+      if (invalid.length > 0) {
+        throw conflict(`Some values can't be used: ${invalid.join('; ')}`);
+      }
       if (missing.length > 0) {
         throw conflict(
           `The edition is missing parameters the calculations need: ${missing.join(', ')}`,

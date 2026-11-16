@@ -631,3 +631,120 @@ describe('reviewing calculations', () => {
     expect(mine.body.data.map((c: CalculationDto) => c.id)).toEqual([two.id]);
   });
 });
+
+describe('review follow-ups', () => {
+  beforeEach(async () => {
+    const a = await admin('a@example.com');
+    await approvedMethodology(a.user.id);
+  });
+
+  it('calculates venting from composition, with no N2O', async () => {
+    const record = await approvedRecord('2026-02-10', { activityType: 'VENTING' });
+    await addComposition();
+    const res = await run(w.entry, record, { route: 'COMPOSITION_VENTING' });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    const calc = res.body.data as CalculationDto;
+    expect(calc.results.n2oTonnes).toBeNull();
+    expect(calc.dataQuality).toBe('MEASURED_BASIS');
+    expect(calc.steps.map((s) => s.key)).toEqual(['volume', 'moles', 'ch4', 'co2', 'co2e']);
+  });
+
+  it('stops an owner who reviewed a calculation from approving it', async () => {
+    const record = await approvedRecord('2026-01-10');
+    const res = await run(w.entry, record, {
+      route: 'IPCC_REFERENCE_FLARING',
+      fallbackReason: 'x',
+    });
+    const path = `${base(w.org)}/calculations/${res.body.data.id as string}`;
+    await act(w.entry, path, 'submit');
+    await act(w.owner, path, 'start-review');
+    await act(w.owner, path, 'forward');
+    const own = await post(w.owner, `${path}/approve`);
+    expect(own.status).toBe(403);
+    expect(own.body.error.message).toMatch(/reviewed this calculation/);
+    await act(w.approver, path, 'approve');
+  });
+
+  it('stops whoever submitted a calculation, not just whoever ran it, from reviewing it', async () => {
+    const record = await approvedRecord('2026-01-10');
+    const res = await run(w.entry, record, {
+      route: 'IPCC_REFERENCE_FLARING',
+      fallbackReason: 'x',
+    });
+    const path = `${base(w.org)}/calculations/${res.body.data.id as string}`;
+    await act(w.owner, path, 'submit');
+    expect((await post(w.owner, `${path}/start-review`)).body.error.code).toBe(
+      'SEPARATION_OF_DUTIES',
+    );
+  });
+
+  it('never lets the database record the runner as the approver', async () => {
+    const record = await approvedRecord('2026-01-10');
+    const res = await run(w.entry, record, {
+      route: 'IPCC_REFERENCE_FLARING',
+      fallbackReason: 'x',
+    });
+    const id = res.body.data.id as string;
+    const path = `${base(w.org)}/calculations/${id}`;
+    await act(w.entry, path, 'submit');
+    await act(w.reviewer, path, 'start-review');
+    await act(w.reviewer, path, 'forward');
+    await expect(
+      ownerPrisma.$executeRaw`UPDATE calculations SET status = 'APPROVED', "approvedAt" = now(), "approvedById" = "createdById" WHERE id = ${id}::uuid`,
+    ).rejects.toThrow(/calculations_two_person_check/);
+  });
+
+  it('hides another organisation’s inputs from withdrawal', async () => {
+    const created = (await addComposition()).body.data.id as string;
+    const res = await post(w.ownerB, `${base(w.orgB)}/gas-compositions/${created}/withdraw`, {
+      reason: 'x',
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('methodology registry follow-ups', () => {
+  it('can start again from a withdrawn edition while nothing has been approved', async () => {
+    const id = await seedMethodology();
+    const a = await admin('a@example.com');
+    const b = await admin('b@example.com');
+    await post(a.session, `${API}/admin/methodology/editions/${id}/withdraw`, {
+      reason: 'Restart',
+    });
+    const draft = await post(a.session, `${API}/admin/methodology/editions/${id}/draft`);
+    expect(draft.status, JSON.stringify(draft.body)).toBe(201);
+    expect(draft.body.data).toMatchObject({ edition: 2, status: 'DRAFT' });
+    await post(
+      b.session,
+      `${API}/admin/methodology/editions/${draft.body.data.id as string}/approve`,
+    );
+    // Once an edition is published, drafts start from published editions only.
+    const again = await post(a.session, `${API}/admin/methodology/editions/${id}/draft`);
+    expect(again.status).toBe(409);
+  });
+
+  it('refuses values that would break or silence the calculation', async () => {
+    const id = await seedMethodology();
+    const a = await admin('a@example.com');
+    const b = await admin('b@example.com');
+    const path = `${API}/admin/methodology/editions/${id}/parameters`;
+    expect((await patch(a.session, `${path}/gwp.ch4`, { value: '-28' })).status).toBe(400);
+    expect((await patch(a.session, `${path}/conv.m3_per_mmscf`, { value: '0' })).status).toBe(400);
+    expect(
+      (await patch(a.session, `${path}/api.co2_conversion_default`, { value: '101' })).status,
+    ).toBe(400);
+    // A bad value that reached the draft some other way is refused at approval.
+    await ownerPrisma.$executeRaw`UPDATE methodology_parameters SET value = 0 WHERE "editionId" = ${id}::uuid AND key = 'mw.ch4'`;
+    const approve = await post(b.session, `${API}/admin/methodology/editions/${id}/approve`);
+    expect(approve.status).toBe(409);
+    expect(approve.body.error.message).toMatch(/mw\.ch4: must be greater than zero/);
+  });
+
+  it('names no people on the public page', async () => {
+    const a = await admin('a@example.com');
+    const id = await approvedMethodology(a.user.id);
+    const res = await request(app).get(`${API}/methodology/editions/${id}`);
+    expect(res.body.data).toMatchObject({ createdBy: null, approvedBy: null, status: 'APPROVED' });
+    expect(JSON.stringify(res.body)).not.toContain(a.user.id);
+  });
+});

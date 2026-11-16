@@ -227,7 +227,9 @@ export function CalculationsSection({ record }: { record: ActivityRecordDto }) {
   if (!relevant) return null;
 
   const open = calcs.data?.some((c) => OPEN.includes(c.status)) ?? false;
+  // Only once the versions have loaded, so the button never shows beside an open one.
   const canRun =
+    calcs.isSuccess &&
     organisation.canRunCalculation &&
     record.status === 'APPROVED' &&
     record.activityType !== 'OTHER_RELEASE' &&

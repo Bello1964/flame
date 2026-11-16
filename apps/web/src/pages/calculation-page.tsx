@@ -29,6 +29,18 @@ import {
 } from '@/features/calculations/labels';
 import type { ActivityType, CalculationAction } from '@flame/shared';
 
+/** What the result can be used for, by status (never implying approval it doesn't have). */
+const RESULT_STATUS: Record<CalculationDto['status'], string> = {
+  CALCULATED: 'Not approved: not for official reporting yet.',
+  SUBMITTED: 'Not approved: waiting for review.',
+  UNDER_REVIEW: 'Not approved: under review.',
+  AWAITING_APPROVAL: 'Not approved: reviewed, waiting for approval.',
+  APPROVED: 'Approved: the result for this activity record.',
+  REJECTED: 'Rejected: not used. Kept for history.',
+  SUPERSEDED: 'Superseded by a newer approved version: no longer used. Kept for history.',
+  DISCARDED: 'Discarded before review: not used. Kept for history.',
+};
+
 function Tonnes({
   label,
   value,
@@ -326,11 +338,7 @@ export function CalculationPage() {
       <section className="space-y-3">
         <SectionHeader
           title="Result"
-          description={
-            c.status === 'APPROVED'
-              ? 'Approved. Emissions, not carbon credits.'
-              : 'Not approved: not for official reporting yet. Emissions, not carbon credits.'
-          }
+          description={`${RESULT_STATUS[c.status]} Emissions, not carbon credits.`}
         />
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-md border border-primary/30 bg-accent/40 p-4 sm:col-span-2 lg:col-span-1">

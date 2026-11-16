@@ -489,6 +489,9 @@ export class CalculationsService {
 
       const now = new Date();
       if (action === 'approve') {
+        // Locked so a revision of the record can't be approved at the same moment
+        // (lock order: calculation, then activity record; nothing locks the reverse way).
+        await lockRecord(tx, org, calc.activityRecordId);
         const record = await tx.activityRecord.findFirst({
           where: { id: calc.activityRecordId, organisationId: org },
           select: { status: true },
