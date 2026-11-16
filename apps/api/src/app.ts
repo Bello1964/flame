@@ -23,6 +23,8 @@ import {
   methodologyPublicRouter,
 } from './modules/methodology/methodology.routes.js';
 import { MethodologyService } from './modules/methodology/methodology.service.js';
+import { reportingRouter } from './modules/reporting/reporting.routes.js';
+import { ReportingService } from './modules/reporting/reporting.service.js';
 import { WorkflowService } from './modules/workflow/workflow.service.js';
 import { ActivityService } from './modules/activity/activity.service.js';
 import { facilitiesRouter } from './modules/facilities/facilities.routes.js';
@@ -62,6 +64,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const methodology = new MethodologyService(prisma);
   const inputs = new InputsService(prisma);
   const calculations = new CalculationsService(prisma, methodology);
+  const reporting = new ReportingService(prisma);
 
   app.use(
     `${API}/health`,
@@ -98,6 +101,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   orgScoped.use(activityRouter(activity, settings));
   orgScoped.use(workflowRouter(workflow));
   orgScoped.use(calculationsRouter(calculations, inputs));
+  orgScoped.use(reportingRouter(reporting));
   app.use(`${API}/organisations/:organisationId`, orgScoped);
 
   app.use(notFoundHandler);
