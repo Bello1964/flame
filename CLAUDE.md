@@ -1,6 +1,6 @@
 # Project Overview
 
-- **Product:** Multi-tenant enterprise Carbon Accounting and Carbon Credit Commerce System.
+- **Product:** **Flame**, a multi-tenant enterprise carbon accounting and carbon-credit commerce system. "Flame" is the name people see; internal identifiers (packages `@carbon/*`, databases, cookie) keep their current names for now.
 - **Initial market:** Nigeria and West Africa, targeting oil and gas organisations.
 - **Initial product:** An enterprise carbon-management platform focused on gas-flaring activity data and emissions accounting.
 - **Purpose:** Manage operational activity data, calculate greenhouse gas emissions, maintain supporting evidence, generate reports, and manage emissions-reduction activities.

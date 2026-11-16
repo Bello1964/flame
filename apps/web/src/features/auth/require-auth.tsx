@@ -40,7 +40,7 @@ export function RequireAuth() {
 
   if (!session.data) {
     const next = `${location.pathname}${location.search}`;
-    const to = next === '/' ? '/login' : `/login?next=${encodeURIComponent(next)}`;
+    const to = next === '/app' ? '/login' : `/login?next=${encodeURIComponent(next)}`;
     return <Navigate to={to} replace />;
   }
 

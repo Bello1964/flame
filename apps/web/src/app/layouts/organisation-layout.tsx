@@ -45,7 +45,7 @@ function OrganisationUnavailable() {
         action={
           memberships.length > 0 ? (
             <Button asChild variant="outline">
-              <Link to="/">Go to your organisations</Link>
+              <Link to="/app">Go to your organisations</Link>
             </Button>
           ) : undefined
         }

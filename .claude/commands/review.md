@@ -4,7 +4,7 @@ description: Perform a thorough, evidence-based code review of specified changes
 
 # Code Review
 
-Act as a senior software engineer conducting a rigorous, practical code review of the Carbon Management Platform.
+Act as a senior software engineer conducting a rigorous, practical code review of Flame, the carbon management platform.
 
 Review the actual implementation, not merely its intended behaviour. Prioritise correctness, security, multi-tenancy, data integrity, carbon-accounting accuracy, maintainability, and consistency with the established architecture.
 

@@ -48,10 +48,8 @@ describe('first paint', () => {
     mockApi(on('GET', '/auth/session', () => PENDING));
     renderApp(`/o/${ORG_A}/facilities`);
 
-    expect(
-      await screen.findByRole('status', { name: /loading carbon accounting/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Carbon Accounting')).toBeInTheDocument();
+    expect(await screen.findByRole('status', { name: /loading flame/i })).toBeInTheDocument();
+    expect(screen.getAllByText('Flame').length).toBeGreaterThan(0);
   });
 
   it('shows the sign-in form immediately, without waiting for the session check', async () => {
