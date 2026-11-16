@@ -888,3 +888,28 @@ describe('zero flow', () => {
     expect(res.body.error.details.fieldErrors.referencePressure).toBeDefined();
   });
 });
+
+describe('removing Z factors by API', () => {
+  it('also removes their source when no new source is sent', async () => {
+    const created = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        referenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
+        referencePressure: { value: '14.73', unit: 'PSIA' },
+        zSource: '0.998',
+        zReference: '0.997',
+        compressibilitySource: 'GA-1',
+      }),
+    );
+    const res = await patch(w.ownerA, `${records(w.orgA.id)}/${created.body.data.id}`, {
+      referenceTemperature: { value: '15', unit: 'CELSIUS' },
+      referencePressure: { value: '101.325', unit: 'KPA_ABS' },
+      zSource: null,
+      zReference: null,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data.zSource).toBeNull();
+    expect(res.body.data.compressibilitySource).toBeNull();
+  });
+});

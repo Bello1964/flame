@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -121,7 +121,12 @@ export function ActivityFormDialog(props: Props) {
     v.zSource === orgZ.zSource &&
     v.zReference === orgZ.zReference &&
     v.compressibilitySource === orgZ.source;
+  // Act only when the condition *moves* to or from the default during this session.
+  // Opening a form (e.g. editing a record saved at an older default) never changes Z.
+  const wasAtOrgDefault = useRef(atOrgDefault);
   useEffect(() => {
+    if (wasAtOrgDefault.current === atOrgDefault) return;
+    wasAtOrgDefault.current = atOrgDefault;
     if (!orgZ) return;
     const current = getValues(['zSource', 'zReference', 'compressibilitySource']);
     const isDefault =

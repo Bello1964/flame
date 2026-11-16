@@ -165,6 +165,10 @@ export class ActivityService {
       const merged: ActivityRecordInput = activityRecordSchema.parse({
         ...this.inputOf(existing),
         ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
+        // Removing the Z factors removes their source too, unless a source is sent.
+        ...(patch.zSource === null && patch.compressibilitySource === undefined
+          ? { compressibilitySource: null }
+          : {}),
         kind: existing.kind,
       });
 

@@ -688,3 +688,57 @@ describe('organisation Z defaults in settings', () => {
     });
   });
 });
+
+describe('editing a record saved at an older default condition', () => {
+  it('keeps its Z values when the dialog opens', async () => {
+    // The organisation default has since moved to 70 °F, but kept the same Z values.
+    const movedDefault = {
+      status: 200,
+      body: {
+        data: {
+          defaultReferenceTemperature: { value: '70', unit: 'FAHRENHEIT' },
+          defaultReferencePressure: { value: '14.73', unit: 'PSIA' },
+          defaultCompressibility: { zSource: '0.998', zReference: '0.997', source: 'GA-2026-03' },
+        },
+      },
+    };
+    const at60F = record({
+      referenceTemperature: { value: '60', unit: 'FAHRENHEIT', entered: '60' },
+      referencePressure: { value: '14.73', unit: 'PSIA', entered: '14.73' },
+      zSource: { value: '0.998', entered: '0.998' },
+      zReference: { value: '0.997', entered: '0.997' },
+      compressibilitySource: 'GA-2026-03',
+    });
+    mockApi(
+      signedInAs('DATA_ENTRY_OFFICER'),
+      on('GET', `/organisations/${ORG_A}/activity-records/${RECORD_ID}`, () => ({
+        status: 200,
+        body: { data: at60F },
+      })),
+      on('GET', `/organisations/${ORG_A}/flare-sources/${SOURCE_ID}`, () => ({
+        status: 200,
+        body: { data: source },
+      })),
+      on('GET', /\/assets\/.+$/, () => ({
+        status: 404,
+        body: { error: { code: 'NOT_FOUND', message: 'x' } },
+      })),
+      on('GET', `/organisations/${ORG_A}/settings`, () => movedDefault),
+    );
+    renderApp(`/o/${ORG_A}/activity-records/${RECORD_ID}`);
+
+    const edit = await screen.findByRole('button', { name: 'Edit' });
+    await waitFor(() => {
+      expect(edit).toBeEnabled();
+    });
+    fireEvent.click(edit);
+    const dialog = await screen.findByRole('dialog');
+
+    // Give any effects a chance to run, then check nothing was wiped.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(within(dialog).getByLabelText(/^z at this condition/i)).toHaveValue('0.998');
+    expect(within(dialog).getByLabelText(/^z at 15/i)).toHaveValue('0.997');
+    expect(within(dialog).getByLabelText(/^source of the z values/i)).toHaveValue('GA-2026-03');
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+});
