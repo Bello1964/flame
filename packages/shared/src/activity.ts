@@ -119,6 +119,8 @@ export interface ActivityRecordDto {
   referencePressure: QuantityDto<PressureUnit>;
   zSource: { value: string; entered: string } | null;
   zReference: { value: string; entered: string } | null;
+  /** Where the Z values come from; null when there are none or no source was given. */
+  compressibilitySource: string | null;
   measurementBasis: MeasurementBasis;
   estimateExplanation: string | null;
   measurementMethod: MeasurementMethod;
@@ -154,7 +156,28 @@ export interface OverlapErrorDetails {
   overlapping: { id: string; periodStart: string; periodEnd: string }[];
 }
 
+export interface DefaultCompressibilityDto {
+  /** Z at the default reference condition. */
+  zSource: string;
+  /** Z at the canonical condition (15 °C, 101.325 kPa). */
+  zReference: string;
+  /** Where the values come from (e.g. a gas analysis report and its date). */
+  source: string;
+}
+
 export interface OrganisationSettingsDto {
   defaultReferenceTemperature: { value: string; unit: TemperatureUnit };
   defaultReferencePressure: { value: string; unit: PressureUnit };
+  /**
+   * Compressibility factors for records at the default condition, with their source.
+   * Only when the default differs from the canonical condition; they prefill records.
+   */
+  defaultCompressibility: DefaultCompressibilityDto | null;
+}
+
+/** PATCH /settings. A null defaultCompressibility removes it. */
+export interface OrganisationSettingsUpdate {
+  defaultReferenceTemperature?: { value: string; unit: TemperatureUnit };
+  defaultReferencePressure?: { value: string; unit: PressureUnit };
+  defaultCompressibility?: DefaultCompressibilityDto | null;
 }

@@ -19,6 +19,9 @@ import { isCanonicalCondition } from './labels';
  * shown in the same places.
  */
 
+/** Earliest date activity can be recorded for; the API enforces the same rule. */
+export const EARLIEST_ACTIVITY_DATE = '2000-01-01';
+
 const QUANTITY = /^(0|[1-9]\d{0,19})(\.\d{1,10})?$/;
 const SIGNED = /^-?(0|[1-9]\d{0,19})(\.\d{1,10})?$/;
 const Z = /^(0|[1-9]\d{0,5})(\.\d{1,6})?$/;
@@ -33,7 +36,10 @@ const optionalQuantity = z
 export const activityFormSchema = z
   .object({
     kind: z.enum(['DAILY', 'PERIOD']),
-    periodStart: z.string().min(1, 'Enter the date'),
+    periodStart: z
+      .string()
+      .min(1, 'Enter the date')
+      .refine((v) => v >= EARLIEST_ACTIVITY_DATE, "Dates before 1 January 2000 can't be recorded"),
     periodEnd: z.string(),
     activityType: z.enum(ACTIVITY_TYPES),
     otherTypeDescription: z.string().trim().max(500),
@@ -48,6 +54,7 @@ export const activityFormSchema = z
     pressureUnit: z.enum(PRESSURE_UNITS),
     zSource: z.string().trim(),
     zReference: z.string().trim(),
+    compressibilitySource: z.string().trim().max(500),
     measurementBasis: z.enum(MEASUREMENT_BASES),
     estimateExplanation: z.string().trim().max(2000),
     measurementMethod: z.enum(MEASUREMENT_METHODS),
@@ -113,6 +120,7 @@ export const API_FIELD_TO_FORM: Record<string, keyof ActivityFormValues> = {
   referencePressure: 'pressureValue',
   zSource: 'zSource',
   zReference: 'zReference',
+  compressibilitySource: 'compressibilitySource',
   measurementBasis: 'measurementBasis',
   estimateExplanation: 'estimateExplanation',
   measurementMethod: 'measurementMethod',
@@ -142,6 +150,7 @@ export function toActivityFields(v: ActivityFormValues): ActivityFields {
     // At the canonical condition Z does not apply (and the API rejects it).
     zSource: canonical ? null : orNull(v.zSource),
     zReference: canonical ? null : orNull(v.zReference),
+    compressibilitySource: canonical ? null : orNull(v.compressibilitySource),
     measurementBasis: v.measurementBasis,
     estimateExplanation: v.measurementBasis === 'ESTIMATED' ? orNull(v.estimateExplanation) : null,
     measurementMethod: v.measurementMethod,
@@ -174,6 +183,7 @@ export function initialValues(
       pressureUnit: record.referencePressure.unit,
       zSource: record.zSource?.entered ?? '',
       zReference: record.zReference?.entered ?? '',
+      compressibilitySource: record.compressibilitySource ?? '',
       measurementBasis: record.measurementBasis,
       estimateExplanation: record.estimateExplanation ?? '',
       measurementMethod: record.measurementMethod,
@@ -196,8 +206,10 @@ export function initialValues(
     temperatureUnit: settings.defaultReferenceTemperature.unit,
     pressureValue: settings.defaultReferencePressure.value,
     pressureUnit: settings.defaultReferencePressure.unit,
-    zSource: '',
-    zReference: '',
+    // The organisation's Z defaults belong to its default condition, which prefills above.
+    zSource: settings.defaultCompressibility?.zSource ?? '',
+    zReference: settings.defaultCompressibility?.zReference ?? '',
+    compressibilitySource: settings.defaultCompressibility?.source ?? '',
     measurementBasis: 'MEASURED',
     estimateExplanation: '',
     measurementMethod: 'METERED',

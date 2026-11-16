@@ -8,6 +8,7 @@ import type {
   MeasurementBasis,
   MeasurementMethod,
   OrganisationSettingsDto,
+  OrganisationSettingsUpdate,
   PressureUnit,
   QuantityInput,
   RateUnit,
@@ -39,6 +40,7 @@ export interface ActivityFields {
   referencePressure: QuantityInput<PressureUnit>;
   zSource: string | null;
   zReference: string | null;
+  compressibilitySource: string | null;
   measurementBasis: MeasurementBasis;
   estimateExplanation: string | null;
   measurementMethod: MeasurementMethod;
@@ -169,7 +171,7 @@ export function useSettings(orgId: string) {
 export function useUpdateSettings(orgId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: Partial<OrganisationSettingsDto>) =>
+    mutationFn: async (body: OrganisationSettingsUpdate) =>
       (
         await apiSend<DataResponse<OrganisationSettingsDto>>(
           'PATCH',

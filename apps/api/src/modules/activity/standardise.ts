@@ -217,6 +217,12 @@ export function standardise(input: StandardiseInput): StandardiseResult {
 
   // Safety net: a result that can't be stored faithfully is refused, never saved wrong.
   // (Plausible operating ranges for T, P and Z will be added once sourced values exist.)
+  if (new D(round(correction)).isZero()) {
+    throw new StandardisationError(
+      'referencePressure',
+      'This reference condition is outside what can be standardised; check the temperature, pressure and Z factors',
+    );
+  }
   if (!correction.lt(MAX_STORABLE)) {
     throw new StandardisationError(
       'referencePressure',
@@ -230,6 +236,8 @@ export function standardise(input: StandardiseInput): StandardiseResult {
   ];
   for (const [field, entered, result] of checks) {
     if (result === null || entered === undefined) continue;
+    // A zero rate legitimately gives a zero derived volume, whatever the hours.
+    if (field === 'operatingHours' && rateMmscfd?.isZero()) continue;
     if (!result.lt(MAX_STORABLE)) {
       throw new StandardisationError(field, 'This value is too large to standardise and store');
     }

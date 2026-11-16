@@ -5,7 +5,7 @@ import { exact } from '../../lib/decimal.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { changeSet, withStoredValues } from '../audit/change-set.js';
 import type { SettingsUpdate } from '../activity/activity.schemas.js';
-import { toKelvin, toKpaAbsolute } from '../activity/standardise.js';
+import { isCanonicalCondition, toKelvin, toKpaAbsolute } from '../activity/standardise.js';
 import type { Actor } from '../facilities/facilities.service.js';
 
 function toDto(o: Organisation): OrganisationSettingsDto {
@@ -18,6 +18,14 @@ function toDto(o: Organisation): OrganisationSettingsDto {
       value: exact(o.defaultReferencePressure),
       unit: o.defaultReferencePressureUnit,
     },
+    defaultCompressibility:
+      o.defaultZSource && o.defaultZReference && o.defaultCompressibilitySource
+        ? {
+            zSource: exact(o.defaultZSource),
+            zReference: exact(o.defaultZReference),
+            source: o.defaultCompressibilitySource,
+          }
+        : null,
   };
 }
 
@@ -29,9 +37,12 @@ function fieldError(field: string, message: string): AppError {
 }
 
 /**
- * Organisation-level settings. Currently the default source reference condition that
- * prefills new activity records (ARCHITECTURAL_WORKFLOW.md §4.1). Changing it never
- * alters existing records, which keep the condition they were entered with.
+ * Organisation-level settings (ARCHITECTURAL_WORKFLOW.md §4.1):
+ * - The default source reference condition that prefills new activity records.
+ * - When that default differs from the canonical condition (ISO 13443), optional
+ *   compressibility factors at it and at the canonical condition, with their source;
+ *   they prefill records at the default condition.
+ * Changing settings never alters existing records, which keep what they were entered with.
  */
 export class SettingsService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -57,11 +68,64 @@ export class SettingsService {
       const existing = await tx.organisation.findUniqueOrThrow({
         where: { id: actor.organisationId },
       });
+
+      const temperature = t ?? {
+        value: exact(existing.defaultReferenceTemperature),
+        unit: existing.defaultReferenceTemperatureUnit,
+      };
+      const pressure = p ?? {
+        value: exact(existing.defaultReferencePressure),
+        unit: existing.defaultReferencePressureUnit,
+      };
+      const canonical = isCanonicalCondition(temperature, pressure);
+      const conditionChanged =
+        !toKelvin(temperature.value, temperature.unit).eq(
+          toKelvin(
+            exact(existing.defaultReferenceTemperature),
+            existing.defaultReferenceTemperatureUnit,
+          ),
+        ) ||
+        !toKpaAbsolute(pressure.value, pressure.unit).eq(
+          toKpaAbsolute(
+            exact(existing.defaultReferencePressure),
+            existing.defaultReferencePressureUnit,
+          ),
+        );
+
+      // Z factors describe the gas at one particular condition.
+      let compressibility = input.defaultCompressibility;
+      if (canonical) {
+        if (compressibility) {
+          throw fieldError(
+            'defaultCompressibility',
+            'Compressibility factors apply only when the default condition differs from 15 °C and 101.325 kPa',
+          );
+        }
+        // Back at the standard condition, any previous defaults no longer apply.
+        compressibility = null;
+      } else if (
+        compressibility === undefined &&
+        conditionChanged &&
+        existing.defaultZSource !== null
+      ) {
+        throw fieldError(
+          'defaultCompressibility',
+          'The default Z factors were for the previous condition: enter new ones for this condition, or remove them',
+        );
+      }
+
       const next = {
         ...(t
           ? { defaultReferenceTemperature: t.value, defaultReferenceTemperatureUnit: t.unit }
           : {}),
         ...(p ? { defaultReferencePressure: p.value, defaultReferencePressureUnit: p.unit } : {}),
+        ...(compressibility === undefined
+          ? {}
+          : {
+              defaultZSource: compressibility?.zSource ?? null,
+              defaultZReference: compressibility?.zReference ?? null,
+              defaultCompressibilitySource: compressibility?.source ?? null,
+            }),
       };
       const changes = changeSet(existing, next);
       if (Object.keys(changes).length === 0) return toDto(existing);

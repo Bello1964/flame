@@ -60,6 +60,7 @@ const COMPARED_KEYS = [
   'zSourceInput',
   'zReference',
   'zReferenceInput',
+  'compressibilitySource',
   'measurementBasis',
   'estimateExplanation',
   'measurementMethod',
@@ -346,6 +347,7 @@ export class ActivityService {
       zSourceInput: zSource,
       zReference,
       zReferenceInput: zReference,
+      compressibilitySource: zSource === null ? null : (input.compressibilitySource ?? null),
       measurementBasis: input.measurementBasis,
       estimateExplanation:
         input.measurementBasis === 'ESTIMATED' ? (input.estimateExplanation ?? null) : null,
@@ -384,6 +386,7 @@ export class ActivityService {
       referencePressure: { value: r.referencePressureInput, unit: r.referencePressureUnit },
       zSource: r.zSourceInput,
       zReference: r.zReferenceInput,
+      compressibilitySource: r.compressibilitySource,
       measurementBasis: r.measurementBasis,
       estimateExplanation: r.estimateExplanation,
       measurementMethod: r.measurementMethod,

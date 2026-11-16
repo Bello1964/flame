@@ -440,6 +440,7 @@ describe('organisation settings', () => {
     expect(res.body.data).toEqual({
       defaultReferenceTemperature: { value: '15', unit: 'CELSIUS' },
       defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
+      defaultCompressibility: null,
     });
 
     const body = { defaultReferenceTemperature: { value: '60', unit: 'FAHRENHEIT' } };
@@ -700,9 +701,10 @@ describe('values that cannot be stored faithfully', () => {
       daily(w.sourceA, {
         averageRate: null,
         operatingHours: null,
-        totalVolume: { value: '5', unit: 'MMSCF' },
-        referenceTemperature: { value: '99999999999999999999', unit: 'KELVIN' },
-        referencePressure: { value: '0.0000000001', unit: 'KPA_ABS' },
+        // Correction factor 0.000001 (valid), but 1e-10 Sm³ × 1e-6 rounds to zero MMscf.
+        totalVolume: { value: '0.0000000001', unit: 'SM3' },
+        referenceTemperature: { value: '15', unit: 'CELSIUS' },
+        referencePressure: { value: '0.000101325', unit: 'KPA_ABS' },
         zSource: '1',
         zReference: '1',
       }),
@@ -738,5 +740,151 @@ describe('values that cannot be stored faithfully', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.averageRate.value).toBe('0.00000001');
     expect(res.body.data.standardised.averageRateMmscfd).toBe('0.00000001');
+  });
+});
+
+// ─── Organisation Z defaults, Z source, date floor (2026-11-16) ─────────────
+
+const settingsUrl = () => `${base(w.orgA.id)}/settings`;
+const at60F = {
+  defaultReferenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
+  defaultReferencePressure: { value: '14.73', unit: 'PSIA' },
+};
+const zDefaults = { zSource: '0.998', zReference: '0.997', source: 'Gas analysis GA-2026-03' };
+
+describe('organisation compressibility defaults', () => {
+  it('stores Z defaults with their source for a non-standard default condition', async () => {
+    const res = await patch(w.ownerA, settingsUrl(), {
+      ...at60F,
+      defaultCompressibility: zDefaults,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data.defaultCompressibility).toEqual(zDefaults);
+  });
+
+  it('refuses Z defaults for the standard condition, and clears them on returning to it', async () => {
+    const atStandard = await patch(w.ownerA, settingsUrl(), { defaultCompressibility: zDefaults });
+    expect(atStandard.status).toBe(400);
+    expect(atStandard.body.error.details.fieldErrors.defaultCompressibility).toBeDefined();
+
+    await patch(w.ownerA, settingsUrl(), { ...at60F, defaultCompressibility: zDefaults });
+    const back = await patch(w.ownerA, settingsUrl(), {
+      defaultReferenceTemperature: { value: '15', unit: 'CELSIUS' },
+      defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
+    });
+    expect(back.status).toBe(200);
+    expect(back.body.data.defaultCompressibility).toBeNull();
+  });
+
+  it('makes the owner restate or remove Z defaults when the default condition moves', async () => {
+    await patch(w.ownerA, settingsUrl(), { ...at60F, defaultCompressibility: zDefaults });
+    const moved = await patch(w.ownerA, settingsUrl(), {
+      defaultReferenceTemperature: { value: '20', unit: 'CELSIUS' },
+    });
+    expect(moved.status).toBe(400);
+    expect(moved.body.error.details.fieldErrors.defaultCompressibility[0]).toMatch(
+      /previous condition/,
+    );
+
+    const removed = await patch(w.ownerA, settingsUrl(), {
+      defaultReferenceTemperature: { value: '20', unit: 'CELSIUS' },
+      defaultCompressibility: null,
+    });
+    expect(removed.status).toBe(200);
+    expect(removed.body.data.defaultCompressibility).toBeNull();
+  });
+
+  it('requires a source with the Z defaults', async () => {
+    const res = await patch(w.ownerA, settingsUrl(), {
+      ...at60F,
+      defaultCompressibility: { zSource: '0.998', zReference: '0.997' },
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('the source of a record’s Z factors', () => {
+  it('is stored with the Z factors, and refused without them', async () => {
+    const withZ = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        referenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
+        referencePressure: { value: '14.73', unit: 'PSIA' },
+        zSource: '0.998',
+        zReference: '0.997',
+        compressibilitySource: 'Gas analysis GA-2026-03',
+      }),
+    );
+    expect(withZ.status).toBe(201);
+    expect(withZ.body.data.compressibilitySource).toBe('Gas analysis GA-2026-03');
+
+    const withoutZ = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, { periodStart: '2026-01-11', compressibilitySource: 'Nothing to source' }),
+    );
+    expect(withoutZ.status).toBe(400);
+    expect(withoutZ.body.error.details.fieldErrors.compressibilitySource).toBeDefined();
+  });
+});
+
+describe('earliest allowed date', () => {
+  it('accepts 1 January 2000 and rejects anything earlier, also in the database', async () => {
+    expect(
+      (await post(w.ownerA, records(w.orgA.id), daily(w.sourceA, { periodStart: '2000-01-01' })))
+        .status,
+    ).toBe(201);
+    const early = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, { periodStart: '1999-12-31' }),
+    );
+    expect(early.status).toBe(400);
+    expect(early.body.error.details.fieldErrors.periodStart[0]).toMatch(/1 January 2000/);
+
+    const saved = await prisma.activityRecord.findFirstOrThrow();
+    await expect(
+      prisma.activityRecord.update({
+        where: { id: saved.id },
+        data: {
+          periodStart: new Date('1999-12-31T00:00:00Z'),
+          periodEnd: new Date('1999-12-31T00:00:00Z'),
+        },
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('zero flow', () => {
+  it('accepts a zero rate with operating hours (derived volume is zero)', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: { value: '0', unit: 'MMSCF_PER_DAY' },
+        operatingHours: '24',
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.data.standardised.derivedVolumeMmscf).toBe('0');
+  });
+
+  it('rejects a condition whose correction factor rounds to zero, even for zero quantities', async () => {
+    const res = await post(
+      w.ownerA,
+      records(w.orgA.id),
+      daily(w.sourceA, {
+        averageRate: null,
+        operatingHours: null,
+        totalVolume: { value: '0', unit: 'MMSCF' },
+        referenceTemperature: { value: '99999999999999999999', unit: 'KELVIN' },
+        referencePressure: { value: '0.0000000001', unit: 'KPA_ABS' },
+        zSource: '1',
+        zReference: '1',
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.fieldErrors.referencePressure).toBeDefined();
   });
 });

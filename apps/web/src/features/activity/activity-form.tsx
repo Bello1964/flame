@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -32,6 +32,7 @@ import { useCreateActivity, useUpdateActivity } from './api';
 import {
   activityFormSchema,
   API_FIELD_TO_FORM,
+  EARLIEST_ACTIVITY_DATE,
   initialValues,
   toActivityFields,
   type ActivityFormValues,
@@ -96,12 +97,47 @@ export function ActivityFormDialog(props: Props) {
     control,
     handleSubmit,
     setError,
+    setValue,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<ActivityFormValues>({
     resolver: zodResolver(activityFormSchema),
     defaultValues: initialValues(record, props.settings),
   });
   const v = useWatch({ control });
+
+  // The organisation's default Z values belong to its default reference condition only.
+  // At that condition they are filled in (if the fields are empty); away from it, values
+  // still equal to the defaults are cleared so they can't be applied where they don't belong.
+  const orgZ = props.settings.defaultCompressibility;
+  const atOrgDefault =
+    v.temperatureValue?.trim() === props.settings.defaultReferenceTemperature.value &&
+    v.temperatureUnit === props.settings.defaultReferenceTemperature.unit &&
+    v.pressureValue?.trim() === props.settings.defaultReferencePressure.value &&
+    v.pressureUnit === props.settings.defaultReferencePressure.unit;
+  const usingOrgDefaultZ =
+    orgZ !== null &&
+    atOrgDefault &&
+    v.zSource === orgZ.zSource &&
+    v.zReference === orgZ.zReference &&
+    v.compressibilitySource === orgZ.source;
+  useEffect(() => {
+    if (!orgZ) return;
+    const current = getValues(['zSource', 'zReference', 'compressibilitySource']);
+    const isDefault =
+      current[0] === orgZ.zSource && current[1] === orgZ.zReference && current[2] === orgZ.source;
+    const isEmpty = current.every((x) => x === '');
+    const options = { shouldDirty: true, shouldValidate: false };
+    if (atOrgDefault && isEmpty) {
+      setValue('zSource', orgZ.zSource, options);
+      setValue('zReference', orgZ.zReference, options);
+      setValue('compressibilitySource', orgZ.source, options);
+    } else if (!atOrgDefault && isDefault) {
+      setValue('zSource', '', options);
+      setValue('zReference', '', options);
+      setValue('compressibilitySource', '', options);
+    }
+  }, [atOrgDefault, orgZ, getValues, setValue]);
   const canonical = isCanonicalCondition(
     { value: v.temperatureValue ?? '', unit: v.temperatureUnit ?? 'CELSIUS' },
     { value: v.pressureValue ?? '', unit: v.pressureUnit ?? 'KPA_ABS' },
@@ -258,11 +294,15 @@ export function ActivityFormDialog(props: Props) {
             required
             error={errors.periodStart?.message}
           >
-            {(c) => <Input type="date" {...c} {...register('periodStart')} />}
+            {(c) => (
+              <Input type="date" min={EARLIEST_ACTIVITY_DATE} {...c} {...register('periodStart')} />
+            )}
           </FormField>
           {v.kind === 'PERIOD' && (
             <FormField label="Last day" required error={errors.periodEnd?.message}>
-              {(c) => <Input type="date" {...c} {...register('periodEnd')} />}
+              {(c) => (
+                <Input type="date" min={EARLIEST_ACTIVITY_DATE} {...c} {...register('periodEnd')} />
+              )}
             </FormField>
           )}
         </div>
@@ -433,6 +473,19 @@ export function ActivityFormDialog(props: Props) {
                 <Input inputMode="decimal" autoComplete="off" {...c} {...register('zReference')} />
               )}
             </FormField>
+            <div className="sm:col-span-2">
+              <FormField
+                label="Source of the Z values"
+                description={
+                  usingOrgDefaultZ
+                    ? "Prefilled from your organisation's settings for this condition."
+                    : 'e.g. the gas analysis or calculation they come from.'
+                }
+                error={errors.compressibilitySource?.message}
+              >
+                {(c) => <Input autoComplete="off" {...c} {...register('compressibilitySource')} />}
+              </FormField>
+            </div>
           </div>
         )}
       </Section>

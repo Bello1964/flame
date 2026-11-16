@@ -91,6 +91,11 @@ model Organisation {
   defaultReferenceTemperatureUnit TemperatureUnit    @default(CELSIUS)
   defaultReferencePressure        Decimal            @default(101.325) @db.Decimal(30, 10)
   defaultReferencePressureUnit    PressureUnit       @default(KPA_ABS)
+  /// Compressibility factors for the default condition (at it, and at ISO 13443) with their
+  /// source. Only when the default differs from ISO 13443; they prefill matching records.
+  defaultZSource                  Decimal?           @db.Decimal(12, 6)
+  defaultZReference               Decimal?           @db.Decimal(12, 6)
+  defaultCompressibilitySource    String?            @db.VarChar(500)
   createdAt                       DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt                       DateTime           @updatedAt @db.Timestamptz(3)
 
@@ -335,6 +340,8 @@ model ActivityRecord {
   zSourceInput              String?         @db.VarChar(40)
   zReference                Decimal?        @db.Decimal(12, 6)
   zReferenceInput           String?         @db.VarChar(40)
+  /// Where the Z values come from (e.g. the organisation default's source). Only with Z.
+  compressibilitySource     String?         @db.VarChar(500)
 
   measurementBasis    MeasurementBasis
   /// Required when ESTIMATED.

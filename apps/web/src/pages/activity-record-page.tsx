@@ -294,6 +294,9 @@ export function ActivityRecordPage() {
                 'Not applicable (platform standard)'
               ),
             },
+            ...(r.zSource
+              ? [{ label: 'Source of the Z values', value: r.compressibilitySource }]
+              : []),
           ]}
         />
       </Panel>

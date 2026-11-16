@@ -49,13 +49,21 @@ export const isoDate = z
     return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
   }, 'Not a real calendar date');
 
+/** Earliest date activity can be recorded for (product owner, 2026-11-16). */
+export const EARLIEST_ACTIVITY_DATE = '2000-01-01';
+
+const activityDate = isoDate.refine(
+  (v) => v >= EARLIEST_ACTIVITY_DATE,
+  "Dates before 1 January 2000 can't be recorded",
+);
+
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 /** All fields of a record except its flare source and kind (which never change). */
 const fields = {
-  periodStart: isoDate,
+  periodStart: activityDate,
   /** Required for PERIOD; for DAILY it may be omitted and then equals periodStart. */
-  periodEnd: isoDate.nullable().optional(),
+  periodEnd: activityDate.nullable().optional(),
   activityType: z.enum(ACTIVITY_TYPES),
   otherTypeDescription: text(500).nullable().optional(),
   averageRate: z
@@ -77,6 +85,8 @@ const fields = {
   referencePressure: z.strictObject({ value: quantity, unit: z.enum(PRESSURE_UNITS) }),
   zSource: zFactor.nullable().optional(),
   zReference: zFactor.nullable().optional(),
+  /** Where the Z values come from; only with Z. */
+  compressibilitySource: text(500).nullable().optional(),
   measurementBasis: z.enum(MEASUREMENT_BASES),
   estimateExplanation: text(2000).nullable().optional(),
   measurementMethod: z.enum(MEASUREMENT_METHODS),
@@ -139,6 +149,12 @@ function crossFieldRules(v: FullRecordShape, ctx: z.RefinementCtx) {
   if (v.activityType === 'OTHER_RELEASE' && !v.otherTypeDescription) {
     issue('otherTypeDescription', 'Describe the type of gas release');
   }
+  if (v.compressibilitySource && !v.zSource) {
+    issue(
+      'compressibilitySource',
+      'A source only applies when compressibility factors are entered',
+    );
+  }
   if (Boolean(v.zSource) !== Boolean(v.zReference)) {
     issue(v.zSource ? 'zReference' : 'zSource', 'Enter both compressibility factors, or neither');
   }
@@ -171,6 +187,7 @@ export const activityUpdateSchema = z
     referencePressure: fields.referencePressure.optional(),
     zSource: fields.zSource,
     zReference: fields.zReference,
+    compressibilitySource: fields.compressibilitySource,
     measurementBasis: fields.measurementBasis.optional(),
     estimateExplanation: fields.estimateExplanation,
     measurementMethod: fields.measurementMethod.optional(),
@@ -203,6 +220,11 @@ export const settingsUpdateSchema = z
   .strictObject({
     defaultReferenceTemperature: fields.referenceTemperature.optional(),
     defaultReferencePressure: fields.referencePressure.optional(),
+    // Z at the default condition and at the canonical one, with their source; null removes.
+    defaultCompressibility: z
+      .strictObject({ zSource: zFactor, zReference: zFactor, source: text(500) })
+      .nullable()
+      .optional(),
   })
   .refine((v) => Object.keys(v).length > 0, 'Provide at least one setting to update');
 

@@ -43,6 +43,7 @@ function record(overrides: Partial<ActivityRecordDto> = {}): ActivityRecordDto {
     referencePressure: { value: '101.325', unit: 'KPA_ABS', entered: '101.325' },
     zSource: null,
     zReference: null,
+    compressibilitySource: null,
     measurementBasis: 'MEASURED',
     estimateExplanation: null,
     measurementMethod: 'METERED',
@@ -76,6 +77,7 @@ const settings = {
     data: {
       defaultReferenceTemperature: { value: '15', unit: 'CELSIUS' },
       defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
+      defaultCompressibility: null,
     },
   },
 };
@@ -204,6 +206,7 @@ describe('recording activity', () => {
       referencePressure: { value: '101.325', unit: 'KPA_ABS' },
       zSource: null,
       zReference: null,
+      compressibilitySource: null,
       measurementBasis: 'MEASURED',
       estimateExplanation: null,
       measurementMethod: 'METERED',
@@ -441,11 +444,12 @@ describe('settings', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText('Default reference condition saved.')).toBeInTheDocument();
+    expect(await screen.findByText('Settings saved.')).toBeInTheDocument();
     await waitFor(() => {
       expect(requests.find((r) => r.method === 'PATCH')?.body).toEqual({
         defaultReferenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
         defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
+        defaultCompressibility: null,
       });
     });
   });
@@ -504,6 +508,7 @@ describe('editing a record', () => {
       referencePressure: { value: '101.325', unit: 'KPA_ABS' },
       zSource: null,
       zReference: null,
+      compressibilitySource: null,
       measurementBasis: 'MEASURED',
       estimateExplanation: null,
       measurementMethod: 'METERED',
@@ -551,5 +556,135 @@ describe('the overlap warning', () => {
         .filter((r) => r.method === 'POST')
         .every((r) => !(r.body as { acknowledgeOverlap?: boolean }).acknowledgeOverlap),
     ).toBe(true);
+  });
+});
+
+// ─── Organisation Z defaults and the date floor (2026-11-16) ─────────────────
+
+const settingsAt60F = {
+  status: 200,
+  body: {
+    data: {
+      defaultReferenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
+      defaultReferencePressure: { value: '14.73', unit: 'PSIA' },
+      defaultCompressibility: { zSource: '0.998', zReference: '0.997', source: 'GA-2026-03' },
+    },
+  },
+};
+
+describe('organisation Z defaults in the record form', () => {
+  function pageWith60FDefaults(...extra: Parameters<typeof mockApi>) {
+    return mockApi(
+      signedInAs('DATA_ENTRY_OFFICER'),
+      on('GET', `/organisations/${ORG_A}/flare-sources/${SOURCE_ID}`, () => ({
+        status: 200,
+        body: { data: source },
+      })),
+      on('GET', /\/assets\/.+$/, () => ({
+        status: 404,
+        body: { error: { code: 'NOT_FOUND', message: 'x' } },
+      })),
+      on('GET', `/organisations/${ORG_A}/settings`, () => settingsAt60F),
+      ...extra,
+      on('GET', `/organisations/${ORG_A}/activity-records`, () => list([])),
+    );
+  }
+
+  it('prefills Z and its source at the default condition, and sends them', async () => {
+    const { requests } = pageWith60FDefaults(
+      on('POST', `/organisations/${ORG_A}/activity-records`, () => ({
+        status: 201,
+        body: { data: record() },
+      })),
+    );
+    renderApp(`/o/${ORG_A}/flare-sources/${SOURCE_ID}`);
+    const dialog = await openForm();
+
+    expect(within(dialog).getByLabelText(/^z at this condition/i)).toHaveValue('0.998');
+    expect(within(dialog).getByLabelText(/^z at 15/i)).toHaveValue('0.997');
+    expect(within(dialog).getByLabelText(/^source of the z values/i)).toHaveValue('GA-2026-03');
+    expect(within(dialog).getByText(/prefilled from your organisation/i)).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText(/^date/i), { target: { value: '2026-01-10' } });
+    fireEvent.change(within(dialog).getByLabelText(/^total volume/i), { target: { value: '1' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save draft' }));
+
+    expect(await screen.findByText('Activity record added as a draft.')).toBeInTheDocument();
+    expect(requests.find((r) => r.method === 'POST')?.body).toMatchObject({
+      referenceTemperature: { value: '60', unit: 'FAHRENHEIT' },
+      referencePressure: { value: '14.73', unit: 'PSIA' },
+      zSource: '0.998',
+      zReference: '0.997',
+      compressibilitySource: 'GA-2026-03',
+    });
+  });
+
+  it('clears the default Z when the record moves to another condition', async () => {
+    pageWith60FDefaults();
+    renderApp(`/o/${ORG_A}/flare-sources/${SOURCE_ID}`);
+    const dialog = await openForm();
+
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /^temperature/i }), {
+      target: { value: '70' },
+    });
+
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText(/^z at this condition/i)).toHaveValue('');
+    });
+    expect(within(dialog).getByLabelText(/^z at 15/i)).toHaveValue('');
+    expect(within(dialog).getByLabelText(/^source of the z values/i)).toHaveValue('');
+  });
+
+  it('rejects dates before 1 January 2000 before contacting the API', async () => {
+    const { requests } = pageWith60FDefaults();
+    renderApp(`/o/${ORG_A}/flare-sources/${SOURCE_ID}`);
+    const dialog = await openForm();
+    fireEvent.change(within(dialog).getByLabelText(/^date/i), { target: { value: '1999-12-31' } });
+    fireEvent.change(within(dialog).getByLabelText(/^total volume/i), { target: { value: '1' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save draft' }));
+
+    expect(
+      await within(dialog).findByText("Dates before 1 January 2000 can't be recorded"),
+    ).toBeInTheDocument();
+    expect(requests.some((r) => r.method === 'POST')).toBe(false);
+  });
+});
+
+describe('organisation Z defaults in settings', () => {
+  it('appear only off the standard condition and need a source', async () => {
+    const { requests } = mockApi(
+      signedInAs('ORGANISATION_OWNER'),
+      on('GET', `/organisations/${ORG_A}/settings`, () => settings),
+      on('PATCH', `/organisations/${ORG_A}/settings`, (req) => ({
+        status: 200,
+        body: { data: req.body },
+      })),
+    );
+    renderApp(`/o/${ORG_A}/settings`);
+
+    await screen.findByRole('textbox', { name: /^temperature/i });
+    expect(screen.queryByLabelText(/^z at this condition/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /^temperature/i }), {
+      target: { value: '20' },
+    });
+    fireEvent.change(await screen.findByLabelText(/^z at this condition/i), {
+      target: { value: '0.998' },
+    });
+    fireEvent.change(screen.getByLabelText(/^z at 15/i), { target: { value: '0.997' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Say where these Z values come from')).toBeInTheDocument();
+    expect(requests.some((r) => r.method === 'PATCH')).toBe(false);
+
+    fireEvent.change(screen.getByLabelText(/^source of the z values/i), {
+      target: { value: 'GA-2026-03' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Settings saved.')).toBeInTheDocument();
+    expect(requests.find((r) => r.method === 'PATCH')?.body).toEqual({
+      defaultReferenceTemperature: { value: '20', unit: 'CELSIUS' },
+      defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
+      defaultCompressibility: { zSource: '0.998', zReference: '0.997', source: 'GA-2026-03' },
+    });
   });
 });

@@ -42,6 +42,7 @@ export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): A
     },
     zSource: plain(r.zSource, r.zSourceInput),
     zReference: plain(r.zReference, r.zReferenceInput),
+    compressibilitySource: r.compressibilitySource,
     measurementBasis: r.measurementBasis,
     estimateExplanation: r.estimateExplanation,
     measurementMethod: r.measurementMethod,
