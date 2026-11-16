@@ -22,6 +22,9 @@ import { useActivityRecord, useSettings } from '@/features/activity/api';
 import { ActivityFormDialog } from '@/features/activity/activity-form';
 import { ActivityStatusBadge, ActivityTypeBadge } from '@/features/activity/badges';
 import { WithdrawDialog } from '@/features/activity/withdraw-dialog';
+import { WorkflowActions } from '@/features/activity/workflow-actions';
+import { WorkflowNotice } from '@/features/activity/workflow-notice';
+import { HistoryTimeline } from '@/features/activity/history-timeline';
 import {
   ACTIVITY_TYPE_LABELS,
   BASIS_LABELS,
@@ -133,10 +136,11 @@ export function ActivityRecordPage() {
   }
 
   const r = record.data;
-  const draft = r.status === 'DRAFT';
+  const editable = r.status === 'DRAFT' || r.status === 'NEEDS_CORRECTION';
   const sourceActive = source.data?.status === 'ACTIVE';
-  const canEdit = organisation.canWriteActivity && draft && sourceActive;
-  const canWithdraw = organisation.canWriteActivity && draft;
+  // The API lists what this user may do with the record; it checks again on every request.
+  const canEdit = r.availableActions.includes('edit');
+  const canWithdraw = r.availableActions.includes('withdraw');
   const s = r.standardised;
 
   return (
@@ -166,6 +170,9 @@ export function ActivityRecordPage() {
             <div className="flex flex-wrap items-center gap-2">
               <ActivityTypeBadge type={r.activityType} />
               <ActivityStatusBadge status={r.status} />
+              {r.version > 1 && (
+                <span className="text-xs text-muted-foreground">Version {r.version}</span>
+              )}
               <span className="text-xs text-muted-foreground">Dates in {r.timeZone}</span>
             </div>
           </div>
@@ -197,11 +204,13 @@ export function ActivityRecordPage() {
             </span>
           </p>
         )}
-        {draft && !sourceActive && source.data && (
+        {editable && !sourceActive && source.data && (
           <p className="text-sm text-muted-foreground">
-            The flare source is archived, so this record can no longer be edited.
+            The flare source is archived, so this record can no longer be edited or submitted.
           </p>
         )}
+        <WorkflowNotice record={r} />
+        <WorkflowActions record={r} />
         <Warnings record={r} />
       </div>
 
@@ -342,15 +351,16 @@ export function ActivityRecordPage() {
         />
       </Panel>
 
-      <Panel title="History">
-        <DetailList
-          items={[
-            ...(r.overlapAcknowledgedAt
-              ? [{ label: 'Overlap confirmed', value: formatDateTime(r.overlapAcknowledgedAt) }]
-              : []),
-          ]}
-          timestamps={r}
-        />
+      <Panel
+        title="History"
+        description="Every edit, review step and comment, oldest first. Nothing here can be changed."
+      >
+        <HistoryTimeline recordId={r.id} />
+        {r.overlapAcknowledgedAt && (
+          <p className="text-sm text-muted-foreground">
+            Overlap with another record confirmed {formatDateTime(r.overlapAcknowledgedAt)}.
+          </p>
+        )}
       </Panel>
 
       {editing && settings.data && (

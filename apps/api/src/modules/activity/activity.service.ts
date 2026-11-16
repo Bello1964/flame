@@ -1,11 +1,22 @@
-import { OVERLAP_UNCONFIRMED_CODE, type OverlapErrorDetails } from '@flame/shared';
+import {
+  OVERLAP_UNCONFIRMED_CODE,
+  type ActivityRecordEventDto,
+  type ActivityWarning,
+  type OverlapErrorDetails,
+} from '@flame/shared';
 import type { ActivityRecord, Prisma, PrismaClient } from '../../generated/prisma/client.js';
-import { AppError, conflict, notFound } from '../../lib/errors.js';
+import { AppError, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { exact } from '../../lib/decimal.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { changeSet, withStoredValues } from '../audit/change-set.js';
 import { lockFlareSource } from '../facilities/facilities.repository.js';
 import type { Actor } from '../facilities/facilities.service.js';
+import {
+  availableActions,
+  refusalFor,
+  separationNote,
+  type Viewer,
+} from '../workflow/workflow.rules.js';
 import * as repo from './activity.repository.js';
 import { toActivityDto, warningsFor } from './activity.mappers.js';
 import {
@@ -16,6 +27,9 @@ import {
   type ActivityUpdate,
 } from './activity.schemas.js';
 import { standardise, StandardisationError, type StandardiseResult } from './standardise.js';
+
+/** The signed-in member making a request: who they are, their roles, and where from. */
+export type Caller = Actor & Viewer;
 
 /** A 400 VALIDATION_ERROR on one field, in the same shape as schema validation errors. */
 function fieldError(field: string, message: string): AppError {
@@ -74,31 +88,62 @@ const COMPARED_KEYS = [
 ] as const;
 
 /**
- * Business rules for gas activity data (ARCHITECTURAL_WORKFLOW.md §4.1):
+ * Business rules for gas activity data (ARCHITECTURAL_WORKFLOW.md §4.1, §7.1):
  * - Every read and write is scoped to the actor's organisation.
- * - Records are DRAFT (editable) or WITHDRAWN (read-only, kept for history).
+ * - Values can be edited only in DRAFT and NEEDS_CORRECTION; the review workflow
+ *   (workflow.service.ts) moves records between states.
  * - Quantities are standardised server-side at save; the input is kept exactly.
- * - Overlapping drafts for the same flare source and activity type need the user's
- *   explicit confirmation (409 OVERLAP_UNCONFIRMED until acknowledgeOverlap is sent).
- * - Each change writes an audit entry in the same transaction.
+ * - A record overlapping a current record for the same flare source and activity type
+ *   needs the user's explicit confirmation (409 OVERLAP_UNCONFIRMED until
+ *   acknowledgeOverlap is sent).
+ * - Each change writes an audit entry and a history event in the same transaction.
  */
 export class ActivityService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async list(organisationId: string, query: ActivityListQuery) {
-    const { items, total } = await repo.listRecords(this.prisma, organisationId, query);
-    return { items: await this.withWarnings(organisationId, items), total };
+  async list(organisationId: string, viewer: Viewer, query: ActivityListQuery) {
+    const { items, total } = await repo.listRecords(
+      this.prisma,
+      organisationId,
+      query,
+      viewer.userId,
+    );
+    return { items: await this.toDtos(this.prisma, organisationId, viewer, items), total };
   }
 
-  async get(organisationId: string, id: string) {
-    const record = await repo.findRecord(this.prisma, organisationId, id);
+  async get(organisationId: string, viewer: Viewer, id: string) {
+    const record = await repo.findRecordWithRelations(this.prisma, organisationId, id);
     if (!record) throw notFound('Activity record not found');
-    const [dto] = await this.withWarnings(organisationId, [record]);
+    const [dto] = await this.toDtos(this.prisma, organisationId, viewer, [record]);
     if (!dto) throw notFound('Activity record not found');
     return dto;
   }
 
-  async create(actor: Actor, input: ActivityCreate) {
+  /** The record's history, oldest first. */
+  async history(organisationId: string, id: string): Promise<ActivityRecordEventDto[]> {
+    const record = await repo.findRecord(this.prisma, organisationId, id);
+    if (!record) throw notFound('Activity record not found');
+    const events = await repo.listEvents(this.prisma, organisationId, id);
+    return events.map((e) => {
+      const details = (e.details ?? {}) as {
+        warnings?: ActivityWarning[];
+        relatedRecordId?: string;
+      };
+      return {
+        id: e.id,
+        type: e.type,
+        fromStatus: e.fromStatus,
+        toStatus: e.toStatus,
+        actor: { id: e.actor.id, name: e.actor.name },
+        comment: e.comment,
+        warnings: details.warnings ?? null,
+        relatedRecordId: details.relatedRecordId ?? null,
+        createdAt: e.createdAt.toISOString(),
+      };
+    });
+  }
+
+  async create(actor: Caller, input: ActivityCreate) {
     const saved = await this.prisma.$transaction(async (tx) => {
       // Serialises against archiving the flare source and against overlapping creates.
       await lockFlareSource(tx, actor.organisationId, input.flareSourceId);
@@ -131,6 +176,14 @@ export class ActivityService {
         },
       });
       const { acknowledgeOverlap: _ack, ...auditInput } = input;
+      await repo.addEvent(tx, {
+        organisationId: actor.organisationId,
+        activityRecordId: record.id,
+        type: 'CREATED',
+        fromStatus: null,
+        toStatus: 'DRAFT',
+        actorId: actor.userId,
+      });
       await this.audit(tx, actor, 'activity_record.created', record.id, {
         input: auditInput,
         standardised: this.standardisedSummary(record),
@@ -138,17 +191,15 @@ export class ActivityService {
       });
       return record;
     });
-    return this.get(actor.organisationId, saved.id);
+    return this.get(actor.organisationId, actor, saved.id);
   }
 
-  async update(actor: Actor, id: string, input: ActivityUpdate) {
+  async update(actor: Caller, id: string, input: ActivityUpdate) {
     await this.prisma.$transaction(async (tx) => {
       await repo.lockRecord(tx, actor.organisationId, id);
       const existing = await repo.findRecord(tx, actor.organisationId, id);
       if (!existing) throw notFound('Activity record not found');
-      if (existing.status !== 'DRAFT') {
-        throw conflict('Withdrawn activity records are read-only');
-      }
+      this.assertEditable(existing, actor, 'edit');
       await lockFlareSource(tx, actor.organisationId, existing.flareSourceId);
       const source = await repo.findFlareSourceForActivity(
         tx,
@@ -188,7 +239,7 @@ export class ActivityService {
         { flareSourceId: existing.flareSourceId, activityType: row.activityType },
         row,
         acknowledgeOverlap === true || alreadyConfirmed,
-        existing.id,
+        [existing.id, existing.revisionOfId],
       );
 
       const comparable = Object.fromEntries(COMPARED_KEYS.map((k) => [k, row[k]]));
@@ -210,6 +261,14 @@ export class ActivityService {
         where: { id: existing.id },
         data: { ...row, ...ack, updatedById: actor.userId },
       });
+      await repo.addEvent(tx, {
+        organisationId: actor.organisationId,
+        activityRecordId: id,
+        type: 'EDITED',
+        fromStatus: existing.status,
+        toStatus: existing.status,
+        actorId: actor.userId,
+      });
       await this.audit(tx, actor, 'activity_record.updated', id, {
         changes: withStoredValues(changes, updated),
         ...(overlaps.length > 0 && !alreadyConfirmed
@@ -220,15 +279,15 @@ export class ActivityService {
           : {}),
       });
     });
-    return this.get(actor.organisationId, id);
+    return this.get(actor.organisationId, actor, id);
   }
 
-  async withdraw(actor: Actor, id: string, reason: string) {
+  async withdraw(actor: Caller, id: string, reason: string) {
     await this.prisma.$transaction(async (tx) => {
       await repo.lockRecord(tx, actor.organisationId, id);
       const existing = await repo.findRecord(tx, actor.organisationId, id);
       if (!existing) throw notFound('Activity record not found');
-      if (existing.status !== 'DRAFT') throw conflict('This activity record is already withdrawn');
+      this.assertEditable(existing, actor, 'withdraw');
       await tx.activityRecord.update({
         where: { id },
         data: {
@@ -239,22 +298,92 @@ export class ActivityService {
           updatedById: actor.userId,
         },
       });
-      await this.audit(tx, actor, 'activity_record.withdrawn', id, { reason });
+      await repo.addEvent(tx, {
+        organisationId: actor.organisationId,
+        activityRecordId: id,
+        type: 'WITHDRAWN',
+        fromStatus: existing.status,
+        toStatus: 'WITHDRAWN',
+        actorId: actor.userId,
+        comment: reason,
+      });
+      await this.audit(tx, actor, 'activity_record.withdrawn', id, {
+        reason,
+        fromStatus: existing.status,
+      });
     });
-    return this.get(actor.organisationId, id);
+    return this.get(actor.organisationId, actor, id);
+  }
+
+  // ─── Shared with the workflow service ──────────────────────────────────────
+
+  /**
+   * Response DTOs for `viewer`: current warnings, the actions they may take, and any
+   * separation-of-duties note. A few queries per page, never one per record.
+   */
+  async toDtos(
+    db: Prisma.TransactionClient | PrismaClient,
+    organisationId: string,
+    viewer: Viewer,
+    records: repo.RecordWithRelations[],
+  ) {
+    const ids = records.map((r) => r.id);
+    const [candidates, involvement, revisions] = await Promise.all([
+      repo.overlapCandidates(db, organisationId, records),
+      repo.involvementOf(db, organisationId, records),
+      repo.revisionsOf(db, organisationId, ids),
+    ]);
+    return records.map((r) => {
+      const openRevision = revisions.find(
+        (v) => v.revisionOfId === r.id && repo.OPEN_REVISION_STATUSES.includes(v.status),
+      );
+      const replacement = revisions.find(
+        (v) => v.revisionOfId === r.id && (v.status === 'APPROVED' || v.status === 'SUPERSEDED'),
+      );
+      const inv = involvement.get(r.id) ?? {
+        involved: new Set<string>(),
+        reviewers: new Set<string>(),
+      };
+      const state = this.stateOf(r, r.flareSource.status === 'ACTIVE', openRevision !== undefined);
+      return toActivityDto(r, {
+        warnings: warningsFor(r, candidates),
+        availableActions: availableActions(state, viewer, inv),
+        separationOfDuties: separationNote(state, viewer, inv),
+        openRevisionId: openRevision?.id ?? null,
+        supersededById: r.status === 'SUPERSEDED' ? (replacement?.id ?? null) : null,
+      });
+    });
+  }
+
+  /** The current data-quality warnings of one record (stored with submissions and approvals). */
+  async currentWarnings(db: Prisma.TransactionClient, record: ActivityRecord) {
+    const candidates = await repo.overlapCandidates(db, record.organisationId, [record]);
+    return warningsFor(record, candidates);
+  }
+
+  stateOf(
+    r: Pick<ActivityRecord, 'status' | 'claimedById'>,
+    sourceActive: boolean,
+    hasOpenRevision: boolean,
+  ) {
+    return { status: r.status, claimedById: r.claimedById, sourceActive, hasOpenRevision };
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  private async withWarnings(organisationId: string, records: ActivityRecord[]) {
-    const drafts = records.filter((r) => r.status === 'DRAFT');
-    const candidates = await repo.overlapCandidates(this.prisma, organisationId, drafts);
-    return records.map((r) => toActivityDto(r, warningsFor(r, candidates)));
+  /** Edit and withdraw rules; the flare-source check for edits happens under its lock. */
+  private assertEditable(existing: ActivityRecord, actor: Caller, action: 'edit' | 'withdraw') {
+    const refusal = refusalFor(action, this.stateOf(existing, true, false), actor, {
+      involved: new Set(),
+      reviewers: new Set(),
+    });
+    if (refusal?.kind === 'permission') throw forbidden();
+    if (refusal) throw conflict(refusal.message);
   }
 
   /**
-   * Overlapping drafts for the record's flare source and activity type. Throws 409
-   * OVERLAP_UNCONFIRMED listing them unless the user has confirmed.
+   * Current records overlapping the record's flare source, activity type and period.
+   * Throws 409 OVERLAP_UNCONFIRMED listing them unless the user has confirmed.
    */
   private async overlapsOrThrow(
     tx: Prisma.TransactionClient,
@@ -262,7 +391,7 @@ export class ActivityService {
     target: { flareSourceId: string; activityType: ActivityRecord['activityType'] },
     row: { periodStart: Date; periodEnd: Date },
     confirmed: boolean | undefined,
-    excludeId?: string,
+    excludeIds: (string | null)[] = [],
   ) {
     const overlaps = await repo.findOverlapping(
       tx,
@@ -271,7 +400,8 @@ export class ActivityService {
       target.activityType,
       row.periodStart,
       row.periodEnd,
-      excludeId,
+      repo.CURRENT_STATUSES,
+      excludeIds,
     );
     if (overlaps.length > 0 && !confirmed) {
       const details: OverlapErrorDetails = {

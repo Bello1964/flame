@@ -1,11 +1,24 @@
-import { CANONICAL_REFERENCE, type ActivityRecordDto, type ActivityWarning } from '@flame/shared';
+import {
+  CANONICAL_REFERENCE,
+  type ActivityAction,
+  type ActivityRecordDto,
+  type ActivityWarning,
+} from '@flame/shared';
 import { Prisma, type ActivityRecord } from '../../generated/prisma/client.js';
 import { exact } from '../../lib/decimal.js';
-import { isoDateOf } from './activity.repository.js';
+import { isoDateOf, type RecordWithRelations } from './activity.repository.js';
 import { rateVolumeDifferencePercent, RATE_VOLUME_TOLERANCE_PERCENT } from './standardise.js';
 
 /** Explicit response shape: only listed fields leave the API; decimals become exact strings. */
-export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): ActivityRecordDto {
+export interface DtoExtras {
+  warnings: ActivityWarning[];
+  availableActions: ActivityAction[];
+  separationOfDuties: string | null;
+  openRevisionId: string | null;
+  supersededById: string | null;
+}
+
+export function toActivityDto(r: RecordWithRelations, extras: DtoExtras): ActivityRecordDto {
   const quantity = <U extends string>(
     value: Prisma.Decimal | null,
     unit: U | null,
@@ -59,12 +72,34 @@ export function toActivityDto(r: ActivityRecord, warnings: ActivityWarning[]): A
       standardisedAt: r.standardisedAt.toISOString(),
     },
     status: r.status,
+    version: r.version,
+    revisionOfId: r.revisionOfId,
+    openRevisionId: extras.openRevisionId,
+    supersededById: extras.supersededById,
+    flareSource: {
+      id: r.flareSource.id,
+      name: r.flareSource.name,
+      code: r.flareSource.code,
+      facilityName: r.flareSource.asset.facility.name,
+    },
+    submittedAt: r.submittedAt?.toISOString() ?? null,
+    claim:
+      r.claimedById && r.claimedAt && r.claimedBy
+        ? { byId: r.claimedById, byName: r.claimedBy.name, at: r.claimedAt.toISOString() }
+        : null,
+    approval:
+      r.approvedAt && r.approvedById && r.approvedBy
+        ? { at: r.approvedAt.toISOString(), byId: r.approvedById, byName: r.approvedBy.name }
+        : null,
+    supersededAt: r.supersededAt?.toISOString() ?? null,
     withdrawal:
       r.withdrawnAt && r.withdrawnById && r.withdrawalReason
         ? { at: r.withdrawnAt.toISOString(), byId: r.withdrawnById, reason: r.withdrawalReason }
         : null,
     overlapAcknowledgedAt: r.overlapAcknowledgedAt?.toISOString() ?? null,
-    warnings,
+    warnings: extras.warnings,
+    availableActions: extras.availableActions,
+    separationOfDuties: extras.separationOfDuties,
     createdById: r.createdById,
     updatedById: r.updatedById,
     createdAt: r.createdAt.toISOString(),
@@ -78,21 +113,28 @@ interface OverlapCandidate {
   activityType: ActivityRecord['activityType'];
   periodStart: Date;
   periodEnd: Date;
+  revisionOfId: string | null;
 }
+
+/** Records that no longer count carry no warnings. */
+const NO_WARNINGS: ActivityRecord['status'][] = ['WITHDRAWN', 'REJECTED', 'SUPERSEDED'];
 
 /**
  * Data-quality warnings for a record, worked out at read time so they stay current as
- * other records are added or withdrawn. Withdrawn records carry none. Warnings never
- * change any value.
+ * other records are added or withdrawn. Withdrawn, rejected and superseded records carry
+ * none. A revision and the record it revises never count as overlapping (one replaces
+ * the other). Warnings never change any value.
  */
 export function warningsFor(r: ActivityRecord, candidates: OverlapCandidate[]): ActivityWarning[] {
-  if (r.status !== 'DRAFT') return [];
+  if (NO_WARNINGS.includes(r.status)) return [];
   const warnings: ActivityWarning[] = [];
 
   const overlapping = candidates
     .filter(
       (c) =>
         c.id !== r.id &&
+        c.id !== r.revisionOfId &&
+        c.revisionOfId !== r.id &&
         c.flareSourceId === r.flareSourceId &&
         c.activityType === r.activityType &&
         c.periodStart <= r.periodEnd &&

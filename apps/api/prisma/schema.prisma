@@ -40,10 +40,13 @@ model User {
   createdAssets       Asset[]       @relation("AssetCreatedBy")
   createdFlareSources FlareSource[] @relation("FlareSourceCreatedBy")
 
-  createdActivityRecords   ActivityRecord[] @relation("ActivityRecordCreatedBy")
-  updatedActivityRecords   ActivityRecord[] @relation("ActivityRecordUpdatedBy")
-  withdrawnActivityRecords ActivityRecord[] @relation("ActivityRecordWithdrawnBy")
-  acknowledgedOverlaps     ActivityRecord[] @relation("ActivityRecordOverlapAcknowledgedBy")
+  createdActivityRecords   ActivityRecord[]      @relation("ActivityRecordCreatedBy")
+  updatedActivityRecords   ActivityRecord[]      @relation("ActivityRecordUpdatedBy")
+  withdrawnActivityRecords ActivityRecord[]      @relation("ActivityRecordWithdrawnBy")
+  acknowledgedOverlaps     ActivityRecord[]      @relation("ActivityRecordOverlapAcknowledgedBy")
+  claimedActivityRecords   ActivityRecord[]      @relation("ActivityRecordClaimedBy")
+  approvedActivityRecords  ActivityRecord[]      @relation("ActivityRecordApprovedBy")
+  activityRecordEvents     ActivityRecordEvent[]
 
   @@map("users")
 }
@@ -99,12 +102,13 @@ model Organisation {
   createdAt                       DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt                       DateTime           @updatedAt @db.Timestamptz(3)
 
-  memberships     Membership[]
-  facilities      Facility[]
-  assets          Asset[]
-  flareSources    FlareSource[]
-  activityRecords ActivityRecord[]
-  auditLogs       AuditLog[]
+  memberships          Membership[]
+  facilities           Facility[]
+  assets               Asset[]
+  flareSources         FlareSource[]
+  activityRecords      ActivityRecord[]
+  activityRecordEvents ActivityRecordEvent[]
+  auditLogs            AuditLog[]
 
   @@map("organisations")
 }
@@ -273,8 +277,17 @@ enum ActivityDataSource {
   MANUAL
 }
 
+/// Workflow: ARCHITECTURAL_WORKFLOW.md §7 and §7.1. Legal transitions are also
+/// enforced by a database trigger (see the review-approval migration).
 enum ActivityRecordStatus {
   DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_CORRECTION
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  SUPERSEDED
   WITHDRAWN
 }
 
@@ -372,21 +385,82 @@ model ActivityRecord {
   overlapAcknowledgedAt   DateTime?            @db.Timestamptz(3)
   overlapAcknowledgedById String?              @db.Uuid
 
+  // Review and approval (Milestone 4, ARCHITECTURAL_WORKFLOW.md §7.1).
+  /// The approved record this one revises (same organisation); null for a first version.
+  revisionOfId String?   @db.Uuid
+  /// 1 for an original record, the revised record's version + 1 for a revision.
+  version      Int       @default(1)
+  /// Latest submission time; orders the review queue.
+  submittedAt  DateTime? @db.Timestamptz(3)
+  /// The reviewer who claimed the record; set only while UNDER_REVIEW.
+  claimedById  String?   @db.Uuid
+  claimedAt    DateTime? @db.Timestamptz(3)
+  approvedAt   DateTime? @db.Timestamptz(3)
+  approvedById String?   @db.Uuid
+  /// When an approved revision of this record replaced it.
+  supersededAt DateTime? @db.Timestamptz(3)
+
   createdById String   @db.Uuid
   updatedById String   @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
-  organisation          Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  flareSource           FlareSource  @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy             User         @relation("ActivityRecordCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  updatedBy             User         @relation("ActivityRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  withdrawnBy           User?        @relation("ActivityRecordWithdrawnBy", fields: [withdrawnById], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  overlapAcknowledgedBy User?        @relation("ActivityRecordOverlapAcknowledgedBy", fields: [overlapAcknowledgedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organisation          Organisation          @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  flareSource           FlareSource           @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy             User                  @relation("ActivityRecordCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy             User                  @relation("ActivityRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  withdrawnBy           User?                 @relation("ActivityRecordWithdrawnBy", fields: [withdrawnById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  overlapAcknowledgedBy User?                 @relation("ActivityRecordOverlapAcknowledgedBy", fields: [overlapAcknowledgedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  claimedBy             User?                 @relation("ActivityRecordClaimedBy", fields: [claimedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvedBy            User?                 @relation("ActivityRecordApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revisionOf            ActivityRecord?       @relation("ActivityRecordRevisions", fields: [organisationId, revisionOfId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  revisions             ActivityRecord[]      @relation("ActivityRecordRevisions")
+  events                ActivityRecordEvent[]
 
+  @@unique([organisationId, id])
   @@index([organisationId, flareSourceId, activityType, periodStart])
   @@index([organisationId, status])
+  @@index([organisationId, revisionOfId])
   @@map("activity_records")
+}
+
+enum ActivityRecordEventType {
+  CREATED
+  EDITED
+  SUBMITTED
+  RECALLED
+  REVIEW_STARTED
+  CLAIM_RELEASED
+  FORWARDED
+  RETURNED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  REVISION_CREATED
+  SUPERSEDED
+}
+
+/// Append-only history of an activity record: every edit, workflow step and comment.
+/// Also the source of "involvement" for separation of duties (§7.1).
+model ActivityRecordEvent {
+  id               String                  @id @default(uuid(7)) @db.Uuid
+  organisationId   String                  @db.Uuid
+  activityRecordId String                  @db.Uuid
+  type             ActivityRecordEventType
+  fromStatus       ActivityRecordStatus?
+  toStatus         ActivityRecordStatus
+  actorId          String                  @db.Uuid
+  comment          String?                 @db.VarChar(2000)
+  /// E.g. the data-quality warnings when the record was submitted or approved.
+  details          Json?
+  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
+
+  organisation   Organisation   @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  activityRecord ActivityRecord @relation(fields: [organisationId, activityRecordId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  actor          User           @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organisationId, activityRecordId, createdAt])
+  @@map("activity_record_events")
 }
 
 // ─── Audit ───────────────────────────────────────────────────────────────────

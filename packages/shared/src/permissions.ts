@@ -19,6 +19,14 @@ export const PERMISSIONS = {
   'activity:read': ROLES,
   // Create, edit and withdraw draft activity records (ARCHITECTURAL_WORKFLOW.md §4.1).
   'activity:write': ['ORGANISATION_OWNER', 'ADMINISTRATOR', 'DATA_ENTRY_OFFICER'],
+  // Review and approval (ARCHITECTURAL_WORKFLOW.md §7.1). Separation of duties is
+  // enforced per record on top of these: anyone involved in a record can't review or
+  // approve it, and its reviewer can't approve it.
+  'activity:submit': ['ORGANISATION_OWNER', 'ADMINISTRATOR', 'DATA_ENTRY_OFFICER'],
+  'activity:review': ['ORGANISATION_OWNER', 'REVIEWER'],
+  'activity:approve': ['ORGANISATION_OWNER', 'APPROVER'],
+  // Release another reviewer's claim. A reviewer can always release their own.
+  'activity:release-claim': ['ORGANISATION_OWNER'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

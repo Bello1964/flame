@@ -113,10 +113,10 @@ Decisions confirmed with the product owner on 2026-11-15. Activity records hold 
 - **Reference conditions.** The canonical condition is **ISO 13443: 15 °C (288.15 K), 101.325 kPa absolute**. Every record states the source temperature (°C, °F or K) and absolute pressure (kPa(a), bar(a) or psia), prefilled from the organisation's default reference condition (initially ISO 13443; Owners and Administrators can change it) and editable. Gauge pressure is not accepted. When the source condition differs from canonical, the compressibility factors at the source condition (Z_src) and at the canonical condition (Z_ref) are both required. This applies even at the organisation's default condition, because every record is converted to the canonical condition; the real-gas correction cannot be skipped without assuming ideal-gas behaviour, which is not permitted. To avoid re-entering them, when the organisation default differs from canonical, Owners and Administrators may store Z_src and Z_ref for that default together with their source (decision 2026-11-16). Records at exactly the default condition are prefilled with them and their source; the values remain editable and are stored on each record with the source (`compressibilitySource`). Moving a record to another condition clears prefilled values that still equal the defaults. Returning the default to canonical removes the stored Z defaults, and moving it to another non-canonical condition requires them to be restated or removed.
 - **Standardisation** (server-side, at save): `V_ref = V_src × (P_src / P_ref) × (T_ref / T_src) × (Z_ref / Z_src)` with absolute temperature and pressure, then a unit conversion. Constants are derived from exact definitions (1 ft = 0.3048 m, so 1 ft³ = 0.028316846592 m³ exactly; psi from the pound, standard gravity and inch); those that don't terminate (psi in kPa, °F to K) are evaluated to 40 significant digits. Standardised values are expressed in MMscf/d and MMscf _at the canonical condition_ and always displayed with that condition. When the source condition equals canonical, the correction factor is 1 and Z is not required. The conversion version, constants, inputs, timestamp and actor are stored with the result. The original input is never altered.
 - **Derived volume.** Only when an average rate and an actual operating duration are both present: `volume = rate × hours / 24`, labelled _derived_ and stored with its formula. A 24-hour day is never assumed.
-- **Data-quality warnings** (worked out whenever a record is read, so they stay current as other records change; they never change values): overlap with another draft record for the same flare source and activity type, rate × duration differing from the entered volume by more than 1%, and no supporting evidence (uploads arrive with the evidence module). Before saving a record that overlaps, the API returns 409 `OVERLAP_UNCONFIRMED` listing the overlapping records; the client must resend with `acknowledgeOverlap: true`, and that confirmation (time and user) is stored and audited.
+- **Data-quality warnings** (worked out whenever a record is read, so they stay current as other records change; they never change values): overlap with another current record (any status except withdrawn, rejected and superseded; a revision and the record it revises don't count) for the same flare source and activity type, rate × duration differing from the entered volume by more than 1%, and no supporting evidence (uploads arrive with the evidence module). Before saving a record that overlaps, the API returns 409 `OVERLAP_UNCONFIRMED` listing the overlapping records; the client must resend with `acknowledgeOverlap: true`, and that confirmation (time and user) is stored and audited.
 - **Values that can't be stored faithfully** are rejected with a field error, never saved wrong: a non-zero quantity that would standardise to zero, or a result too large for its column. Plausible operating ranges for temperature, pressure and Z are deliberately not enforced yet; they will be added once sourced values are supplied (decision 2026-11-16).
 - **Time zone.** Each facility has an IANA time zone (default `Africa/Lagos`, stored in canonical spelling). Days and periods are interpreted in it, and the zone is stored on every record. A record keeps the zone it was entered in: changing the facility's zone later does not move existing records, even when they are edited. Known limitation: the daily cap is 24 operating hours, so a 25-hour day at a daylight-saving change cannot be recorded in full (the initial target zones in Nigeria and West Africa do not observe DST).
-- **Lifecycle.** `DRAFT` (editable; every change audited with before and after values) and `WITHDRAWN` (with a reason; read-only, kept for history, excluded from everything else). Submission, review and approval follow in Milestone 4. Nothing is hard-deleted.
+- **Lifecycle.** `DRAFT` (editable; every change audited with before and after values) and `WITHDRAWN` (with a reason; read-only, kept for history, excluded from everything else). Milestone 4 adds the review states (§7.1). Nothing is hard-deleted.
 - **Archived hierarchy.** No new records on an archived flare source. Its existing drafts become read-only but can still be withdrawn (with a reason), so a source taken out of service can be tidied up.
 
 ## 5. Request pipeline (backend)
@@ -136,17 +136,25 @@ URL shape: `/api/v1/organisations/:organisationId/<resource>`. Organisation-owne
 
 Implemented endpoints (all under `/api/v1`):
 
-| Method | Path                                                                                                     | Permission           |
-| ------ | -------------------------------------------------------------------------------------------------------- | -------------------- |
-| POST   | `/auth/login`                                                                                            | public, rate-limited |
-| GET    | `/auth/session`                                                                                          | signed in            |
-| POST   | `/auth/logout`, `/auth/logout-all`                                                                       | signed in            |
-| GET    | `/organisations/:organisationId`                                                                         | `organisation:read`  |
-| GET    | `/organisations/:organisationId/{facilities,assets,flare-sources}` (paged, `q`, `status`, parent filter) | `hierarchy:read`     |
-| GET    | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                   | `hierarchy:read`     |
-| POST   | `/organisations/:organisationId/{facilities,assets,flare-sources}`                                       | `hierarchy:write`    |
-| PATCH  | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                   | `hierarchy:write`    |
-| POST   | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id/archive`                           | `hierarchy:write`    |
+| Method      | Path                                                                                                                                           | Permission                |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| POST        | `/auth/login`                                                                                                                                  | public, rate-limited      |
+| GET         | `/auth/session`                                                                                                                                | signed in                 |
+| POST        | `/auth/logout`, `/auth/logout-all`                                                                                                             | signed in                 |
+| GET         | `/organisations/:organisationId`                                                                                                               | `organisation:read`       |
+| GET         | `/organisations/:organisationId/{facilities,assets,flare-sources}` (paged, `q`, `status`, parent filter)                                       | `hierarchy:read`          |
+| GET         | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:read`          |
+| POST        | `/organisations/:organisationId/{facilities,assets,flare-sources}`                                                                             | `hierarchy:write`         |
+| PATCH       | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id`                                                                         | `hierarchy:write`         |
+| POST        | `/organisations/:organisationId/{facilities,assets,flare-sources}/:id/archive`                                                                 | `hierarchy:write`         |
+| GET         | `/organisations/:organisationId/activity-records` (paged; `status` = a status, `CURRENT` (default) or `ALL`; `claimedBy=me`; `sort=submitted`) | `activity:read`           |
+| GET         | `/organisations/:organisationId/activity-records/:id`, `/:id/history`                                                                          | `activity:read`           |
+| POST, PATCH | `/organisations/:organisationId/activity-records`, `/:id`, `/:id/withdraw`                                                                     | `activity:write`          |
+| POST        | `/organisations/:organisationId/activity-records/:id/{submit,recall}`                                                                          | `activity:submit`         |
+| POST        | `/organisations/:organisationId/activity-records/:id/{start-review,forward}`                                                                   | `activity:review`         |
+| POST        | `/organisations/:organisationId/activity-records/:id/{approve,reject}`                                                                         | `activity:approve`        |
+| POST        | `/organisations/:organisationId/activity-records/:id/{return,release-claim}`, `/bulk`                                                          | decided per record (§7.1) |
+| POST        | `/organisations/:organisationId/activity-records/:id/revise`                                                                                   | `activity:write`          |
 
 Records are archived, never deleted. Archived records are read-only, cannot receive new children, and a parent cannot be archived while it has active children. A child cannot be moved to another parent.
 
@@ -154,29 +162,73 @@ Records are archived, never deleted. Archived records are read-only, cannot rece
 
 Data Entry Officer, Reviewer, Approver, Administrator, Organisation Owner, Viewer (per organisation, users may hold several) and Platform Administrator (platform-level, no implicit tenant data access). Initial permission matrix (`apps/api/src/modules/organisations/permissions.ts`), extended per module:
 
-| Permission              | Owner | Administrator | Approver | Reviewer | Data Entry | Viewer |
-| ----------------------- | ----- | ------------- | -------- | -------- | ---------- | ------ |
-| `organisation:read`     | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `hierarchy:read`        | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `hierarchy:write`       | ✓     | ✓             |          |          |            |        |
-| `organisation:settings` | ✓     | ✓             |          |          |            |        |
-| `activity:read`         | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
-| `activity:write`        | ✓     | ✓             |          |          | ✓          |        |
+| Permission               | Owner | Administrator | Approver | Reviewer | Data Entry | Viewer |
+| ------------------------ | ----- | ------------- | -------- | -------- | ---------- | ------ |
+| `organisation:read`      | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `hierarchy:read`         | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `hierarchy:write`        | ✓     | ✓             |          |          |            |        |
+| `organisation:settings`  | ✓     | ✓             |          |          |            |        |
+| `activity:read`          | ✓     | ✓             | ✓        | ✓        | ✓          | ✓      |
+| `activity:write`         | ✓     | ✓             |          |          | ✓          |        |
+| `activity:submit`        | ✓     | ✓             |          |          | ✓          |        |
+| `activity:review`        | ✓     |               |          | ✓        |            |        |
+| `activity:approve`       | ✓     |               | ✓        |          |            |        |
+| `activity:release-claim` | ✓     |               |          |          |            |        |
+
+Roles combine: an Administrator who should review or approve also holds the Reviewer or Approver role. On top of the matrix, separation of duties is decided per record (§7.1).
 
 ## 7. Review and approval workflow
 
+**Implemented for activity records** (Milestone 4, §7.1).
+
 ```
-Draft → Submitted → Under Review → Needs Correction ─┐
-                         │                           │ (resubmit)
-                         └→ Awaiting Approval → Approved
-                                         └→ Rejected
+Draft → Submitted → Under Review → Awaiting Approval → Approved → (revision approved) Superseded
 ```
+
+| From              | Step              | To                       | Who                                              |
+| ----------------- | ----------------- | ------------------------ | ------------------------------------------------ |
+| Draft             | submit            | Submitted                | `activity:submit`                                |
+| Draft             | withdraw          | Withdrawn                | `activity:write`, with a reason                  |
+| Submitted         | recall            | Draft                    | someone involved, before review                  |
+| Submitted         | start review      | Under Review             | `activity:review`, not involved                  |
+| Under Review      | release claim     | Submitted                | the claimant, or an Owner; reason                |
+| Under Review      | forward           | Awaiting Approval        | the claimant                                     |
+| Under Review      | return            | Needs Correction         | the claimant; reason                             |
+| Awaiting Approval | approve           | Approved                 | `activity:approve`, not involved, not a reviewer |
+| Awaiting Approval | reject            | Rejected (final)         | as approve; reason                               |
+| Awaiting Approval | return            | Needs Correction         | as approve; reason                               |
+| Needs Correction  | submit            | Submitted                | `activity:submit` (after any edits)              |
+| Needs Correction  | withdraw          | Withdrawn                | `activity:write`, with a reason                  |
+| Approved          | revise            | (new Draft, version + 1) | `activity:write`                                 |
+| Approved          | revision approved | Superseded               | automatic, in the approval transaction           |
 
 - Transitions are validated in the backend `workflow` service, with role checks per transition.
 - A user cannot approve their own submission.
 - Approved records are immutable; changes create a new version linked to the original.
 - Comments, correction reasons, actors and timestamps are retained.
 - Only approved records feed official reports.
+
+### 7.1 Activity record review and approval (Milestone 4)
+
+Decisions confirmed with the product owner on 2026-11-16.
+
+- **States.** `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `NEEDS_CORRECTION`, `AWAITING_APPROVAL`, `APPROVED`, `REJECTED`, `SUPERSEDED`, `WITHDRAWN`. Values can be edited only in `DRAFT` and `NEEDS_CORRECTION`.
+- **Unit.** Each record moves on its own. Lists offer bulk actions (submit, start review, forward, return, approve, reject); the API applies them record by record, each in its own transaction, and reports the outcome for every record, so one refusal doesn't hold back the rest.
+- **Who does what** (§6). Submit and recall: `activity:submit`. Review: `activity:review` (Reviewer, Owner). Approve, reject, and return from approval: `activity:approve` (Approver, Owner). Release a claim: the reviewer holding it, or `activity:release-claim` (Owner).
+- **Separation of duties** (three people per record). Anyone _involved_ in a record (created, edited or submitted it, in any round) can't review or approve it, and anyone who reviewed it (in any round) can't approve it. Involvement is read from the append-only history. A revision is a new record: who is involved is worked out for it alone. Refusals return 403 `SEPARATION_OF_DUTIES`; the record's `separationOfDuties` field explains it to a user whose role would otherwise allow the step.
+- **Review claim.** A reviewer presses _Start review_; the record becomes `UNDER_REVIEW`, assigned to them. Only they can forward it or return it. An Owner can release a stuck claim (with a reason).
+- **Recall.** Someone involved can pull a `SUBMITTED` record back to `DRAFT` until a review starts.
+- **Corrections.** Reviewers and approvers can return a record (`NEEDS_CORRECTION`, reason required). Anyone with `activity:write` may correct and resubmit it; editing makes them involved.
+- **Rejection** is final, with a required reason: the record is kept, read-only, and not used. To record the activity differently, enter a new record.
+- **Withdrawal** is allowed only in `DRAFT` and `NEEDS_CORRECTION`. An approved record is never withdrawn, only revised.
+- **Comments.** Required to return, reject and release a claim; optional otherwise. Kept in the history with the step.
+- **Data-quality checks.** Submission is refused (409 `OVERLAP_BLOCKED`, listing the records) when the record overlaps a submitted, under-review, awaiting-approval or approved record of the same flare source and activity type; approval re-checks against approved records. The record a revision replaces never counts. Other warnings (rate × hours vs volume, no evidence) don't block, but the warnings at submission and at approval are stored with those steps and shown to reviewers and approvers.
+- **Revisions.** _Revise_ on an approved record creates a new draft linked to it (`revisionOfId`, `version` + 1) with its values. At most one open revision per record (a partial unique index). The original stays `APPROVED`, and in use, until the revision is approved; then, in the same transaction, it becomes `SUPERSEDED`. A rejected or withdrawn revision leaves the original approved.
+- **History.** `activity_record_events` records every creation, edit, step and comment (actor, time, from and to status). It is append-only: the app role has INSERT and SELECT only, and triggers reject UPDATE, DELETE and TRUNCATE even for the schema owner. Records entered before Milestone 4 were given a history built from their creator, their audited edits and their withdrawals. Every step is also in the audit log.
+- **Database protection.** A trigger on `activity_records` rejects deletes (by anyone; the app role also lacks DELETE), inserts in any state but `DRAFT`, any transition not in the diagram above, value changes outside `DRAFT` and `NEEDS_CORRECTION`, and any change at all to approved, superseded, rejected and withdrawn records apart from `APPROVED → SUPERSEDED`. Identity and lineage (organisation, flare source, kind, creator, the record revised, version) never change; who approved a record can't be rewritten; claim and submission fields change only with a status change. Separation of duties also always counts the stored creator, in case a record's history is incomplete. CHECK constraints tie the claim, approval and superseded fields to their states.
+- **Concurrency.** Each step locks the record (`FOR UPDATE`) and checks its state inside the transaction, so of two simultaneous actions one succeeds and the other gets 409. Submission and approval also lock the flare source, so overlapping records can't be submitted or approved side by side. Lock order: records (a revision before its original), then the flare source.
+- **Interface.** The API lists what the requesting user may do with each record (`availableActions`); the web app shows only those buttons and the API checks again on every request. A _Review_ page (for reviewers, approvers and owners) has three queues: To review, My reviews and Awaiting approval, oldest submission first.
+- **Out of scope.** Notifications, reports and calculations. Approved records are what official reports and calculations will use.
 
 ## 8. Calculation integrity
 
@@ -232,7 +284,7 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
 
 ## 13. Open decisions
 
-- Permissions for review and approval (extend the matrix in §6). Activity-data permissions resolved 2026-11-15 (§6, §4.1).
+- Review and approval permissions resolved 2026-11-16 (§6, §7.1); activity-data permissions 2026-11-15 (§6, §4.1).
 - User invitation and membership management flow.
 - OpenAPI documentation generation for the implemented endpoints.
 - When to add PostgreSQL RLS.

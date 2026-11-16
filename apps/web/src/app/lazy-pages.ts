@@ -9,6 +9,7 @@ export const pages = {
   flareSource: () => import('@/pages/flare-source-page'),
   system: () => import('@/pages/home-page'),
   activityRecord: () => import('@/pages/activity-record-page'),
+  review: () => import('@/pages/review-page'),
   settings: () => import('@/pages/settings-page'),
 };
 

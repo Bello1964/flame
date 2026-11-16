@@ -1,7 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ActivityAction,
   ActivityRecordDto,
+  ActivityRecordEventDto,
   ActivityRecordKind,
+  ActivityRecordStatus,
+  BulkActivityAction,
+  BulkActivityResult,
   ActivityType,
   DataResponse,
   ListResponse,
@@ -15,9 +20,10 @@ import type {
   TemperatureUnit,
   VolumeUnit,
 } from '@flame/shared';
-import { apiGet, apiSend, withQuery } from '@/lib/api-client';
+import { ApiError, apiGet, apiSend, withQuery } from '@/lib/api-client';
 
-export type ActivityStatusFilter = 'DRAFT' | 'WITHDRAWN' | 'ALL';
+/** CURRENT: everything except withdrawn, rejected and superseded records. */
+export type ActivityStatusFilter = ActivityRecordStatus | 'CURRENT' | 'ALL';
 
 export interface ActivityListParams {
   page: number;
@@ -25,7 +31,14 @@ export interface ActivityListParams {
   status: ActivityStatusFilter;
   flareSourceId?: string;
   activityType?: ActivityType;
+  /** Only records the signed-in reviewer is reviewing. */
+  claimedBy?: 'me';
+  /** submitted: longest-waiting first (review queues). */
+  sort?: 'period' | 'submitted';
 }
+
+/** Workflow actions sent to POST /activity-records/:id/<action>. */
+export type TransitionAction = Exclude<ActivityAction, 'edit' | 'withdraw' | 'revise'>;
 
 /** Fields shared by create and edit (the API's strict schema; unknown fields are rejected). */
 export interface ActivityFields {
@@ -64,6 +77,7 @@ export const activityKeys = {
   list: (orgId: string, params: ActivityListParams) =>
     ['org', orgId, 'activity', 'list', params] as const,
   detail: (orgId: string, id: string) => ['org', orgId, 'activity', 'detail', id] as const,
+  history: (orgId: string, id: string) => ['org', orgId, 'activity', 'history', id] as const,
   settings: (orgId: string) => ['org', orgId, 'settings'] as const,
 };
 
@@ -80,6 +94,8 @@ export function useActivityList(orgId: string, params: ActivityListParams) {
           status: params.status,
           flareSourceId: params.flareSourceId,
           activityType: params.activityType,
+          claimedBy: params.claimedBy,
+          sort: params.sort,
         }),
         { signal },
       ),
@@ -103,6 +119,33 @@ export function useActivityRecord(orgId: string, id: string | undefined) {
         )
       ).data,
   });
+}
+
+/** The record's history (edits, workflow steps and comments), oldest first. */
+export function useActivityHistory(orgId: string, id: string) {
+  return useQuery({
+    queryKey: activityKeys.history(orgId, id),
+    queryFn: async ({ signal }) =>
+      (
+        await apiGet<DataResponse<ActivityRecordEventDto[]>>(
+          `${base(orgId)}/activity-records/${encodeURIComponent(id)}/history`,
+          { signal },
+        )
+      ).data,
+  });
+}
+
+/**
+ * After the API refuses a step (403 or 409), the record has probably changed (e.g.
+ * someone else claimed it), so refetch it rather than keep offering stale actions.
+ */
+function useRefreshOnRefusal(orgId: string) {
+  const queryClient = useQueryClient();
+  return async (error: unknown) => {
+    if (error instanceof ApiError && (error.status === 403 || error.status === 409)) {
+      await queryClient.invalidateQueries({ queryKey: activityKeys.all(orgId) });
+    }
+  };
 }
 
 function useAfterActivityWrite(orgId: string) {
@@ -156,6 +199,57 @@ export function useWithdrawActivity(orgId: string, id: string) {
         )
       ).data,
     onSuccess: afterWrite,
+  });
+}
+
+/** Submit, review, forward, return, approve, reject, recall or release a review claim. */
+export function useWorkflowAction(orgId: string, id: string) {
+  const afterWrite = useAfterActivityWrite(orgId);
+  const onError = useRefreshOnRefusal(orgId);
+  return useMutation({
+    mutationFn: async ({ action, comment }: { action: TransitionAction; comment?: string }) =>
+      (
+        await apiSend<DataResponse<ActivityRecordDto>>(
+          'POST',
+          `${base(orgId)}/activity-records/${encodeURIComponent(id)}/${action}`,
+          comment ? { comment } : {},
+        )
+      ).data,
+    onSuccess: afterWrite,
+    onError,
+  });
+}
+
+/** Starts a revision of an approved record; resolves to the new draft. */
+export function useReviseActivity(orgId: string, id: string) {
+  const afterWrite = useAfterActivityWrite(orgId);
+  const onError = useRefreshOnRefusal(orgId);
+  return useMutation({
+    mutationFn: async () =>
+      (
+        await apiSend<DataResponse<ActivityRecordDto>>(
+          'POST',
+          `${base(orgId)}/activity-records/${encodeURIComponent(id)}/revise`,
+        )
+      ).data,
+    onSuccess: afterWrite,
+    onError,
+  });
+}
+
+/** Applies one action to many records; each record succeeds or fails on its own. */
+export function useBulkActivityAction(orgId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { action: BulkActivityAction; ids: string[]; comment?: string }) =>
+      (
+        await apiSend<DataResponse<BulkActivityResult[]>>(
+          'POST',
+          `${base(orgId)}/activity-records/bulk`,
+          body,
+        )
+      ).data,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: activityKeys.all(orgId) }),
   });
 }
 

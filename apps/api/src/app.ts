@@ -14,6 +14,8 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { SessionService } from './modules/auth/session.service.js';
 import { activityRouter } from './modules/activity/activity.routes.js';
+import { workflowRouter } from './modules/workflow/workflow.routes.js';
+import { WorkflowService } from './modules/workflow/workflow.service.js';
 import { ActivityService } from './modules/activity/activity.service.js';
 import { facilitiesRouter } from './modules/facilities/facilities.routes.js';
 import { FacilitiesService } from './modules/facilities/facilities.service.js';
@@ -48,6 +50,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const facilities = new FacilitiesService(prisma);
   const activity = new ActivityService(prisma);
   const settings = new SettingsService(prisma);
+  const workflow = new WorkflowService(prisma, activity, logger);
 
   app.use(
     `${API}/health`,
@@ -78,6 +81,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   orgScoped.use(organisationRouter(prisma));
   orgScoped.use(facilitiesRouter(facilities));
   orgScoped.use(activityRouter(activity, settings));
+  orgScoped.use(workflowRouter(workflow));
   app.use(`${API}/organisations/:organisationId`, orgScoped);
 
   app.use(notFoundHandler);

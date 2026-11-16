@@ -13,6 +13,14 @@ export function canWriteActivity(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'activity:write');
 }
 
+export function canReviewActivity(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'activity:review');
+}
+
+export function canApproveActivity(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'activity:approve');
+}
+
 export function canManageSettings(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'organisation:settings');
 }
