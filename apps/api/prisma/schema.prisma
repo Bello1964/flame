@@ -48,6 +48,18 @@ model User {
   approvedActivityRecords  ActivityRecord[]      @relation("ActivityRecordApprovedBy")
   activityRecordEvents     ActivityRecordEvent[]
 
+  createdEditions       MethodologyEdition[] @relation("EditionCreatedBy")
+  approvedEditions      MethodologyEdition[] @relation("EditionApprovedBy")
+  createdCompositions   GasComposition[]     @relation("CompositionCreatedBy")
+  withdrawnCompositions GasComposition[]     @relation("CompositionWithdrawnBy")
+  createdEfficiencies   FlareEfficiency[]    @relation("EfficiencyCreatedBy")
+  withdrawnEfficiencies FlareEfficiency[]    @relation("EfficiencyWithdrawnBy")
+  createdCalculations   Calculation[]        @relation("CalculationCreatedBy")
+  updatedCalculations   Calculation[]        @relation("CalculationUpdatedBy")
+  claimedCalculations   Calculation[]        @relation("CalculationClaimedBy")
+  approvedCalculations  Calculation[]        @relation("CalculationApprovedBy")
+  calculationEvents     CalculationEvent[]
+
   @@map("users")
 }
 
@@ -108,6 +120,10 @@ model Organisation {
   flareSources         FlareSource[]
   activityRecords      ActivityRecord[]
   activityRecordEvents ActivityRecordEvent[]
+  gasCompositions      GasComposition[]
+  flareEfficiencies    FlareEfficiency[]
+  calculations         Calculation[]
+  calculationEvents    CalculationEvent[]
   auditLogs            AuditLog[]
 
   @@map("organisations")
@@ -219,24 +235,29 @@ enum FlareType {
 }
 
 model FlareSource {
-  id             String       @id @default(uuid(7)) @db.Uuid
-  organisationId String       @db.Uuid
-  assetId        String       @db.Uuid
-  name           String       @db.VarChar(200)
-  code           String       @db.VarChar(50)
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organisationId String        @db.Uuid
+  assetId        String        @db.Uuid
+  name           String        @db.VarChar(200)
+  code           String        @db.VarChar(50)
   /// Optional until confirmed; calculation inputs are captured with methodology data later.
   flareType      FlareType?
-  description    String?      @db.VarChar(2000)
-  status         RecordStatus @default(ACTIVE)
-  archivedAt     DateTime?    @db.Timestamptz(3)
-  createdById    String       @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+  /// Production or refinery service: decides which methodology defaults may apply (§8.1).
+  flareService   FlareService?
+  description    String?       @db.VarChar(2000)
+  status         RecordStatus  @default(ACTIVE)
+  archivedAt     DateTime?     @db.Timestamptz(3)
+  createdById    String        @db.Uuid
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
 
-  organisation    Organisation     @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  asset           Asset            @relation(fields: [organisationId, assetId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy       User             @relation("FlareSourceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organisation    Organisation      @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  asset           Asset             @relation(fields: [organisationId, assetId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User              @relation("FlareSourceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
   activityRecords ActivityRecord[]
+  gasCompositions GasComposition[]
+  efficiencies    FlareEfficiency[]
+  calculations    Calculation[]
 
   @@unique([organisationId, code])
   @@unique([organisationId, id])
@@ -416,6 +437,7 @@ model ActivityRecord {
   revisionOf            ActivityRecord?       @relation("ActivityRecordRevisions", fields: [organisationId, revisionOfId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
   revisions             ActivityRecord[]      @relation("ActivityRecordRevisions")
   events                ActivityRecordEvent[]
+  calculations          Calculation[]
 
   @@unique([organisationId, id])
   @@index([organisationId, flareSourceId, activityType, periodStart])
@@ -485,4 +507,305 @@ model AuditLog {
   @@index([organisationId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// ─── Emissions calculations (Milestone 3) ────────────────────────────────────
+// Rules: docs/architecture/ARCHITECTURAL_WORKFLOW.md §8.1.
+
+enum FlareService {
+  PRODUCTION
+  REFINERY
+}
+
+enum MethodologyEditionStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum MethodologyParameterKind {
+  UNIT_CONVERSION
+  CONSTANT
+  MOLECULAR_WEIGHT
+  CARBON_NUMBER
+  EMISSION_FACTOR
+  DEFAULT_ASSUMPTION
+  GWP
+}
+
+/// A published edition of the calculation methodology: every decision with its reason and
+/// references, the formulas, and (in parameters) every number with its source. Shared by
+/// all organisations, maintained by Platform Administrators, frozen once approved.
+model MethodologyEdition {
+  id               String                   @id @default(uuid(7)) @db.Uuid
+  /// Stable identifier of the methodology, e.g. "flame-flaring-venting".
+  code             String                   @db.VarChar(100)
+  edition          Int
+  title            String                   @db.VarChar(300)
+  summary          String                   @db.VarChar(4000)
+  /// Routes, formulas, decisions (decision, reason, references) and limitations.
+  content          Json
+  status           MethodologyEditionStatus @default(DRAFT)
+  /// Who supplied the values when no user created the edition (e.g. imported by a migration).
+  provenance       String?                  @db.VarChar(1000)
+  createdById      String?                  @db.Uuid
+  createdAt        DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @db.Timestamptz(3)
+  approvedById     String?                  @db.Uuid
+  approvedAt       DateTime?                @db.Timestamptz(3)
+  supersededAt     DateTime?                @db.Timestamptz(3)
+  withdrawnAt      DateTime?                @db.Timestamptz(3)
+  withdrawalReason String?                  @db.VarChar(2000)
+
+  createdBy    User?                  @relation("EditionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvedBy   User?                  @relation("EditionApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  parameters   MethodologyParameter[]
+  calculations Calculation[]
+
+  @@unique([code, edition])
+  @@map("methodology_editions")
+}
+
+/// One sourced number in an edition (constant, factor, default assumption or GWP).
+model MethodologyParameter {
+  id                 String                   @id @default(uuid(7)) @db.Uuid
+  editionId          String                   @db.Uuid
+  /// Stable key used by the calculation engine, e.g. "ipcc.molar_volume".
+  key                String                   @db.VarChar(100)
+  kind               MethodologyParameterKind
+  name               String                   @db.VarChar(300)
+  value              Decimal                  @db.Decimal(40, 20)
+  unit               String                   @db.VarChar(100)
+  gas                String?                  @db.VarChar(20)
+  appliesTo          String                   @db.VarChar(1000)
+  sourceOrganisation String                   @db.VarChar(200)
+  sourceDocument     String                   @db.VarChar(500)
+  sourceEdition      String                   @db.VarChar(300)
+  /// Page, table, footnote or equation.
+  sourceLocation     String                   @db.VarChar(500)
+  sourceUrl          String?                  @db.VarChar(1000)
+  retrievedOn        DateTime                 @db.Date
+  notes              String?                  @db.VarChar(2000)
+
+  edition MethodologyEdition @relation(fields: [editionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([editionId, key])
+  @@map("methodology_parameters")
+}
+
+enum InputRecordStatus {
+  ACTIVE
+  WITHDRAWN
+}
+
+/// A dated gas analysis for a flare source. Never edited: a correction is a new analysis.
+model GasComposition {
+  id                      String            @id @default(uuid(7)) @db.Uuid
+  organisationId          String            @db.Uuid
+  flareSourceId           String            @db.Uuid
+  /// Used for activity whose period starts on or after this local date.
+  validFrom               DateTime          @db.Date
+  sampleDate              DateTime          @db.Date
+  /// Lab report, chromatograph record or similar.
+  sampleReference         String            @db.VarChar(300)
+  analysisMethod          String?           @db.VarChar(300)
+  /// Mole percent, exactly as entered (up to 6 decimal places).
+  methane                 Decimal           @db.Decimal(10, 6)
+  ethane                  Decimal           @db.Decimal(10, 6)
+  propane                 Decimal           @db.Decimal(10, 6)
+  isoButane               Decimal           @db.Decimal(10, 6)
+  normalButane            Decimal           @db.Decimal(10, 6)
+  isoPentane              Decimal           @db.Decimal(10, 6)
+  normalPentane           Decimal           @db.Decimal(10, 6)
+  hexanesPlus             Decimal           @db.Decimal(10, 6)
+  /// Average carbon atoms per molecule of the C6+ fraction; required when C6+ > 0.
+  hexanesPlusCarbonNumber Decimal?          @db.Decimal(8, 4)
+  carbonDioxide           Decimal           @db.Decimal(10, 6)
+  nitrogen                Decimal           @db.Decimal(10, 6)
+  hydrogenSulphide        Decimal           @db.Decimal(10, 6)
+  otherInerts             Decimal           @db.Decimal(10, 6)
+  /// The components exactly as typed.
+  entered                 Json
+  notes                   String?           @db.VarChar(2000)
+  status                  InputRecordStatus @default(ACTIVE)
+  withdrawnAt             DateTime?         @db.Timestamptz(3)
+  withdrawnById           String?           @db.Uuid
+  withdrawalReason        String?           @db.VarChar(2000)
+  createdById             String            @db.Uuid
+  createdAt               DateTime          @default(now()) @db.Timestamptz(3)
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  flareSource  FlareSource   @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User          @relation("CompositionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  withdrawnBy  User?         @relation("CompositionWithdrawnBy", fields: [withdrawnById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  calculations Calculation[]
+
+  @@unique([organisationId, id])
+  @@index([organisationId, flareSourceId, validFrom])
+  @@map("gas_compositions")
+}
+
+enum EfficiencyBasis {
+  MEASURED_TEST
+  VENDOR_SPECIFICATION
+  /// e.g. NUPRC's 98% design DRE: a requirement, never used as achieved performance.
+  DESIGN_REQUIREMENT
+}
+
+/// Flare performance evidence for a flare source. Never edited: a correction is a new record.
+model FlareEfficiency {
+  id                          String            @id @default(uuid(7)) @db.Uuid
+  organisationId              String            @db.Uuid
+  flareSourceId               String            @db.Uuid
+  validFrom                   DateTime          @db.Date
+  basis                       EfficiencyBasis
+  /// Percent of hydrocarbon carbon converted to CO2 (or the design DRE for a requirement).
+  combustionEfficiencyPercent Decimal           @db.Decimal(9, 6)
+  /// Percent of methane leaving uncombusted; required for test and vendor values.
+  uncombustedMethanePercent   Decimal?          @db.Decimal(9, 6)
+  /// Test report, vendor datasheet or regulation reference.
+  sourceReference             String            @db.VarChar(500)
+  testDate                    DateTime?         @db.Date
+  entered                     Json
+  notes                       String?           @db.VarChar(2000)
+  status                      InputRecordStatus @default(ACTIVE)
+  withdrawnAt                 DateTime?         @db.Timestamptz(3)
+  withdrawnById               String?           @db.Uuid
+  withdrawalReason            String?           @db.VarChar(2000)
+  createdById                 String            @db.Uuid
+  createdAt                   DateTime          @default(now()) @db.Timestamptz(3)
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  flareSource  FlareSource   @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User          @relation("EfficiencyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  withdrawnBy  User?         @relation("EfficiencyWithdrawnBy", fields: [withdrawnById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  calculations Calculation[]
+
+  @@unique([organisationId, id])
+  @@index([organisationId, flareSourceId, validFrom])
+  @@map("flare_efficiencies")
+}
+
+enum CalculationRoute {
+  COMPOSITION_FLARING
+  IPCC_REFERENCE_FLARING
+  COMPOSITION_VENTING
+}
+
+enum EfficiencySource {
+  FLARE_RECORD
+  METHODOLOGY_DEFAULT
+}
+
+enum CalculationStatus {
+  CALCULATED
+  SUBMITTED
+  UNDER_REVIEW
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  DISCARDED
+}
+
+enum DataQuality {
+  MEASURED_BASIS
+  ESTIMATED
+}
+
+/// An immutable, versioned emissions calculation for one approved activity record.
+model Calculation {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  organisationId    String            @db.Uuid
+  activityRecordId  String            @db.Uuid
+  flareSourceId     String            @db.Uuid
+  /// 1, 2, ... per activity record.
+  version           Int
+  route             CalculationRoute
+  editionId         String            @db.Uuid
+  efficiencySource  EfficiencySource?
+  flareEfficiencyId String?           @db.Uuid
+  gasCompositionId  String?           @db.Uuid
+  /// Required for the IPCC reference-case route.
+  fallbackReason    String?           @db.VarChar(2000)
+  notes             String?           @db.VarChar(2000)
+  /// Every input and parameter used, with values and sources, as at calculation time.
+  inputs            Json
+  /// Each step: formula, substituted values, result and the parameters it used.
+  steps             Json
+  engineVersion     String            @db.VarChar(40)
+  volumeM3          Decimal           @db.Decimal(40, 20)
+  co2Tonnes         Decimal           @db.Decimal(40, 20)
+  ch4Tonnes         Decimal           @db.Decimal(40, 20)
+  /// Null where N2O doesn't apply (venting).
+  n2oTonnes         Decimal?          @db.Decimal(40, 20)
+  co2eTonnes        Decimal           @db.Decimal(40, 20)
+  dataQuality       DataQuality
+  /// Why the result is estimated, as sentences.
+  qualityReasons    Json
+  status            CalculationStatus @default(CALCULATED)
+  submittedAt       DateTime?         @db.Timestamptz(3)
+  claimedById       String?           @db.Uuid
+  claimedAt         DateTime?         @db.Timestamptz(3)
+  approvedAt        DateTime?         @db.Timestamptz(3)
+  approvedById      String?           @db.Uuid
+  supersededAt      DateTime?         @db.Timestamptz(3)
+  discardedAt       DateTime?         @db.Timestamptz(3)
+  createdById       String            @db.Uuid
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+  updatedById       String            @db.Uuid
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(3)
+
+  organisation   Organisation       @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  activityRecord ActivityRecord     @relation(fields: [organisationId, activityRecordId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  flareSource    FlareSource        @relation(fields: [organisationId, flareSourceId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  edition        MethodologyEdition @relation(fields: [editionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  efficiency     FlareEfficiency?   @relation(fields: [organisationId, flareEfficiencyId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  composition    GasComposition?    @relation(fields: [organisationId, gasCompositionId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy      User               @relation("CalculationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy      User               @relation("CalculationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  claimedBy      User?              @relation("CalculationClaimedBy", fields: [claimedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvedBy     User?              @relation("CalculationApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  events         CalculationEvent[]
+
+  @@unique([organisationId, id])
+  @@unique([activityRecordId, version])
+  @@index([organisationId, status])
+  @@index([organisationId, activityRecordId])
+  @@map("calculations")
+}
+
+enum CalculationEventType {
+  CALCULATED
+  SUBMITTED
+  RECALLED
+  REVIEW_STARTED
+  CLAIM_RELEASED
+  FORWARDED
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  DISCARDED
+}
+
+/// Append-only history of a calculation (also the source of involvement).
+model CalculationEvent {
+  id             String               @id @default(uuid(7)) @db.Uuid
+  organisationId String               @db.Uuid
+  calculationId  String               @db.Uuid
+  type           CalculationEventType
+  fromStatus     CalculationStatus?
+  toStatus       CalculationStatus
+  actorId        String               @db.Uuid
+  comment        String?              @db.VarChar(2000)
+  details        Json?
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  calculation  Calculation  @relation(fields: [organisationId, calculationId], references: [organisationId, id], onDelete: Restrict, onUpdate: Restrict)
+  actor        User         @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organisationId, calculationId, createdAt])
+  @@map("calculation_events")
 }
