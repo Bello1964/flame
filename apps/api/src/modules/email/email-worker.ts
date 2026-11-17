@@ -1,6 +1,7 @@
 import type { Logger } from 'pino';
 import { z } from 'zod';
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { withoutLink } from './outbox.js';
 import { EmailSendError, type EmailSender } from './senders.js';
@@ -89,8 +90,15 @@ export class EmailWorker {
     this.timer.unref();
   }
 
-  /** One poll: claims due rows and delivers each. Returns how many it claimed. */
-  async runOnce(now: Date = new Date()): Promise<number> {
+  /**
+   * One poll: claims due rows and delivers each. Returns how many it claimed. Emails may
+   * belong to any organisation's invitations, so it runs in system scope ('email-worker').
+   */
+  runOnce(now: Date = new Date()): Promise<number> {
+    return withSystemScope('email-worker', () => this.poll(now));
+  }
+
+  private async poll(now: Date): Promise<number> {
     const candidates = await this.prisma.emailOutbox.findMany({
       where: {
         OR: [

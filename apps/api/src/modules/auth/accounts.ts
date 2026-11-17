@@ -1,4 +1,5 @@
 import type { Prisma } from '../../generated/prisma/client.js';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { revokeAllSessions } from './session.service.js';
 
@@ -34,9 +35,10 @@ export async function disableIfUnattached(
     select: { status: true, isPlatformAdmin: true },
   });
   if (user.status !== 'ACTIVE' || user.isPlatformAdmin) return false;
-  const remaining = await tx.membership.count({
-    where: { userId, status: { in: ['ACTIVE', 'SUSPENDED'] } },
-  });
+  // Memberships in every organisation count: system scope ('membership-check').
+  const remaining = await withSystemScope('membership-check', () =>
+    tx.membership.count({ where: { userId, status: { in: ['ACTIVE', 'SUSPENDED'] } } }),
+  );
   if (remaining > 0) return false;
 
   await tx.user.update({ where: { id: userId }, data: { status: 'DISABLED' } });

@@ -73,6 +73,9 @@ describe('startup role check', () => {
       canDeleteAuditLog: false,
       canTruncateAuditLog: false,
       ownsAuditLog: false,
+      bypassesRls: false,
+      ownsRlsTable: false,
+      tablesWithoutRls: [],
     });
   });
 
@@ -117,6 +120,40 @@ describe('startup role check', () => {
       await ownerPrisma.$executeRawUnsafe(`REVOKE DELETE ON audit_logs FROM ${name}`);
       await ownerPrisma.$executeRawUnsafe(`DROP ROLE ${name}`);
     }
+  });
+
+  it('refuses, in production, a login that bypasses Row-Level Security', async () => {
+    const name = 'flame_role_bypassrls_probe';
+    const password = 'bypassrls-probe-password-1';
+    await ownerPrisma.$executeRawUnsafe(`DROP ROLE IF EXISTS ${name}`);
+    await ownerPrisma.$executeRawUnsafe(
+      `CREATE ROLE ${name} LOGIN BYPASSRLS PASSWORD '${password}' IN ROLE flame_app`,
+    );
+    const url = new URL(testDatabaseUrl());
+    url.username = name;
+    url.password = password;
+    const probe = createPrismaClient(url.toString());
+    try {
+      expect(await inspectAppRole(probe)).toMatchObject({
+        bypassesRls: true,
+        ownsRlsTable: false,
+        canDeleteAuditLog: false,
+      });
+      const { logger } = fakeLogger();
+      await expect(assertRestrictedAppRole(probe, logger, true)).rejects.toThrow(
+        /bypasses Row-Level Security/,
+      );
+    } finally {
+      await probe.$disconnect();
+      await ownerPrisma.$executeRawUnsafe(`DROP ROLE ${name}`);
+    }
+  });
+
+  it('reports the owner as owning the tables Row-Level Security protects', async () => {
+    expect(await inspectAppRole(ownerPrisma)).toMatchObject({
+      ownsRlsTable: true,
+      tablesWithoutRls: [],
+    });
   });
 
   it('only warns about the owner role in development', async () => {
