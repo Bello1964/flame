@@ -20,6 +20,7 @@ import { AppError, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { recordAudit, type Db } from '../audit/audit.service.js';
 import { isoDateOf, lockRecord } from '../activity/activity.repository.js';
 import type { Caller } from '../activity/activity.service.js';
+import type { Actor } from '../facilities/facilities.service.js';
 import type { MethodologyService } from '../methodology/methodology.service.js';
 import { toParameterDto } from '../methodology/methodology.service.js';
 import type { Refusal, Viewer } from '../workflow/workflow.rules.js';
@@ -558,6 +559,58 @@ export class CalculationsService {
       }
     });
     return this.get(org, caller, id);
+  }
+
+  /**
+   * Releases every calculation review claim a person holds in the organisation (back to
+   * Submitted), with a CLAIM_RELEASED step and an audit entry for each, as a manual release
+   * does. Used when the reviewer is removed from the organisation (§7.2), inside the
+   * caller's transaction. Returns the count.
+   */
+  async releaseClaimsHeldBy(
+    tx: Prisma.TransactionClient,
+    actor: Actor,
+    claimantId: string,
+    comment: string,
+  ): Promise<number> {
+    const org = actor.organisationId;
+    const claimed = await tx.calculation.findMany({
+      where: { organisationId: org, status: 'UNDER_REVIEW', claimedById: claimantId },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    let released = 0;
+    for (const { id } of claimed) {
+      await tx.$queryRaw`SELECT id FROM calculations WHERE id = ${id}::uuid AND "organisationId" = ${org}::uuid FOR UPDATE`;
+      const calc = await tx.calculation.findFirst({ where: { id, organisationId: org } });
+      if (calc?.status !== 'UNDER_REVIEW' || calc.claimedById !== claimantId) continue;
+      const t = TRANSITIONS['release-claim'];
+      await tx.calculation.update({
+        where: { id },
+        data: { status: t.to, updatedById: actor.userId, claimedById: null, claimedAt: null },
+      });
+      await this.addEvent(tx, org, id, t.event, calc.status, t.to, actor.userId, comment, {
+        reason: 'member_removed',
+        claimantId,
+      });
+      await recordAudit(tx, {
+        organisationId: org,
+        actorUserId: actor.userId,
+        action: 'calculation.release_claim',
+        entityType: 'Calculation',
+        entityId: id,
+        metadata: {
+          fromStatus: calc.status,
+          toStatus: t.to,
+          comment,
+          reason: 'member_removed',
+          claimantId,
+        },
+        ipAddress: actor.ipAddress,
+      });
+      released += 1;
+    }
+    return released;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

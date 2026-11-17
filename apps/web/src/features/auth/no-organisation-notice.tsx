@@ -28,9 +28,9 @@ export function NoOrganisationNotice() {
             This account has no organisation access
           </p>
           <p className="text-sm text-muted-foreground">
-            It administers the methodology registry only. To work with an organisation’s facilities,
-            activity data, reports or settings, sign in with an account that belongs to that
-            organisation.
+            It administers the platform only: the methodology registry, organisations and Platform
+            Administrators. To work with an organisation’s facilities, activity data, reports or
+            settings, sign in with an account that belongs to that organisation.
           </p>
         </div>
       </div>

@@ -6,3 +6,4 @@ export * from './permissions.js';
 export * from './activity.js';
 export * from './calculations.js';
 export * from './reporting.js';
+export * from './membership.js';

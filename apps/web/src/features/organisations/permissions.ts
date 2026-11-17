@@ -37,6 +37,19 @@ export function canManageSettings(roles: readonly Role[]): boolean {
   return hasPermission(roles, 'organisation:settings');
 }
 
+export function canReadMembers(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'members:read');
+}
+
+export function canManageMembers(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'members:manage');
+}
+
+/** Only an Owner may grant the Owner role (ARCHITECTURAL_WORKFLOW.md §7.2). */
+export function canGrantOwner(roles: readonly Role[]): boolean {
+  return roles.includes('ORGANISATION_OWNER');
+}
+
 export const ROLE_LABELS: Record<Role, string> = {
   ORGANISATION_OWNER: 'Owner',
   ADMINISTRATOR: 'Administrator',

@@ -4,7 +4,11 @@ import { preloadAllPagesWhenIdle } from '../lazy-pages';
 import { EmptyState } from '@/components/page-state';
 import { Button } from '@/components/ui/button';
 import { useCurrentSession } from '@/features/auth/require-auth';
-import { canApproveActivity, canReviewActivity } from '@/features/organisations/permissions';
+import {
+  canApproveActivity,
+  canReadMembers,
+  canReviewActivity,
+} from '@/features/organisations/permissions';
 import { OrganisationProvider } from '@/features/organisations/organisation-context';
 import { OrganisationSwitcher } from '@/features/organisations/organisation-switcher';
 import { AppLayout } from './app-layout';
@@ -32,6 +36,7 @@ export function OrganisationLayout() {
         basePath={`/o/${membership.organisationId}`}
         isPlatformAdmin={user.isPlatformAdmin}
         showReview={canReviewActivity(membership.roles) || canApproveActivity(membership.roles)}
+        showMembers={canReadMembers(membership.roles)}
         organisationSlot={<OrganisationSwitcher />}
         organisationCompactSlot={<OrganisationSwitcher compact />}
       />

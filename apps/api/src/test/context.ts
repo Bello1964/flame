@@ -21,6 +21,7 @@ export const PASSWORD = 'Correct-Horse-Battery-1';
 
 export const testConfig: AppConfig = {
   isProduction: false,
+  isDevelopment: false,
   webOrigin: WEB_ORIGIN,
   trustProxy: 0,
   session: {
@@ -35,6 +36,7 @@ export const testConfig: AppConfig = {
     maxPerAccountIp: 1_000,
     maxPerAccount: 1_000,
   },
+  email: { mode: 'dev-mailbox' },
 };
 
 export function makeApp(overrides: Partial<AppDependencies> = {}): Express {
@@ -53,7 +55,7 @@ export async function resetDatabase(): Promise<void> {
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events DISABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE calculation_events DISABLE TRIGGER calculation_events_no_truncate`,
-    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, calculation_events, methodology_editions, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
+    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, calculation_events, methodology_editions, email_outbox, invitations, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events ENABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE calculation_events ENABLE TRIGGER calculation_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_no_truncate`,
@@ -141,4 +143,20 @@ export async function approvedMethodology(approverId: string): Promise<string> {
     data: { status: 'APPROVED', approvedAt: new Date(), approvedById: approverId },
   });
   return id;
+}
+
+/**
+ * The raw token of the latest invitation emailed to an address, read from the queued
+ * email's link (the only place it exists; the database keeps only its hash). Must be read
+ * before the email worker delivers the email, which erases the link.
+ */
+export async function inviteTokenFor(email: string): Promise<string> {
+  const row = await prisma.emailOutbox.findFirst({
+    where: { recipient: email },
+    orderBy: { createdAt: 'desc' },
+  });
+  const payload = row?.payload as { link?: string } | undefined;
+  const token = payload?.link?.split('/invite/')[1];
+  if (!token) throw new Error(`No invitation link queued for ${email}`);
+  return token;
 }

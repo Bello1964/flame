@@ -3,7 +3,10 @@ import type { MembershipSummary } from '@flame/shared';
 import {
   canApproveActivity,
   canApproveCalculation,
+  canGrantOwner,
+  canManageMembers,
   canManageSettings,
+  canReadMembers,
   canReviewActivity,
   canReviewCalculation,
   canRunCalculation,
@@ -26,6 +29,11 @@ export interface ActiveOrganisation extends MembershipSummary {
   canRunCalculation: boolean;
   canReviewCalculation: boolean;
   canApproveCalculation: boolean;
+  /** Display hints only; the API enforces members:read and members:manage. */
+  canReadMembers: boolean;
+  canManageMembers: boolean;
+  /** Display hint only: only an Owner may grant the Owner role. */
+  canGrantOwner: boolean;
 }
 
 const OrganisationContext = createContext<ActiveOrganisation | null>(null);
@@ -48,6 +56,9 @@ export function OrganisationProvider({
       canRunCalculation: canRunCalculation(membership.roles),
       canReviewCalculation: canReviewCalculation(membership.roles),
       canApproveCalculation: canApproveCalculation(membership.roles),
+      canReadMembers: canReadMembers(membership.roles),
+      canManageMembers: canManageMembers(membership.roles),
+      canGrantOwner: canGrantOwner(membership.roles),
     }),
     [membership],
   );

@@ -9,6 +9,7 @@ import {
   Factory,
   Settings,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/features/auth/user-menu';
@@ -32,6 +33,7 @@ export function AppLayout({
   organisationCompactSlot,
   basePath,
   showReview = false,
+  showMembers = false,
   isPlatformAdmin = false,
   items,
   notice,
@@ -43,6 +45,8 @@ export function AppLayout({
   basePath?: string;
   /** Show the review queues (the user can review or approve). A display aid only. */
   showReview?: boolean;
+  /** Show members and invitations (the user's roles include members:read). A display aid only. */
+  showMembers?: boolean;
   /** Show the methodology registry administration. A display aid only. */
   isPlatformAdmin?: boolean;
   /** Navigation for pages outside an organisation (e.g. platform administration). */
@@ -89,6 +93,16 @@ export function AppLayout({
                   label: 'Methodology registry',
                   icon: <ShieldCheck aria-hidden />,
                   page: 'adminMethodology' as const,
+                },
+              ]
+            : []),
+          ...(showMembers
+            ? [
+                {
+                  to: `${basePath}/members`,
+                  label: 'Members',
+                  icon: <Users aria-hidden />,
+                  page: 'members' as const,
                 },
               ]
             : []),

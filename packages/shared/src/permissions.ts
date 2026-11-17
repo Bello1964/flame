@@ -37,6 +37,11 @@ export const PERMISSIONS = {
   'calculation:release-claim': ['ORGANISATION_OWNER'],
   // Emissions reports (ARCHITECTURAL_WORKFLOW.md §8.2): approved calculations only.
   'report:read': ROLES,
+  // Members and invitations (ARCHITECTURAL_WORKFLOW.md §7.2). On top of these, only an
+  // Owner may grant the Owner role and nobody may change their own membership. An
+  // organisation left without an active Owner is dormant (members carry on).
+  'members:read': ['ORGANISATION_OWNER', 'ADMINISTRATOR'],
+  'members:manage': ['ORGANISATION_OWNER', 'ADMINISTRATOR'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
