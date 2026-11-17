@@ -18,15 +18,16 @@ export function AdminLayout() {
   useEffect(preloadAllPagesWhenIdle, []);
 
   const items: NavItem[] = [
-    {
-      to: '/admin/methodology',
-      label: 'Methodology registry',
-      icon: <ShieldCheck aria-hidden />,
-      page: 'adminMethodology',
-    },
-    // Shown to Platform Administrators only; others see the pages' own refusal anyway.
+    // The registry editor and platform pages are for Platform Administrators only. Everyone
+    // else reads the approved editions through the public methodology link below.
     ...(user.isPlatformAdmin
       ? [
+          {
+            to: '/admin/methodology',
+            label: 'Methodology registry',
+            icon: <ShieldCheck aria-hidden />,
+            page: 'adminMethodology' as const,
+          },
           {
             to: '/admin/organisations',
             label: 'Organisations',

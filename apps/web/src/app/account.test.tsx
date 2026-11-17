@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { sessionQueryKey } from '@/features/auth/session';
 import {
   ADA,
@@ -184,6 +184,21 @@ describe('the account page', () => {
       expect(router.state.location.pathname).toBe('/account');
     });
     expect(await screen.findByRole('heading', { name: 'Your account' })).toBeInTheDocument();
+  });
+
+  it('shows members the public methodology, not the registry editor', async () => {
+    mockApi(signedIn);
+    renderApp('/account');
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    expect(within(nav).queryByRole('link', { name: 'Methodology registry' })).toBeNull();
+    expect(within(nav).getByRole('link', { name: 'Methodology' })).toHaveAttribute(
+      'href',
+      `/o/${ORG_A}/methodology`,
+    );
+    expect(within(nav).getByRole('link', { name: 'Your account' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 
   it('saves the name and updates the session', async () => {
