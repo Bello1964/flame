@@ -14,9 +14,13 @@ export interface AuditEntry {
   ipAddress?: string | null;
 }
 
-/** Appends an audit record. Pass the transaction client so the entry commits with the change. */
+/**
+ * Appends an audit record. Pass the transaction client so the entry commits with the change.
+ * Written without reading the row back: entries without an organisation may be written in
+ * any database scope but read only in system scope (Row-Level Security, §11).
+ */
 export async function recordAudit(db: Db, entry: AuditEntry): Promise<void> {
-  await db.auditLog.create({
+  await db.auditLog.createMany({
     data: {
       organisationId: entry.organisationId ?? null,
       actorUserId: entry.actorUserId ?? null,

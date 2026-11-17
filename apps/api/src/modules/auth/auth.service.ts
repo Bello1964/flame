@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { MembershipSummary, SessionResponse } from '@flame/shared';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { unauthorized } from '../../lib/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { verifyAgainstDummy, verifyPassword } from './password.js';
@@ -111,25 +112,30 @@ export class AuthService {
     });
   }
 
-  /** Current user plus active memberships in active organisations. */
+  /**
+   * Current user plus active memberships in active organisations. Reads memberships in
+   * every organisation, so it runs in system scope ('session').
+   */
   async describeSession(userId: string, csrfToken: string): Promise<SessionResponse> {
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isPlatformAdmin: true,
-        memberships: {
-          where: { status: 'ACTIVE', organisation: { status: 'ACTIVE' } },
-          select: {
-            roles: true,
-            organisation: { select: { id: true, name: true, slug: true } },
+    const user = await withSystemScope('session', () =>
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isPlatformAdmin: true,
+          memberships: {
+            where: { status: 'ACTIVE', organisation: { status: 'ACTIVE' } },
+            select: {
+              roles: true,
+              organisation: { select: { id: true, name: true, slug: true } },
+            },
+            orderBy: { organisation: { name: 'asc' } },
           },
-          orderBy: { organisation: { name: 'asc' } },
         },
-      },
-    });
+      }),
+    );
 
     const memberships: MembershipSummary[] = user.memberships.map((m) => ({
       organisationId: m.organisation.id,

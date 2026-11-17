@@ -22,7 +22,10 @@ async function main(): Promise<void> {
     throw new Error('Usage: npm run db:transfer-supreme-admin -w @flame/api -- <email>');
   }
 
-  const prisma = createPrismaClient(databaseUrl);
+  // Operator tool: works across organisations (Row-Level Security system scope).
+  const prisma = createPrismaClient(databaseUrl, {
+    fallbackScope: { kind: 'system', reason: 'operator-script' },
+  });
   try {
     const result = await transferSupremeAdmin(prisma, email);
     logger.info(result, 'Supreme Platform Administrator transferred');

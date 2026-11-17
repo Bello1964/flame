@@ -3,6 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import type { DataResponse, InvitationLookupDto, SessionResponse } from '@flame/shared';
 import type { AppConfig } from '../../config/env.js';
 import { AppError } from '../../lib/errors.js';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { parse, requestMeta } from '../../lib/request.js';
 import { one } from '../activity/activity.routes.js';
 import { sessionCookieOptions, type SignInLimiters } from '../auth/auth.routes.js';
@@ -29,6 +30,11 @@ export function publicInvitationsRouter(
   limiters: SignInLimiters,
 ): Router {
   const router = Router();
+
+  // A link can be for any organisation (or the platform): system scope ('invitation-link').
+  router.use((_req, _res, next) => {
+    void withSystemScope('invitation-link', next);
+  });
 
   router.use(
     rateLimit({

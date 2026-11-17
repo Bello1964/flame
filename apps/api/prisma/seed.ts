@@ -27,7 +27,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const prisma = createPrismaClient(databaseUrl);
+  // Operator tool: works across organisations (Row-Level Security system scope).
+  const prisma = createPrismaClient(databaseUrl, {
+    fallbackScope: { kind: 'system', reason: 'operator-script' },
+  });
   try {
     const org = await prisma.organisation.upsert({
       where: { slug: 'demo-organisation' },

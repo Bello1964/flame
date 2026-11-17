@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { InvitationDto, InvitationLookupDto } from '@flame/shared';
 import {
+  appPrisma,
   CSRF_HEADER,
   PASSWORD,
   WEB_ORIGIN,
@@ -18,6 +19,7 @@ import {
   type LoggedIn,
 } from '../../test/context.js';
 import { hashToken } from '../auth/session.service.js';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { InvitationsService } from './invitations.service.js';
 
 const app = makeApp();
@@ -384,12 +386,15 @@ describe('accepting while signed in', () => {
     const { token } = await invite('existing@example.com');
     await login(app, 'existing@example.com');
     const session = await prisma.session.findFirstOrThrow({ where: { userId: user.id } });
-    const service = new InvitationsService(prisma, WEB_ORIGIN);
+    // Production runs the service unscoped behind the router's system scope; do the same.
+    const service = new InvitationsService(appPrisma, WEB_ORIGIN);
     const signedIn = { userId: user.id, sessionId: session.id };
+    const accept = () =>
+      withSystemScope('invitation-link', () => service.accept({ token }, signedIn, null));
 
     // Disabled between authentication and the transaction: refused, still disabled.
     await prisma.user.update({ where: { id: user.id }, data: { status: 'DISABLED' } });
-    await expect(service.accept({ token }, signedIn, null)).rejects.toMatchObject({
+    await expect(accept()).rejects.toMatchObject({
       status: 401,
       code: 'UNAUTHENTICATED',
     });
@@ -401,7 +406,7 @@ describe('accepting while signed in', () => {
     // An ended session is refused too.
     await prisma.user.update({ where: { id: user.id }, data: { status: 'ACTIVE' } });
     await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
-    await expect(service.accept({ token }, signedIn, null)).rejects.toMatchObject({ status: 401 });
+    await expect(accept()).rejects.toMatchObject({ status: 401 });
     expect((await publicPost('lookup', { token })).body.data.status).toBe('PENDING');
   });
 });

@@ -11,8 +11,18 @@ import { readFileSync } from 'node:fs';
 import { inject } from 'vitest';
 import { testDatabaseUrl } from './test-database.js';
 
-/** Connected as the restricted flame_app login, exactly like the API in production. */
-export const prisma = createPrismaClient(inject('appDatabaseUrl'));
+/**
+ * Test fixtures and assertions: the restricted flame_app login, in Row-Level Security system
+ * scope, so tests can set up and inspect any organisation's rows.
+ */
+export const prisma = createPrismaClient(inject('appDatabaseUrl'), {
+  fallbackScope: { kind: 'system', reason: 'test-fixtures' },
+});
+/**
+ * The API under test: the restricted flame_app login with no fallback scope, exactly like
+ * production, so Row-Level Security applies to it as it would there.
+ */
+export const appPrisma = createPrismaClient(inject('appDatabaseUrl'));
 /** Connected as the schema owner. Only for resetting the database between tests. */
 export const ownerPrisma = createPrismaClient(testDatabaseUrl());
 export const logger = createLogger('silent');
@@ -40,7 +50,7 @@ export const testConfig: AppConfig = {
 };
 
 export function makeApp(overrides: Partial<AppDependencies> = {}): Express {
-  return createApp({ logger, prisma, config: testConfig, ...overrides });
+  return createApp({ logger, prisma: appPrisma, config: testConfig, ...overrides });
 }
 
 /**

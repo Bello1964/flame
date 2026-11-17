@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import {
+  appPrisma,
   CSRF_HEADER,
   addMember,
   createOrganisation,
@@ -49,7 +50,7 @@ describe('email worker', () => {
     const invitationId = await invite('new@example.com');
     const token = await inviteTokenFor('new@example.com');
     const sender = new InMemorySender();
-    const worker = new EmailWorker(prisma, sender, logger);
+    const worker = new EmailWorker(appPrisma, sender, logger);
 
     expect(await worker.runOnce()).toBe(1);
     expect(await worker.runOnce()).toBe(0);
@@ -82,7 +83,7 @@ describe('email worker', () => {
     const invitationId = await invite('new@example.com');
     const sender = new InMemorySender();
     sender.failWith = 'Resend validation_error: domain not verified';
-    const worker = new EmailWorker(prisma, sender, logger);
+    const worker = new EmailWorker(appPrisma, sender, logger);
 
     expect(await worker.runOnce()).toBe(1);
     let row = await prisma.emailOutbox.findFirstOrThrow({ where: { invitationId } });
@@ -116,7 +117,7 @@ describe('email worker', () => {
     await invite('new@example.com');
     const senders = [new InMemorySender(), new InMemorySender(), new InMemorySender()];
     const claimed = await Promise.all(
-      senders.map((s) => new EmailWorker(prisma, s, logger).runOnce()),
+      senders.map((s) => new EmailWorker(appPrisma, s, logger).runOnce()),
     );
     expect(claimed.reduce((a, b) => a + b, 0)).toBe(1);
     expect(senders.flatMap((s) => s.sent)).toHaveLength(1);
@@ -130,7 +131,7 @@ describe('email worker', () => {
       data: { status: 'SENDING', claimedAt: new Date(Date.now() - 60 * 60_000), attempts: 1 },
     });
     const sender = new InMemorySender();
-    const worker = new EmailWorker(prisma, sender, logger, { staleClaimMs: 5 * 60_000 });
+    const worker = new EmailWorker(appPrisma, sender, logger, { staleClaimMs: 5 * 60_000 });
     expect(await worker.runOnce()).toBe(1);
     expect(sender.sent).toHaveLength(1);
     expect(await prisma.emailOutbox.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({
@@ -146,7 +147,7 @@ describe('email worker', () => {
       .set(CSRF_HEADER, owner.csrfToken)
       .expect(200);
     const sender = new InMemorySender();
-    expect(await new EmailWorker(prisma, sender, logger).runOnce()).toBe(0);
+    expect(await new EmailWorker(appPrisma, sender, logger).runOnce()).toBe(0);
     expect(sender.sent).toHaveLength(0);
     const row = await prisma.emailOutbox.findFirstOrThrow({ where: { invitationId } });
     expect(row).toMatchObject({ status: 'CANCELLED', lastError: 'The invitation was revoked' });
@@ -164,7 +165,7 @@ describe('email worker', () => {
       data: { status: 'DECLINED', respondedAt: new Date() },
     });
     const sender = new InMemorySender();
-    expect(await new EmailWorker(prisma, sender, logger).runOnce()).toBe(1);
+    expect(await new EmailWorker(appPrisma, sender, logger).runOnce()).toBe(1);
     expect(sender.sent).toHaveLength(0);
     const row = await prisma.emailOutbox.findFirstOrThrow({ where: { invitationId } });
     expect(row.status).toBe('CANCELLED');
@@ -184,7 +185,7 @@ describe('email worker', () => {
 
   it('keeps the link in development-mailbox mode', async () => {
     const invitationId = await invite('new@example.com');
-    await new EmailWorker(prisma, new DevMailboxSender(), logger).runOnce();
+    await new EmailWorker(appPrisma, new DevMailboxSender(), logger).runOnce();
     const row = await prisma.emailOutbox.findFirstOrThrow({ where: { invitationId } });
     expect(row).toMatchObject({ status: 'SENT', transport: 'DEV_MAILBOX' });
     expect(row.payload).toHaveProperty('link');
@@ -235,7 +236,7 @@ describe('development mailbox', () => {
   it('shows recent emails with their links in development', async () => {
     await invite('new@example.com');
     const token = await inviteTokenFor('new@example.com');
-    await new EmailWorker(prisma, new DevMailboxSender(), logger).runOnce();
+    await new EmailWorker(appPrisma, new DevMailboxSender(), logger).runOnce();
     const dev = makeApp({ config: { ...testConfig, isDevelopment: true } });
     const res = await request(dev).get(`${API}/dev/mailbox`);
     expect(res.status).toBe(200);

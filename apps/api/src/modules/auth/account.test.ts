@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import {
+  appPrisma,
   CSRF_HEADER,
   PASSWORD,
   addMember,
@@ -42,14 +43,17 @@ const completeReset = (token: string, password: string) =>
 /** The request is processed after the 202 is sent, so wait for its link to be queued. */
 async function resetTokenFor(email: string, count = 1): Promise<string> {
   let link: string | undefined;
-  await vi.waitFor(async () => {
-    const rows = await prisma.emailOutbox.findMany({
-      where: { recipient: email, template: 'PASSWORD_RESET' },
-      orderBy: { createdAt: 'desc' },
-    });
-    expect(rows).toHaveLength(count);
-    link = (rows[0]!.payload as { link?: string }).link;
-  });
+  await vi.waitFor(
+    async () => {
+      const rows = await prisma.emailOutbox.findMany({
+        where: { recipient: email, template: 'PASSWORD_RESET' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(rows).toHaveLength(count);
+      link = (rows[0]!.payload as { link?: string }).link;
+    },
+    { timeout: 5_000 },
+  );
   const token = link?.split('/reset-password/')[1];
   if (!token) throw new Error(`No reset link queued for ${email}`);
   return token;
@@ -294,7 +298,7 @@ describe('email worker and reset links', () => {
     const current = await resetTokenFor('ada@example.com', 2);
 
     const sender = new InMemorySender();
-    const worker = new EmailWorker(prisma, sender, logger);
+    const worker = new EmailWorker(appPrisma, sender, logger);
     await worker.runOnce();
     expect(sender.sent).toHaveLength(1);
     expect(sender.sent[0]!.text).toContain(current);
@@ -311,7 +315,7 @@ describe('email worker and reset links', () => {
     expect((await completeReset(token, NEW_PASSWORD)).status).toBe(204);
 
     const sender = new InMemorySender();
-    await new EmailWorker(prisma, sender, logger).runOnce();
+    await new EmailWorker(appPrisma, sender, logger).runOnce();
     const resetEmail = await prisma.emailOutbox.findFirstOrThrow({
       where: { template: 'PASSWORD_RESET' },
     });

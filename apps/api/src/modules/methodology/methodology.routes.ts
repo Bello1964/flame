@@ -4,6 +4,7 @@ import type {
   MethodologyEditionDto,
   MethodologyEditionSummaryDto,
 } from '@flame/shared';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { forbidden } from '../../lib/errors.js';
 import { authOf, parse } from '../../lib/request.js';
 import { requireAuth } from '../../middleware/authenticate.js';
@@ -57,6 +58,11 @@ function adminOf(req: Request): PlatformAdmin {
 export function methodologyAdminRouter(methodology: MethodologyService): Router {
   const router = Router();
   router.use(requireAuth, requirePlatformAdmin);
+  // Platform-level, after the administrator check: system scope ('platform-admin'). The
+  // approval rule reads the draft's audit trail, whose entries have no organisation.
+  router.use((_req, _res, next) => {
+    void withSystemScope('platform-admin', next);
+  });
 
   router.get('/editions', async (_req, res) => {
     res.json(one(await methodology.listAll()));

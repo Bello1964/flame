@@ -6,6 +6,7 @@ import type {
   PlatformAdminsDto,
   PlatformOrganisationDto,
 } from '@flame/shared';
+import { withSystemScope } from '../../lib/db-scope.js';
 import { forbidden } from '../../lib/errors.js';
 import { authOf, parse } from '../../lib/request.js';
 import { requireAuth } from '../../middleware/authenticate.js';
@@ -39,6 +40,11 @@ function actorOf(req: Request): PlatformActor {
 export function platformAdminRouter(admin: PlatformAdminService): Router {
   const router = Router();
   router.use(requireAuth, requirePlatformAdmin);
+  // Platform-level work across organisations (counts, owner invitations, no tenant data
+  // returned): system scope ('platform-admin'), only after the administrator check.
+  router.use((_req, _res, next) => {
+    void withSystemScope('platform-admin', next);
+  });
 
   router.get('/organisations', async (_req, res) => {
     const body: DataResponse<PlatformOrganisationDto[]> = one(await admin.listOrganisations());
