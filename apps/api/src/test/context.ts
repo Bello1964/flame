@@ -55,7 +55,7 @@ export async function resetDatabase(): Promise<void> {
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events DISABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE calculation_events DISABLE TRIGGER calculation_events_no_truncate`,
-    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, calculation_events, methodology_editions, email_outbox, invitations, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
+    ownerPrisma.$executeRaw`TRUNCATE TABLE audit_logs, activity_record_events, calculation_events, methodology_editions, email_outbox, password_resets, invitations, sessions, flare_sources, assets, facilities, memberships, organisations, users CASCADE`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events ENABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE calculation_events ENABLE TRIGGER calculation_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_no_truncate`,

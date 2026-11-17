@@ -38,5 +38,5 @@ export const invitationAcceptSchema = z.strictObject({
 });
 export type InvitationAcceptInput = z.infer<typeof invitationAcceptSchema>;
 
-/** New account passwords. */
-export const NEW_PASSWORD_MIN = 12;
+/** New account passwords (shared with password reset and change). */
+export { NEW_PASSWORD_MIN } from '@flame/shared';

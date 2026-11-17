@@ -158,6 +158,8 @@ const EXPECTED_APP_PRIVILEGES: Record<string, string[]> = {
   methodology_editions: ['INSERT', 'SELECT', 'UPDATE'],
   methodology_parameters: ['INSERT', 'SELECT', 'UPDATE'],
   organisations: CRUD,
+  // Milestone 7: reset links only change state (used or cancelled), never deleted.
+  password_resets: ['INSERT', 'SELECT', 'UPDATE'],
   sessions: CRUD,
   users: CRUD,
 };

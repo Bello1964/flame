@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BookOpen, Building2, Factory, ShieldCheck, UserCog } from 'lucide-react';
+import { BookOpen, Building2, Factory, ShieldCheck, UserCog, UserRound } from 'lucide-react';
 import { useCurrentSession } from '@/features/auth/require-auth';
 import { NoOrganisationNotice } from '@/features/auth/no-organisation-notice';
 import { preloadAllPagesWhenIdle } from '../lazy-pages';
@@ -64,6 +64,8 @@ export function AdminLayout() {
             page: 'methodology' as const,
           },
         ]),
+    // The signed-in person's own name and password.
+    { to: '/account', label: 'Your account', icon: <UserRound aria-hidden />, page: 'account' },
   ];
   // Only for administrators: others here see the page's own "administrators only" state.
   const notice = !first && user.isPlatformAdmin ? <NoOrganisationNotice /> : undefined;

@@ -58,6 +58,11 @@ export function LoginPage() {
           <Suspense fallback={<LoginFormSkeleton />}>
             <LoginForm onSuccess={() => void navigate(next, { replace: true })} />
           </Suspense>
+          <p className="text-sm">
+            <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
         </div>
       </main>
     </div>

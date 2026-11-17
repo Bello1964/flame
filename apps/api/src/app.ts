@@ -13,6 +13,8 @@ import { requireOrganisation } from './middleware/organisation-context.js';
 import { authRouter, createSignInLimiters } from './modules/auth/auth.routes.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { SessionService } from './modules/auth/session.service.js';
+import { accountRouter, passwordResetRouter } from './modules/auth/account.routes.js';
+import { AccountService } from './modules/auth/account.service.js';
 import { activityRouter } from './modules/activity/activity.routes.js';
 import { workflowRouter } from './modules/workflow/workflow.routes.js';
 import { calculationsRouter } from './modules/calculations/calculations.routes.js';
@@ -64,6 +66,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
 
   const sessions = new SessionService(prisma, config.session);
   const auth = new AuthService(prisma, sessions);
+  const account = new AccountService(prisma, config.webOrigin);
   const facilities = new FacilitiesService(prisma);
   const activity = new ActivityService(prisma);
   const settings = new SettingsService(prisma);
@@ -99,7 +102,10 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
 
   // One set of sign-in limiters, shared by sign-in and password checks on invitations.
   const signInLimiters = createSignInLimiters(auth, config);
+  app.use(`${API}/auth/password-reset`, passwordResetRouter(account, config));
   app.use(`${API}/auth`, authRouter(auth, sessions, config, signInLimiters));
+  // The signed-in user's own name and password.
+  app.use(`${API}/account`, accountRouter(account, signInLimiters));
 
   // Public invitation links: lookup, accept and decline (token in the body).
   app.use(

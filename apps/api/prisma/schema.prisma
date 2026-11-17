@@ -67,7 +67,35 @@ model User {
   acceptedInvitations Invitation[] @relation("InvitationAcceptedBy")
   revokedInvitations  Invitation[] @relation("InvitationRevokedBy")
 
+  passwordResets PasswordReset[]
+
   @@map("users")
+}
+
+enum PasswordResetStatus {
+  PENDING
+  USED
+  /// Replaced by a newer request, or the account was disabled before the link was used.
+  CANCELLED
+}
+
+/// A password reset link (ARCHITECTURAL_WORKFLOW.md §7.3). The link token is random; only
+/// its SHA-256 hash is stored. Single use, valid for 15 minutes, at most one PENDING per user.
+model PasswordReset {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  userId    String              @db.Uuid
+  tokenHash String              @unique @db.Char(64)
+  status    PasswordResetStatus @default(PENDING)
+  expiresAt DateTime            @db.Timestamptz(3)
+  usedAt    DateTime?           @db.Timestamptz(3)
+  createdAt DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(3)
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  emails EmailOutbox[]
+
+  @@index([userId, status])
+  @@map("password_resets")
 }
 
 /// Server-side session. The cookie holds a random token; only its SHA-256 hash is stored.
@@ -233,6 +261,9 @@ model Invitation {
 enum EmailTemplate {
   ORGANISATION_INVITATION
   PLATFORM_ADMIN_INVITATION
+  PASSWORD_RESET
+  /// Notice to the account owner that their password was changed (no link).
+  PASSWORD_CHANGED
 }
 
 enum EmailStatus {
@@ -240,7 +271,8 @@ enum EmailStatus {
   SENDING
   SENT
   FAILED
-  /// Not sent: the invitation was revoked, declined or accepted (or expired) first.
+  /// Not sent: the invitation was revoked, declined or accepted (or expired) first, or the
+  /// password reset link was used, replaced or expired first.
   CANCELLED
 }
 
@@ -273,13 +305,17 @@ model EmailOutbox {
   transport         EmailTransport?
   providerMessageId String?         @db.VarChar(200)
   invitationId      String?         @db.Uuid
+  /// The reset link this email carries; it is not sent once that link is no longer usable.
+  passwordResetId   String?         @db.Uuid
   createdAt         DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
 
-  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  invitation    Invitation?    @relation(fields: [invitationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  passwordReset PasswordReset? @relation(fields: [passwordResetId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([status, nextAttemptAt])
   @@index([invitationId])
+  @@index([passwordResetId])
   @@map("email_outbox")
 }
 

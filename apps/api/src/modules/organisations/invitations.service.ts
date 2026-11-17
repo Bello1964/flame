@@ -15,7 +15,7 @@ import {
   type InvitationKind,
   type PrismaClient,
 } from '../../generated/prisma/client.js';
-import { AppError, conflict, notFound, unauthorized } from '../../lib/errors.js';
+import { AppError, conflict, fieldErrors, notFound, unauthorized } from '../../lib/errors.js';
 import type { Caller } from '../activity/activity.service.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { lockUser } from '../auth/accounts.js';
@@ -128,13 +128,6 @@ function assertPending(inv: Invitation, now: Date): void {
   throw new AppError(409, CODES.INVITATION_NOT_PENDING, NOT_PENDING_MESSAGE[status]);
 }
 
-function fieldErrors(errors: Record<string, string[]>): AppError {
-  return new AppError(400, 'VALIDATION_ERROR', 'Invalid request', {
-    formErrors: [],
-    fieldErrors: errors,
-  });
-}
-
 function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }
@@ -232,7 +225,7 @@ export class InvitationsService {
             template: 'PLATFORM_ADMIN_INVITATION',
             payload: { inviterName: inviter.name, expiresAt: expiresAt.toISOString(), link },
           },
-      invitation.id,
+      { invitationId: invitation.id },
     );
     await recordAudit(tx, {
       organisationId: scope.organisationId,
@@ -300,7 +293,7 @@ export class InvitationsService {
       data: { status: 'REVOKED', revokedById: actor.userId, revokedAt: now },
     });
     if (updated.count !== 1) throw changedMeanwhile();
-    await cancelQueuedEmails(tx, current.id, 'The invitation was revoked');
+    await cancelQueuedEmails(tx, { invitationId: current.id }, 'The invitation was revoked');
     await recordAudit(tx, {
       organisationId: current.organisationId,
       actorUserId: actor.userId,
@@ -600,7 +593,7 @@ export class InvitationsService {
         data: { status: 'ACCEPTED', acceptedById: id, respondedAt: now },
       });
       if (accepted.count !== 1) throw changedMeanwhile();
-      await cancelQueuedEmails(tx, inv.id, 'The invitation was accepted');
+      await cancelQueuedEmails(tx, { invitationId: inv.id }, 'The invitation was accepted');
       await recordAudit(tx, {
         organisationId: inv.organisationId,
         actorUserId: id,
@@ -635,7 +628,7 @@ export class InvitationsService {
         data: { status: 'DECLINED', respondedAt: now },
       });
       if (declined.count !== 1) throw changedMeanwhile();
-      await cancelQueuedEmails(tx, inv.id, 'The invitation was declined');
+      await cancelQueuedEmails(tx, { invitationId: inv.id }, 'The invitation was declined');
       await recordAudit(tx, {
         organisationId: inv.organisationId,
         actorUserId,

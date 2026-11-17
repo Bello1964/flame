@@ -125,20 +125,28 @@ export class EmailWorker {
     const owned = { id, status: 'SENDING' as const, claimedAt };
     const row = await this.prisma.emailOutbox.findUniqueOrThrow({
       where: { id },
-      include: { invitation: { select: { status: true, expiresAt: true, organisationId: true } } },
+      include: {
+        invitation: { select: { status: true, expiresAt: true, organisationId: true } },
+        passwordReset: { select: { status: true, expiresAt: true } },
+      },
     });
 
-    // An invitation revoked, answered or expired since the email was queued is not sent.
-    if (
-      row.invitation &&
-      (row.invitation.status !== 'PENDING' || row.invitation.expiresAt <= new Date())
-    ) {
+    // An invitation revoked, answered or expired since the email was queued is not sent,
+    // and neither is a reset link that was used, replaced or expired.
+    const unusable = (subject: { status: string; expiresAt: Date } | null): boolean =>
+      subject !== null && (subject.status !== 'PENDING' || subject.expiresAt <= new Date());
+    const cancelReason = unusable(row.invitation)
+      ? 'The invitation is no longer pending'
+      : unusable(row.passwordReset)
+        ? 'The password reset link is no longer usable'
+        : null;
+    if (cancelReason) {
       await this.prisma.emailOutbox.updateMany({
         where: owned,
         data: {
           status: 'CANCELLED',
           claimedAt: null,
-          lastError: 'The invitation is no longer pending',
+          lastError: cancelReason,
           payload: withoutLink(row.payload),
         },
       });
@@ -224,6 +232,7 @@ export class EmailWorker {
           template: row.template,
           attempts: row.attempts,
           invitationId: row.invitationId,
+          passwordResetId: row.passwordResetId,
           lastError: truncate(error),
         },
       });
