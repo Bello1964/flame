@@ -38,7 +38,7 @@ function limiterEmail(req: Request, res: Response): string {
 }
 
 /** Hash of the normalised email, so raw addresses are not held in the limiters' memory. */
-function accountKey(req: Request, res: Response): string {
+export function accountKey(req: Request, res: Response): string {
   return createHash('sha256').update(limiterEmail(req, res)).digest('hex');
 }
 

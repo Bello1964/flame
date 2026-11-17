@@ -12,6 +12,9 @@ export function createLogger(level: LevelWithSilent, destination?: DestinationSt
         'req.headers.cookie',
         'req.headers.authorization',
         'req.headers["x-csrf-token"]',
+        // The web pages for invitation and password reset links carry the token in their
+        // URL, which browsers send as the Referer of the page's API calls.
+        'req.headers.referer',
         'res.headers["set-cookie"]',
         '*.password',
         '*.passwordHash',

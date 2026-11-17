@@ -36,6 +36,18 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     lazy: async () => ({ Component: (await pages.invitation()).InvitationPage }),
   },
+  // Public: password reset (ask for a link, then use it). The token goes in the request
+  // body, never in an API URL.
+  {
+    path: '/forgot-password',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.forgotPassword()).ForgotPasswordPage }),
+  },
+  {
+    path: '/reset-password/:token',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.resetPassword()).ResetPasswordPage }),
+  },
   // Development builds only: emails the API queued, with their links. Vite removes this
   // route (and its chunk) from production builds.
   ...(import.meta.env.DEV
@@ -78,6 +90,11 @@ export const routes: RouteObject[] = [
             lazy: async () => ({
               Component: (await pages.adminOrganisations()).AdminOrganisationsPage,
             }),
+          },
+          // The signed-in person's own name and password, outside any organisation.
+          {
+            path: 'account',
+            lazy: async () => ({ Component: (await pages.account()).AccountPage }),
           },
           {
             path: 'admin/platform-admins',

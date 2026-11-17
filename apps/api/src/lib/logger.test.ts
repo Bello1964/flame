@@ -44,6 +44,17 @@ describe('request logging', () => {
     expect(logs).not.toMatch(/flame_sid=[^;"[]/);
   });
 
+  it('redacts the Referer, which can carry an invitation or reset link token', async () => {
+    const { logger, output } = captureLogs();
+    const secret = 'SecretResetToken0123456789abcdefghijklmnopq';
+    await request(makeApp({ logger }))
+      .get('/api/v1/auth/session')
+      .set('Referer', `http://localhost:5173/reset-password/${secret}`);
+    const logs = output();
+    expect(logs).toContain('"referer":"[REDACTED]"');
+    expect(logs).not.toContain(secret);
+  });
+
   it('warns once when a proxy header arrives but TRUST_PROXY is 0', async () => {
     const { logger, output } = captureLogs();
     const app = makeApp({ logger });

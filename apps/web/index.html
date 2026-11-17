@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f2a1d" />
+    <!-- Invitation and password reset pages carry a secret token in their URL: never send
+         it on as a Referer, to the API or to any other site. -->
+    <meta name="referrer" content="no-referrer" />
     <title>Flame</title>
     <link
       rel="icon"

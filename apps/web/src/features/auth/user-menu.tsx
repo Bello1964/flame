@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { ChevronsUpDown, LogOut, MonitorSmartphone } from 'lucide-react';
+import { ChevronsUpDown, LogOut, MonitorSmartphone, UserRound } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +72,15 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
           <span className="block truncate font-medium">{user.name}</span>
           <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            void navigate('/account');
+          }}
+        >
+          <UserRound aria-hidden />
+          Your account
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={() => {

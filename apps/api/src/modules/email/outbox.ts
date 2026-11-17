@@ -1,10 +1,20 @@
 import type { EmailTemplate, Prisma } from '../../generated/prisma/client.js';
 import type { Db } from '../audit/audit.service.js';
-import type { OrganisationInvitationPayload, PlatformAdminInvitationPayload } from './templates.js';
+import type {
+  OrganisationInvitationPayload,
+  PasswordChangedPayload,
+  PasswordResetPayload,
+  PlatformAdminInvitationPayload,
+} from './templates.js';
 
 export type OutboxEmail =
   | { template: 'ORGANISATION_INVITATION'; payload: OrganisationInvitationPayload }
-  | { template: 'PLATFORM_ADMIN_INVITATION'; payload: PlatformAdminInvitationPayload };
+  | { template: 'PLATFORM_ADMIN_INVITATION'; payload: PlatformAdminInvitationPayload }
+  | { template: 'PASSWORD_RESET'; payload: PasswordResetPayload }
+  | { template: 'PASSWORD_CHANGED'; payload: PasswordChangedPayload };
+
+/** What a queued email belongs to: the worker skips it once that is no longer usable. */
+export type OutboxSubject = { invitationId: string } | { passwordResetId: string } | null;
 
 /**
  * Queues an email. Pass the transaction client so the email is queued only if the change
@@ -14,14 +24,14 @@ export async function enqueueEmail(
   db: Db,
   recipient: string,
   email: OutboxEmail,
-  invitationId: string | null,
+  subject: OutboxSubject,
 ): Promise<string> {
   const row = await db.emailOutbox.create({
     data: {
       recipient,
       template: email.template satisfies EmailTemplate,
       payload: email.payload,
-      invitationId,
+      ...subject,
     },
     select: { id: true },
   });
@@ -36,18 +46,18 @@ export function withoutLink(payload: Prisma.JsonValue): Prisma.InputJsonValue {
 }
 
 /**
- * Cancels emails for an invitation that is no longer pending and have not left the
- * outbox: they are marked CANCELLED and their links erased, so a revoked invitation is
- * never delivered. A row being sent right now is left to the worker, which re-checks the
- * invitation before sending.
+ * Cancels emails for an invitation or reset link that is no longer usable and have not
+ * left the outbox: they are marked CANCELLED and their links erased, so a revoked
+ * invitation or replaced reset link is never delivered. A row being sent right now is left
+ * to the worker, which re-checks the invitation or reset link before sending.
  */
 export async function cancelQueuedEmails(
   tx: Prisma.TransactionClient,
-  invitationId: string,
+  subject: NonNullable<OutboxSubject>,
   reason: string,
 ): Promise<void> {
   const queued = await tx.emailOutbox.findMany({
-    where: { invitationId, status: 'PENDING' },
+    where: { ...subject, status: 'PENDING' },
     select: { id: true, payload: true },
   });
   for (const row of queued) {

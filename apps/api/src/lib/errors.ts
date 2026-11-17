@@ -27,3 +27,7 @@ export const notFound = (message = 'Resource not found'): AppError =>
 
 export const conflict = (message: string, details?: unknown): AppError =>
   new AppError(409, 'CONFLICT', message, details);
+
+/** 400 VALIDATION_ERROR shaped like a Zod failure, for checks made after parsing. */
+export const fieldErrors = (errors: Record<string, string[]>): AppError =>
+  new AppError(400, 'VALIDATION_ERROR', 'Invalid request', { formErrors: [], fieldErrors: errors });
