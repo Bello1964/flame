@@ -4,7 +4,8 @@
  * Creates no operational or emissions data. Refuses to run in production.
  *
  * Required env: SEED_OWNER_EMAIL, SEED_OWNER_PASSWORD (min 12 chars).
- * Optional: SEED_PLATFORM_ADMIN_1_EMAIL/_PASSWORD and _2_ (Platform Administrators).
+ * Optional: SEED_PLATFORM_ADMIN_1_EMAIL/_PASSWORD and _2_ (Platform Administrators;
+ * administrator 1 becomes the supreme Platform Administrator if there is none yet).
  * Run: npm run db:seed -w @flame/api
  */
 import { createPrismaClient } from '../src/lib/prisma.js';
@@ -54,7 +55,7 @@ async function main(): Promise<void> {
       if (!adminPassword || adminPassword.length < 12) {
         throw new Error(`Set SEED_PLATFORM_ADMIN_${n}_PASSWORD (min 12 characters).`);
       }
-      await prisma.user.upsert({
+      const admin = await prisma.user.upsert({
         where: { email: adminEmail },
         update: {},
         create: {
@@ -65,6 +66,18 @@ async function main(): Promise<void> {
         },
       });
       admins.push(adminEmail);
+
+      // Administrator 1 becomes the supreme Platform Administrator (the only one who may
+      // remove others' administration rights), unless someone already holds that role,
+      // e.g. after npm run db:transfer-supreme-admin. Idempotent.
+      if (n === '1' && admin.isPlatformAdmin && !admin.isSupremeAdmin) {
+        const supreme = await prisma.user.findFirst({ where: { isSupremeAdmin: true } });
+        if (supreme) {
+          logger.info('A supreme Platform Administrator already exists; leaving it unchanged');
+        } else {
+          await prisma.user.update({ where: { id: admin.id }, data: { isSupremeAdmin: true } });
+        }
+      }
     }
     logger.info({ organisation: org.slug, user: user.email, admins }, 'Seed complete');
   } finally {

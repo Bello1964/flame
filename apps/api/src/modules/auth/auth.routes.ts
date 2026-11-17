@@ -4,6 +4,7 @@ import {
   type CookieOptions,
   type NextFunction,
   type Request,
+  type RequestHandler,
   type Response,
 } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
@@ -26,32 +27,55 @@ function normalisedEmail(body: unknown): string {
     : '';
 }
 
+/**
+ * The account a sign-in attempt targets: an email another route resolved for the limiter
+ * (`res.locals.signInEmail`, e.g. the invited email when an invitation is accepted with a
+ * password), otherwise the email in the body.
+ */
+function limiterEmail(req: Request, res: Response): string {
+  const resolved: unknown = res.locals['signInEmail'];
+  return typeof resolved === 'string' ? resolved : normalisedEmail(req.body);
+}
+
 /** Hash of the normalised email, so raw addresses are not held in the limiters' memory. */
-function accountKey(body: unknown): string {
-  return createHash('sha256').update(normalisedEmail(body)).digest('hex');
+function accountKey(req: Request, res: Response): string {
+  return createHash('sha256').update(limiterEmail(req, res)).digest('hex');
 }
 
 /** Which sign-in limit blocked a request; recorded in the audit log. */
 export type LoginLimit = 'ip' | 'account_ip' | 'account';
 
-export function authRouter(auth: AuthService, sessions: SessionService, config: AppConfig): Router {
-  const router = Router();
-
-  const cookieOptions = (expires?: Date): CookieOptions => ({
+/** Session cookie attributes, shared by sign-in and invitation acceptance. */
+export function sessionCookieOptions(config: AppConfig, expires?: Date): CookieOptions {
+  return {
     httpOnly: true,
     secure: config.session.secureCookie,
     sameSite: 'lax',
     path: '/',
     ...(expires ? { expires } : {}),
-  });
+  };
+}
 
+/** The sign-in rate limiters. One set per app, shared by every route that checks a password. */
+export interface SignInLimiters {
+  ip: RequestHandler;
+  accountIp: RequestHandler;
+  account: RequestHandler;
+}
+
+/**
+ * Builds the sign-in limiters (ARCHITECTURAL_WORKFLOW.md §11). The per-account limiters
+ * are also applied when an invitation is accepted with an existing account's password, so
+ * guesses through either route count against the same limits.
+ */
+export function createSignInLimiters(auth: AuthService, config: AppConfig): SignInLimiters {
   /**
    * Rejects a blocked attempt with 429. The first blocked request of each window is
    * audited; later ones are not, so a flood of blocked requests cannot flood the log.
    */
   const blocked =
     (limit: LoginLimit) =>
-    (req: Request, _res: Response, next: NextFunction): void => {
+    (req: Request, res: Response, next: NextFunction): void => {
       const reject = () => {
         next(new AppError(429, 'RATE_LIMITED', 'Too many sign-in attempts. Try again later.'));
       };
@@ -63,7 +87,7 @@ export function authRouter(auth: AuthService, sessions: SessionService, config: 
       // The limiter does not await its handler, so handle the audit promise here: a failed
       // audit write is logged and the attempt is still rejected with 429.
       auth
-        .recordRateLimited(normalisedEmail(req.body), limit, requestMeta(req))
+        .recordRateLimited(limiterEmail(req, res), limit, requestMeta(req))
         .catch((err: unknown) => {
           req.log.error({ err }, 'Could not audit a rate-limited sign-in');
         })
@@ -78,37 +102,49 @@ export function authRouter(auth: AuthService, sessions: SessionService, config: 
     skipSuccessfulRequests: true,
   } as const;
 
-  /** Per client IP: slows one client trying many accounts. */
-  const ipLimiter = rateLimit({
-    ...limiterDefaults,
-    limit: config.loginRateLimit.maxPerIp,
-    handler: blocked('ip'),
-  });
+  return {
+    /** Per client IP: slows one client trying many accounts. */
+    ip: rateLimit({
+      ...limiterDefaults,
+      limit: config.loginRateLimit.maxPerIp,
+      handler: blocked('ip'),
+    }),
+    /**
+     * Per account from one IP (strict): stops one client guessing a password. An attacker
+     * exhausting it locks only their own address out of that account, not the real user.
+     */
+    accountIp: rateLimit({
+      ...limiterDefaults,
+      limit: config.loginRateLimit.maxPerAccountIp,
+      keyGenerator: (req, res) =>
+        `account-ip:${accountKey(req, res)}:${ipKeyGenerator(req.ip ?? '')}`,
+      handler: blocked('account_ip'),
+    }),
+    /**
+     * Per account from all IPs (higher ceiling): caps guessing spread across many
+     * addresses. Reaching it blocks the account everywhere for the rest of the window,
+     * so it is set well above the per-address limit.
+     */
+    account: rateLimit({
+      ...limiterDefaults,
+      limit: config.loginRateLimit.maxPerAccount,
+      keyGenerator: (req, res) => `account:${accountKey(req, res)}`,
+      handler: blocked('account'),
+    }),
+  };
+}
 
-  /**
-   * Per account from one IP (strict): stops one client guessing a password. An attacker
-   * exhausting it locks only their own address out of that account, not the real user.
-   */
-  const accountIpLimiter = rateLimit({
-    ...limiterDefaults,
-    limit: config.loginRateLimit.maxPerAccountIp,
-    keyGenerator: (req) => `account-ip:${accountKey(req.body)}:${ipKeyGenerator(req.ip ?? '')}`,
-    handler: blocked('account_ip'),
-  });
+export function authRouter(
+  auth: AuthService,
+  sessions: SessionService,
+  config: AppConfig,
+  limiters: SignInLimiters,
+): Router {
+  const router = Router();
 
-  /**
-   * Per account from all IPs (higher ceiling): caps guessing spread across many
-   * addresses. Reaching it blocks the account everywhere for the rest of the window,
-   * so it is set well above the per-address limit.
-   */
-  const accountLimiter = rateLimit({
-    ...limiterDefaults,
-    limit: config.loginRateLimit.maxPerAccount,
-    keyGenerator: (req) => `account:${accountKey(req.body)}`,
-    handler: blocked('account'),
-  });
+  const cookieOptions = (expires?: Date): CookieOptions => sessionCookieOptions(config, expires);
 
-  router.post('/login', ipLimiter, accountIpLimiter, accountLimiter, async (req, res) => {
+  router.post('/login', limiters.ip, limiters.accountIp, limiters.account, async (req, res) => {
     const body = parse(loginBodySchema, req.body);
     const meta = requestMeta(req);
 

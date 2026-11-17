@@ -1,22 +1,51 @@
 import { z } from 'zod';
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4000),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  WEB_ORIGIN: z.url().default('http://localhost:5173'),
-  /** Number of reverse-proxy hops to trust for client IPs (Render: 1). */
-  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
-  SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
-  SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),
-  LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
-  LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
-  /** Failed sign-ins per account from one IP. */
-  LOGIN_ACCOUNT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
-  /** Failed sign-ins per account from all IPs combined. */
-  LOGIN_ACCOUNT_GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
-});
+/** An optional setting; an empty value (as in .env.example) counts as not set. */
+const optionalSetting = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().trim().optional(),
+);
+
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().positive().default(4000),
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
+    DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+    WEB_ORIGIN: z.url().default('http://localhost:5173'),
+    /** Number of reverse-proxy hops to trust for client IPs (Render: 1). */
+    TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
+    SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),
+    LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+    LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+    /** Failed sign-ins per account from one IP. */
+    LOGIN_ACCOUNT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+    /** Failed sign-ins per account from all IPs combined. */
+    LOGIN_ACCOUNT_GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+    /** Resend API key. Required in production; without it, development uses the dev mailbox. */
+    RESEND_API_KEY: optionalSetting,
+    /** Sender address, e.g. "Flame <invitations@your-verified-domain>". Required with Resend. */
+    EMAIL_FROM: optionalSetting,
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && !env.RESEND_API_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RESEND_API_KEY'],
+        message: 'is required in production',
+      });
+    }
+    if ((env.NODE_ENV === 'production' || env.RESEND_API_KEY) && !env.EMAIL_FROM) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_FROM'],
+        message: 'is required in production and whenever RESEND_API_KEY is set',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -30,8 +59,19 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 }
 
 /** Runtime settings the Express app needs, derived from the environment. */
+/**
+ * How emails leave the outbox (ARCHITECTURAL_WORKFLOW.md §7.2):
+ * - resend: delivered through Resend (required in production).
+ * - dev-mailbox: development without RESEND_API_KEY; emails stay in the outbox, links
+ *   included, and are shown at GET /api/v1/dev/mailbox.
+ */
+export type EmailConfig =
+  { mode: 'resend'; apiKey: string; from: string } | { mode: 'dev-mailbox' };
+
 export interface AppConfig {
   isProduction: boolean;
+  /** NODE_ENV=development: enables development-only routes such as GET /dev/mailbox. */
+  isDevelopment: boolean;
   webOrigin: string;
   trustProxy: number;
   session: {
@@ -49,12 +89,14 @@ export interface AppConfig {
     /** Failed sign-ins allowed per account (email) from all IPs combined per window. */
     maxPerAccount: number;
   };
+  email: EmailConfig;
 }
 
 export function toAppConfig(env: Env): AppConfig {
   const isProduction = env.NODE_ENV === 'production';
   return {
     isProduction,
+    isDevelopment: env.NODE_ENV === 'development',
     webOrigin: new URL(env.WEB_ORIGIN).origin,
     trustProxy: env.TRUST_PROXY,
     session: {
@@ -70,5 +112,9 @@ export function toAppConfig(env: Env): AppConfig {
       maxPerAccountIp: env.LOGIN_ACCOUNT_RATE_LIMIT_MAX,
       maxPerAccount: env.LOGIN_ACCOUNT_GLOBAL_RATE_LIMIT_MAX,
     },
+    email:
+      env.RESEND_API_KEY && env.EMAIL_FROM
+        ? { mode: 'resend', apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM }
+        : { mode: 'dev-mailbox' },
   };
 }

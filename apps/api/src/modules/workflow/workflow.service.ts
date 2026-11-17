@@ -18,6 +18,7 @@ import type { Logger } from 'pino';
 import { AppError, conflict, forbidden, notFound } from '../../lib/errors.js';
 import * as repo from '../activity/activity.repository.js';
 import type { ActivityService, Caller } from '../activity/activity.service.js';
+import type { Actor } from '../facilities/facilities.service.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { lockFlareSource } from '../facilities/facilities.repository.js';
 import { refusalFor, type Refusal } from './workflow.rules.js';
@@ -198,6 +199,64 @@ export class WorkflowService {
       return revision.id;
     });
     return this.activity.get(org, caller, revisionId);
+  }
+
+  /**
+   * Releases every review claim a person holds in the organisation (records go back to
+   * Submitted), recording a CLAIM_RELEASED step and an audit entry for each, exactly as a
+   * manual release does. Used when the reviewer is removed from the organisation
+   * (ARCHITECTURAL_WORKFLOW.md §7.2), inside the caller's transaction. Returns the count.
+   */
+  async releaseClaimsHeldBy(
+    tx: Prisma.TransactionClient,
+    actor: Actor,
+    claimantId: string,
+    comment: string,
+  ): Promise<number> {
+    const org = actor.organisationId;
+    const claimed = await tx.activityRecord.findMany({
+      where: { organisationId: org, status: 'UNDER_REVIEW', claimedById: claimantId },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    let released = 0;
+    for (const { id } of claimed) {
+      await repo.lockRecord(tx, org, id);
+      const record = await repo.findRecord(tx, org, id);
+      if (record?.status !== 'UNDER_REVIEW' || record.claimedById !== claimantId) continue;
+      const t = TRANSITIONS['release-claim'];
+      await tx.activityRecord.update({
+        where: { id },
+        data: { status: t.to, updatedById: actor.userId, claimedById: null, claimedAt: null },
+      });
+      await repo.addEvent(tx, {
+        organisationId: org,
+        activityRecordId: id,
+        type: t.event,
+        fromStatus: record.status,
+        toStatus: t.to,
+        actorId: actor.userId,
+        comment,
+        details: { reason: 'member_removed', claimantId },
+      });
+      await recordAudit(tx, {
+        organisationId: org,
+        actorUserId: actor.userId,
+        action: t.audit,
+        entityType: 'ActivityRecord',
+        entityId: id,
+        metadata: {
+          fromStatus: record.status,
+          toStatus: t.to,
+          comment,
+          reason: 'member_removed',
+          claimantId,
+        },
+        ipAddress: actor.ipAddress,
+      });
+      released += 1;
+    }
+    return released;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

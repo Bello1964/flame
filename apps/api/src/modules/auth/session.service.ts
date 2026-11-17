@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { AppConfig } from '../../config/env.js';
+import type { Db } from '../audit/audit.service.js';
 
 /** Refresh lastSeenAt at most this often, to avoid a database write on every request. */
 const LAST_SEEN_REFRESH_MS = 60_000;
@@ -14,6 +15,18 @@ export interface ResolvedSession {
 
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Revokes every active session of a user. Pass a transaction client to revoke them
+ * together with the change that requires it (e.g. disabling the account).
+ */
+export async function revokeAllSessions(db: Db, userId: string): Promise<number> {
+  const result = await db.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  return result.count;
 }
 
 export class SessionService {
@@ -82,11 +95,7 @@ export class SessionService {
   }
 
   /** Revokes every active session for a user (e.g. "sign out everywhere"). Returns the count. */
-  async revokeAllForUser(userId: string): Promise<number> {
-    const result = await this.prisma.session.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-    return result.count;
+  revokeAllForUser(userId: string): Promise<number> {
+    return revokeAllSessions(this.prisma, userId);
   }
 }

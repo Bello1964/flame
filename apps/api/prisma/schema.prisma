@@ -29,6 +29,9 @@ model User {
   status          UserStatus @default(ACTIVE)
   /// Platform-level operations only. Grants no implicit access to tenant data.
   isPlatformAdmin Boolean    @default(false)
+  /// The one Platform Administrator who may remove others' platform administration rights.
+  /// At most one user (partial unique index); requires isPlatformAdmin (CHECK).
+  isSupremeAdmin  Boolean    @default(false)
   createdAt       DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
 
@@ -59,6 +62,10 @@ model User {
   claimedCalculations   Calculation[]        @relation("CalculationClaimedBy")
   approvedCalculations  Calculation[]        @relation("CalculationApprovedBy")
   calculationEvents     CalculationEvent[]
+
+  sentInvitations     Invitation[] @relation("InvitationInvitedBy")
+  acceptedInvitations Invitation[] @relation("InvitationAcceptedBy")
+  revokedInvitations  Invitation[] @relation("InvitationRevokedBy")
 
   @@map("users")
 }
@@ -125,6 +132,7 @@ model Organisation {
   calculations         Calculation[]
   calculationEvents    CalculationEvent[]
   auditLogs            AuditLog[]
+  invitations          Invitation[]
 
   @@map("organisations")
 }
@@ -141,6 +149,9 @@ enum Role {
 enum MembershipStatus {
   ACTIVE
   SUSPENDED
+  /// Removed from the organisation. Kept for history, never deleted; a new invitation
+  /// reactivates the same row.
+  REMOVED
 }
 
 /// A user's membership of one organisation. A user may hold several roles.
@@ -159,6 +170,117 @@ model Membership {
   @@unique([userId, organisationId])
   @@index([organisationId])
   @@map("memberships")
+}
+
+// ─── Invitations and email (Milestone 6) ─────────────────────────────────────
+// Rules: docs/architecture/ARCHITECTURAL_WORKFLOW.md §7.2.
+
+enum InvitationKind {
+  ORGANISATION
+  PLATFORM_ADMIN
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  /// Set lazily: a PENDING invitation past expiresAt is treated as expired everywhere.
+  EXPIRED
+}
+
+/// An invitation to join an organisation (with roles) or to become a Platform
+/// Administrator. Only the SHA-256 hash of the link token is stored. Partial unique indexes
+/// (in the migration) allow one PENDING invitation per (organisation, email) and one
+/// PENDING platform-administrator invitation per email. Never deleted.
+model Invitation {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  kind             InvitationKind
+  /// Required for ORGANISATION, null for PLATFORM_ADMIN (CHECK).
+  organisationId   String?          @db.Uuid
+  /// Trimmed and lower-cased.
+  email            String           @db.VarChar(320)
+  /// Non-empty for ORGANISATION, empty for PLATFORM_ADMIN (CHECK).
+  roles            Role[]
+  tokenHash        String           @unique @db.Char(64)
+  invitedById      String           @db.Uuid
+  /// Issued by a Platform Administrator through the platform Owner invitation (creating an
+  /// organisation, or reviving a dormant one), not by a member. Such an invitation can be
+  /// accepted only while the organisation is still dormant. Never changes.
+  issuedByPlatform Boolean          @default(false)
+  expiresAt        DateTime         @db.Timestamptz(3)
+  status           InvitationStatus @default(PENDING)
+  acceptedById     String?          @db.Uuid
+  /// When it was accepted or declined.
+  respondedAt      DateTime?        @db.Timestamptz(3)
+  revokedById      String?          @db.Uuid
+  revokedAt        DateTime?        @db.Timestamptz(3)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  invitedBy    User          @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  acceptedBy   User?         @relation("InvitationAcceptedBy", fields: [acceptedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revokedBy    User?         @relation("InvitationRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  emails       EmailOutbox[]
+
+  @@index([organisationId, status])
+  @@index([kind, status])
+  @@index([email])
+  @@map("invitations")
+}
+
+enum EmailTemplate {
+  ORGANISATION_INVITATION
+  PLATFORM_ADMIN_INVITATION
+}
+
+enum EmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  /// Not sent: the invitation was revoked, declined or accepted (or expired) first.
+  CANCELLED
+}
+
+/// How a SENT email left the outbox.
+enum EmailTransport {
+  RESEND
+  /// Development only: kept in the outbox (with its link) and shown at GET /dev/mailbox.
+  DEV_MAILBOX
+  /// Tests: an in-memory sender.
+  MEMORY
+}
+
+/// Transactional outbox: written in the same transaction as the change that needs the
+/// email, delivered by the worker in the API process. Any link is erased from the payload
+/// once the email is sent (except in the development mailbox) or has finally failed.
+model EmailOutbox {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  recipient         String          @db.VarChar(320)
+  template          EmailTemplate
+  /// Template data, including the accept link until it is erased.
+  payload           Json
+  status            EmailStatus     @default(PENDING)
+  attempts          Int             @default(0)
+  nextAttemptAt     DateTime        @default(now()) @db.Timestamptz(3)
+  /// When the current SENDING claim was taken; a stale claim is recovered by the worker.
+  claimedAt         DateTime?       @db.Timestamptz(3)
+  /// Truncated; never contains secrets or the link.
+  lastError         String?         @db.VarChar(500)
+  sentAt            DateTime?       @db.Timestamptz(3)
+  transport         EmailTransport?
+  providerMessageId String?         @db.VarChar(200)
+  invitationId      String?         @db.Uuid
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+
+  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([invitationId])
+  @@map("email_outbox")
 }
 
 // ─── Operational hierarchy: Facility → Asset → Flare Source ──────────────────

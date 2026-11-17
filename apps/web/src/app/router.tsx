@@ -30,6 +30,25 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     lazy: async () => ({ Component: (await pages.methodology()).MethodologyPage }),
   },
+  // Public: an invitation link, signed in or not (the page adapts to either).
+  {
+    path: '/invite/:token',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.invitation()).InvitationPage }),
+  },
+  // Development builds only: emails the API queued, with their links. Vite removes this
+  // route (and its chunk) from production builds.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/dev/mailbox',
+          errorElement: <RouteErrorPage />,
+          lazy: async () => ({
+            Component: (await import('@/pages/dev-mailbox-page')).DevMailboxPage,
+          }),
+        },
+      ]
+    : []),
   {
     element: <RequireAuth />,
     errorElement: <RouteErrorPage />,
@@ -52,6 +71,18 @@ export const routes: RouteObject[] = [
             path: 'admin/methodology/:editionId',
             lazy: async () => ({
               Component: (await pages.adminMethodology()).AdminMethodologyPage,
+            }),
+          },
+          {
+            path: 'admin/organisations',
+            lazy: async () => ({
+              Component: (await pages.adminOrganisations()).AdminOrganisationsPage,
+            }),
+          },
+          {
+            path: 'admin/platform-admins',
+            lazy: async () => ({
+              Component: (await pages.adminPlatformAdmins()).AdminPlatformAdminsPage,
             }),
           },
         ],
@@ -107,6 +138,10 @@ export const routes: RouteObject[] = [
           {
             path: 'review',
             lazy: async () => ({ Component: (await pages.review()).ReviewPage }),
+          },
+          {
+            path: 'members',
+            lazy: async () => ({ Component: (await pages.members()).MembersPage }),
           },
           {
             path: 'settings',

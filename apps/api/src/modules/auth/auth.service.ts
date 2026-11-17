@@ -69,6 +69,31 @@ export class AuthService {
   }
 
   /**
+   * Opens a session for a user who has just proven who they are another way (accepting
+   * an invitation), audited like a sign-in. The caller sets the cookie.
+   */
+  async openSession(
+    userId: string,
+    meta: RequestMeta,
+    via: 'invitation',
+  ): Promise<{ token: string; expiresAt: Date; session: SessionResponse }> {
+    const created = await this.sessions.create(userId, meta);
+    await recordAudit(this.prisma, {
+      actorUserId: userId,
+      action: 'auth.login_succeeded',
+      entityType: 'User',
+      entityId: userId,
+      metadata: { via },
+      ipAddress: meta.ipAddress,
+    });
+    return {
+      token: created.token,
+      expiresAt: created.expiresAt,
+      session: await this.describeSession(userId, created.csrfToken),
+    };
+  }
+
+  /**
    * Audits that sign-in attempts were blocked by a rate limit. Like failed sign-ins, there
    * is no actor; the targeted account is the entity when the email matches a user.
    */

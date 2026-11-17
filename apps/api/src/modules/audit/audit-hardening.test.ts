@@ -146,11 +146,15 @@ const EXPECTED_APP_PRIVILEGES: Record<string, string[]> = {
   // Milestone 3: never deleted; inputs only withdrawn; results only move through review.
   calculation_events: APPEND_ONLY,
   calculations: ['INSERT', 'SELECT', 'UPDATE'],
+  // Milestone 6: delivered rows are kept (their links erased), never deleted.
+  email_outbox: ['INSERT', 'SELECT', 'UPDATE'],
   facilities: CRUD,
   flare_efficiencies: ['INSERT', 'SELECT', 'UPDATE'],
   flare_sources: CRUD,
   gas_compositions: ['INSERT', 'SELECT', 'UPDATE'],
-  memberships: CRUD,
+  // Milestone 6: invitations only change state; removed memberships are kept (REMOVED).
+  invitations: ['INSERT', 'SELECT', 'UPDATE'],
+  memberships: ['INSERT', 'SELECT', 'UPDATE'],
   methodology_editions: ['INSERT', 'SELECT', 'UPDATE'],
   methodology_parameters: ['INSERT', 'SELECT', 'UPDATE'],
   organisations: CRUD,
