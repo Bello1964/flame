@@ -17,7 +17,8 @@
     "prisma:studio": "prisma studio",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
     "db:create-app-user": "tsx --env-file-if-exists=.env scripts/create-app-user.ts",
-    "db:transfer-supreme-admin": "tsx --env-file-if-exists=.env scripts/transfer-supreme-admin.ts"
+    "db:transfer-supreme-admin": "tsx --env-file-if-exists=.env scripts/transfer-supreme-admin.ts",
+    "docs:schemas": "tsx scripts/api-schemas.ts && prettier --write src/docs/schemas.generated.ts"
   },
   "dependencies": {
     "@flame/shared": "^0.1.0",

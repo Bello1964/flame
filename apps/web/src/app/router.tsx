@@ -36,6 +36,12 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     lazy: async () => ({ Component: (await pages.invitation()).InvitationPage }),
   },
+  // Public: the API reference, rendered from the API's own OpenAPI description.
+  {
+    path: '/docs',
+    errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await pages.apiDocs()).ApiDocsPage }),
+  },
   // Public: password reset (ask for a link, then use it). The token goes in the request
   // body, never in an API URL.
   {

@@ -14,7 +14,8 @@ import { bulkSchema, optionalCommentSchema, requiredCommentSchema } from './work
  * `return` and `release-claim` are open to more than one permission, so their gate is
  * activity:read and the service checks the rest.
  */
-const GATES: Record<TransitionAction, Permission> = {
+/** The permission each activity-record workflow action needs (also read by the API docs). */
+export const ACTIVITY_ACTION_GATES: Record<TransitionAction, Permission> = {
   submit: 'activity:submit',
   recall: 'activity:submit',
   'start-review': 'activity:review',
@@ -25,13 +26,13 @@ const GATES: Record<TransitionAction, Permission> = {
   reject: 'activity:approve',
 };
 
-const REQUIRES_COMMENT = new Set<TransitionAction>(['release-claim', 'return', 'reject']);
+export const REQUIRES_COMMENT = new Set<TransitionAction>(['release-claim', 'return', 'reject']);
 
 export function workflowRouter(workflow: WorkflowService): Router {
   const router = Router({ mergeParams: true });
 
   const action = (name: TransitionAction): RequestHandler[] => [
-    requirePermission(GATES[name]),
+    requirePermission(ACTIVITY_ACTION_GATES[name]),
     async (req, res) => {
       const { id } = parse(idParamSchema, req.params);
       const comment = REQUIRES_COMMENT.has(name)
@@ -41,7 +42,7 @@ export function workflowRouter(workflow: WorkflowService): Router {
     },
   ];
 
-  for (const name of Object.keys(GATES) as TransitionAction[]) {
+  for (const name of Object.keys(ACTIVITY_ACTION_GATES) as TransitionAction[]) {
     router.post(`/activity-records/:id/${name}`, ...action(name));
   }
 

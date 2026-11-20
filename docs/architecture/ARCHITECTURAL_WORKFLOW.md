@@ -379,6 +379,7 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
   2. `CREATE ROLE <app_login> LOGIN PASSWORD '<secret>' IN ROLE flame_app;` (the login used in `DATABASE_URL`; `db:create-app-user` cannot do this without `CREATEROLE`)
   3. Either `GRANT flame_app TO <migration_user> WITH ADMIN OPTION;` or grant membership themselves, because on PostgreSQL 16+ adding members requires `ADMIN OPTION` on the role.
      The migration then finds `flame_app` already present and only applies its grants.
+- `package-lock.json` records no `@esbuild/*` platform binaries (an npm bug with optional platform packages), so `tsx` may fail on a fresh install, including on the host. The build (`tsc`, Vite) and `npm start` do not need it. Locally, `npm install @esbuild/<platform>@<esbuild version> --no-save` restores it.
 - `db:create-app-user` runs with `tsx`, a development dependency. If the production host installs with `--omit=dev`, run it from an operator machine with `MIGRATION_DATABASE_URL` and `DATABASE_URL` set for the production database.
 - Run tests only against a dedicated or throwaway PostgreSQL server: the test setup creates a `flame_app_test` login (fresh random password each run) that is a member of the cluster-wide `flame_app` role.
 - Set `TRUST_PROXY` to the number of reverse-proxy hops (1 on Render). The API logs a warning if it sees `X-Forwarded-For` while this is 0.
@@ -387,11 +388,21 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
 - Set `RESEND_API_KEY` and `EMAIL_FROM`; the API refuses to start in production without them (the development mailbox is therefore never mounted there). Before inviting real customers, verify a sending domain in Resend and send from it: the test sender `onboarding@resend.dev` only delivers to the Resend account owner's own address.
 - The email worker runs inside each API instance and is safe with several instances; no separate process is needed.
 
+### 12.2 API documentation
+
+Decisions 2026-11-17: no new packages; public.
+
+- **Spec.** `GET /api/v1/openapi.json` serves an OpenAPI 3.1 description, built by `apps/api/src/docs/openapi.ts` from a table of every endpoint: method, path, tag, summary, access level, and the permission it needs (shown with the roles that hold it). Organisation, Platform Administrator, signed-in and public endpoints are distinguished.
+- **Request schemas.** Request bodies and query parameters are generated with `z.toJSONSchema` from the same Zod validators the routes use.
+- **Response schemas.** Response bodies come from the `@flame/shared` types. `apps/api/scripts/api-schemas.ts` converts them with the TypeScript compiler, which is already a dev dependency, into the committed `src/docs/schemas.generated.ts`. After changing a shared type, run `npm run docs:schemas -w @flame/api`.
+- **Checks.** `src/docs/openapi.test.ts` fails when an Express route is undocumented, when a documented route does not exist, when the generated schemas are stale, or when a reference does not resolve. The OpenAPI description itself (`openapi.json`) is the only route left out. The development mailbox is mounted only in development, so the tests never see it.
+- **Viewer.** `/docs` in the web app (public, linked from the landing page footer) renders the description with Swagger UI from jsDelivr. The version is pinned and both files are checked with Subresource Integrity hashes. To upgrade, change the version and recompute the hashes in `api-docs-page.tsx`. "Try it out" is switched off, so the page only reads.
+
 ## 13. Open decisions
 
 - Review and approval permissions resolved 2026-11-16 (§6, §7.1); activity-data permissions 2026-11-15 (§6, §4.1).
 - User invitation and membership management flow resolved 2026-11-16 (§6, §7.2).
-- OpenAPI documentation generation for the implemented endpoints.
+- OpenAPI documentation resolved 2026-11-17 (§12.2).
 - PostgreSQL RLS resolved 2026-11-17 (§11).
 - Methodology and emission-factor sources resolved 2026-11-16 (§8.1, edition 1); later changes are new editions.
 - Object-storage provider confirmation.

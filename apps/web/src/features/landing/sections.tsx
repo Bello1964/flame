@@ -393,6 +393,10 @@ export function LandingFooter() {
           <Link to="/methodology" className="text-primary underline-offset-4 hover:underline">
             Read how emissions are calculated
           </Link>
+          {' · '}
+          <Link to="/docs" className="text-primary underline-offset-4 hover:underline">
+            API reference
+          </Link>
           .
         </p>
         <p>

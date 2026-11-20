@@ -41,6 +41,7 @@ import { MembersService } from './modules/organisations/members.service.js';
 import { platformAdminRouter } from './modules/platform-admin/platform-admin.routes.js';
 import { PlatformAdminService } from './modules/platform-admin/platform-admin.service.js';
 import { devMailboxRouter } from './modules/email/dev-mailbox.routes.js';
+import { buildOpenApiDocument } from './docs/openapi.js';
 
 export interface AppDependencies {
   logger: Logger;
@@ -95,6 +96,13 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
         }),
     ),
   );
+
+  // Public API description (OpenAPI 3.1), shown by the web app at /docs. Built once.
+  let openApi: Record<string, unknown> | undefined;
+  app.get(`${API}/openapi.json`, (_req, res) => {
+    openApi ??= buildOpenApiDocument({ cookieName: config.session.cookieName });
+    res.set('Cache-Control', 'public, max-age=300').json(openApi);
+  });
 
   // Everything below may use the session.
   app.use(authenticate(sessions, config.session.cookieName));
