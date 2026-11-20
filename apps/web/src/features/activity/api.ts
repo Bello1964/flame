@@ -59,6 +59,8 @@ export interface ActivityFields {
   measurementMethod: MeasurementMethod;
   methodDescription: string | null;
   notes: string | null;
+  startTime: string | null;
+  gasSource: string | null;
 }
 
 export interface ActivityCreateBody extends ActivityFields {

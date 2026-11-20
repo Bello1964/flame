@@ -45,8 +45,19 @@ export interface MethodologyStep {
   parameters: string[];
 }
 
+/**
+ * How a route is classified for regulatory reporting (e.g. "IPCC Tier 2"), with its source.
+ * Set by Platform Administrators in a methodology edition; Flame never assigns it.
+ */
+export interface MethodologyReportingTier {
+  label: string;
+  reference: MethodologyReference;
+}
+
 export interface MethodologyRoute {
   key: CalculationRoute;
+  /** Shown in NUPRC "FRAMEWORK ADOPTED"; absent until an edition sets it. */
+  reportingTier?: MethodologyReportingTier;
   title: string;
   appliesTo: string;
   requires: string[];

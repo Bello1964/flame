@@ -21,6 +21,11 @@ function base(r: Facility | Asset | FlareSource) {
 export function toFacilityDto(f: Facility): FacilityDto {
   return {
     ...base(f),
+    terrain: f.terrain,
+    concession: f.concession,
+    fieldName: f.fieldName,
+    facilityType: f.facilityType,
+    segment: f.segment,
     region: f.region,
     country: f.country,
     latitude: f.latitude?.toString() ?? null,

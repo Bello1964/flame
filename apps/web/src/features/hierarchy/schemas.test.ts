@@ -11,6 +11,11 @@ const validFacility = {
   latitude: '',
   longitude: '',
   timeZone: 'Africa/Lagos',
+  terrain: '',
+  concession: '',
+  fieldName: '',
+  facilityType: '',
+  segment: '',
 };
 
 describe('facility form schema', () => {

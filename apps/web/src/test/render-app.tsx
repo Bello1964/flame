@@ -60,6 +60,11 @@ export function facility(overrides: Partial<FacilityDto> = {}): FacilityDto {
     latitude: null,
     longitude: null,
     timeZone: 'Africa/Lagos',
+    terrain: null,
+    concession: null,
+    fieldName: null,
+    facilityType: null,
+    segment: null,
     ...overrides,
   };
 }

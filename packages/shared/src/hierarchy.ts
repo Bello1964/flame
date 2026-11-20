@@ -17,7 +17,45 @@ interface HierarchyRecord {
   updatedAt: string;
 }
 
+/** Facility types listed in NUPRC's GHG inventory template (Appendices A and C). */
+export const NUPRC_FACILITY_TYPES = [
+  'CPF',
+  'FLOWSTATION',
+  'WELLPAD',
+  'PLATFORM',
+  'FSO',
+  'FPSO',
+] as const;
+export type NuprcFacilityType = (typeof NUPRC_FACILITY_TYPES)[number];
+export const NUPRC_FACILITY_TYPE_LABELS: Record<NuprcFacilityType, string> = {
+  CPF: 'CPF',
+  FLOWSTATION: 'Flowstation',
+  WELLPAD: 'Wellpad',
+  PLATFORM: 'Platform',
+  FSO: 'FSO',
+  FPSO: 'FPSO',
+};
+export const FACILITY_TERRAINS = ['ONSHORE', 'OFFSHORE'] as const;
+export type FacilityTerrain = (typeof FACILITY_TERRAINS)[number];
+export const FACILITY_SEGMENTS = ['OIL', 'GAS', 'OIL_AND_GAS'] as const;
+export type FacilitySegment = (typeof FACILITY_SEGMENTS)[number];
+export const FACILITY_SEGMENT_LABELS: Record<FacilitySegment, string> = {
+  OIL: 'Oil',
+  GAS: 'Gas',
+  OIL_AND_GAS: 'Oil & Gas',
+};
+
 export interface FacilityDto extends HierarchyRecord {
+  /** Onshore or offshore (NUPRC "Location (Terrain)"). Optional; reports flag it when missing. */
+  terrain: FacilityTerrain | null;
+  /** Licence or lease, e.g. "OML 58" (NUPRC "Concession"). */
+  concession: string | null;
+  /** Oil or gas field the facility serves (NUPRC "Field Name"). */
+  fieldName: string | null;
+  /** NUPRC facility type. */
+  facilityType: NuprcFacilityType | null;
+  /** Oil, gas or both (NUPRC "Segment"). */
+  segment: FacilitySegment | null;
   region: string | null;
   country: string;
   /** Decimal degrees as strings to preserve exact precision. */

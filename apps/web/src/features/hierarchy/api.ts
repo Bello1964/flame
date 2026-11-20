@@ -14,6 +14,9 @@ import type {
   FlareService,
   FlareType,
   ListResponse,
+  FacilitySegment,
+  FacilityTerrain,
+  NuprcFacilityType,
 } from '@flame/shared';
 import { ApiError, apiGet, apiSend, withQuery } from '@/lib/api-client';
 
@@ -48,6 +51,11 @@ export interface FacilityCreateBody {
   latitude?: string | null;
   longitude?: string | null;
   timeZone?: string;
+  terrain?: FacilityTerrain | null;
+  concession?: string | null;
+  fieldName?: string | null;
+  facilityType?: NuprcFacilityType | null;
+  segment?: FacilitySegment | null;
 }
 
 export interface AssetCreateBody {

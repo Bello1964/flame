@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { FLARE_SERVICES, FLARE_TYPES, type FlareService, type FlareType } from '@flame/shared';
+import {
+  FACILITY_SEGMENTS,
+  FACILITY_TERRAINS,
+  FLARE_SERVICES,
+  FLARE_TYPES,
+  NUPRC_FACILITY_TYPES,
+  type FlareService,
+  type FlareType,
+} from '@flame/shared';
 
 /**
  * Client-side form validation mirroring the API's schemas
@@ -32,9 +40,17 @@ function coordinate(limit: number) {
     );
 }
 
+/** Select value for "not recorded" in optional NUPRC fields. */
+export const NOT_RECORDED = '';
+
 export const facilityFormSchema = z.object({
   name,
   code,
+  terrain: z.enum([NOT_RECORDED, ...FACILITY_TERRAINS]),
+  concession: shortText,
+  fieldName: z.string().trim().max(200, 'Use at most 200 characters'),
+  facilityType: z.enum([NOT_RECORDED, ...NUPRC_FACILITY_TYPES]),
+  segment: z.enum([NOT_RECORDED, ...FACILITY_SEGMENTS]),
   description,
   region: shortText,
   country: z
@@ -104,6 +120,11 @@ export const toApi = {
     latitude: textOrNull(v.latitude),
     longitude: textOrNull(v.longitude),
     timeZone: v.timeZone.trim(),
+    terrain: v.terrain === NOT_RECORDED ? null : v.terrain,
+    concession: textOrNull(v.concession),
+    fieldName: textOrNull(v.fieldName),
+    facilityType: v.facilityType === NOT_RECORDED ? null : v.facilityType,
+    segment: v.segment === NOT_RECORDED ? null : v.segment,
   }),
   asset: (v: AssetFormValues) => ({
     name: v.name.trim(),

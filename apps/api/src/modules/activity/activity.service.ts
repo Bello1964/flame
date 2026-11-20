@@ -71,6 +71,8 @@ const COMPARED_KEYS = [
   'measurementMethod',
   'methodDescription',
   'notes',
+  'startTime',
+  'gasSource',
   'standardRateMmscfd',
   'standardVolumeMmscf',
   'derivedVolumeMmscf',
@@ -480,6 +482,8 @@ export class ActivityService {
       methodDescription:
         input.measurementMethod === 'OTHER' ? (input.methodDescription ?? null) : null,
       notes: input.notes ?? null,
+      startTime: input.startTime ?? null,
+      gasSource: input.gasSource ?? null,
       standardRateMmscfd: std.standardRateMmscfd,
       standardVolumeMmscf: std.standardVolumeMmscf,
       derivedVolumeMmscf: std.derivedVolumeMmscf,
@@ -517,6 +521,8 @@ export class ActivityService {
       measurementMethod: r.measurementMethod,
       methodDescription: r.methodDescription,
       notes: r.notes,
+      startTime: r.startTime,
+      gasSource: r.gasSource,
     };
   }
 

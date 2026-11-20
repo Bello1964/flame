@@ -60,6 +60,14 @@ export const activityFormSchema = z
     measurementMethod: z.enum(MEASUREMENT_METHODS),
     methodDescription: z.string().trim().max(500),
     notes: z.string().trim().max(2000),
+    startTime: z
+      .string()
+      .trim()
+      .refine(
+        (v) => v === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
+        'Use a 24-hour time such as 06:30',
+      ),
+    gasSource: z.string().trim().max(200, 'Use at most 200 characters'),
   })
   .superRefine((v, ctx) => {
     const issue = (path: string, message: string) => {
@@ -126,6 +134,8 @@ export const API_FIELD_TO_FORM: Record<string, keyof ActivityFormValues> = {
   measurementMethod: 'measurementMethod',
   methodDescription: 'methodDescription',
   notes: 'notes',
+  startTime: 'startTime',
+  gasSource: 'gasSource',
 };
 
 const orNull = (v: string) => (v.trim() === '' ? null : v.trim());
@@ -156,6 +166,8 @@ export function toActivityFields(v: ActivityFormValues): ActivityFields {
     measurementMethod: v.measurementMethod,
     methodDescription: v.measurementMethod === 'OTHER' ? orNull(v.methodDescription) : null,
     notes: orNull(v.notes),
+    startTime: orNull(v.startTime),
+    gasSource: orNull(v.gasSource),
   };
 }
 
@@ -189,6 +201,8 @@ export function initialValues(
       measurementMethod: record.measurementMethod,
       methodDescription: record.methodDescription ?? '',
       notes: record.notes ?? '',
+      startTime: record.startTime ?? '',
+      gasSource: record.gasSource ?? '',
     };
   }
   return {
@@ -215,5 +229,7 @@ export function initialValues(
     measurementMethod: 'METERED',
     methodDescription: '',
     notes: '',
+    startTime: '',
+    gasSource: '',
   };
 }

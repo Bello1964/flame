@@ -27,6 +27,9 @@ import {
 import { MethodologyService } from './modules/methodology/methodology.service.js';
 import { reportingRouter } from './modules/reporting/reporting.routes.js';
 import { ReportingService } from './modules/reporting/reporting.service.js';
+import { NuprcService } from './modules/reporting/nuprc.service.js';
+import { IssuedReportsService } from './modules/reporting/issued-reports.service.js';
+import { nuprcRouter } from './modules/reporting/nuprc.routes.js';
 import { WorkflowService } from './modules/workflow/workflow.service.js';
 import { ActivityService } from './modules/activity/activity.service.js';
 import { facilitiesRouter } from './modules/facilities/facilities.routes.js';
@@ -76,6 +79,8 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   const inputs = new InputsService(prisma);
   const calculations = new CalculationsService(prisma, methodology);
   const reporting = new ReportingService(prisma);
+  const nuprc = new NuprcService(prisma);
+  const issuedReports = new IssuedReportsService(prisma, nuprc);
   const invitations = new InvitationsService(prisma, config.webOrigin);
   const members = new MembersService(prisma, workflow, calculations, invitations);
   const platformAdmin = new PlatformAdminService(prisma, invitations);
@@ -142,6 +147,7 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
   orgScoped.use(workflowRouter(workflow));
   orgScoped.use(calculationsRouter(calculations, inputs));
   orgScoped.use(reportingRouter(reporting));
+  orgScoped.use(nuprcRouter(nuprc, issuedReports));
   orgScoped.use(membersRouter(members, invitations));
   app.use(`${API}/organisations/:organisationId`, orgScoped);
 

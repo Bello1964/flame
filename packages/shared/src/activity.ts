@@ -201,6 +201,10 @@ export interface ActivityRecordDto {
   totalVolume: QuantityDto<VolumeUnit> | null;
   /** Actual operating duration in hours. */
   operatingHours: { value: string; entered: string } | null;
+  /** Local start time (HH:MM, in timeZone) of the flaring or venting, when known (NUPRC Reg. 20(4)). */
+  startTime: string | null;
+  /** Gas source or type, e.g. "sour inlet gas" or "acid gas" (NUPRC Reg. 20(4)). */
+  gasSource: string | null;
   referenceTemperature: QuantityDto<TemperatureUnit>;
   referencePressure: QuantityDto<PressureUnit>;
   zSource: { value: string; entered: string } | null;
@@ -315,6 +319,8 @@ export interface DefaultCompressibilityDto {
 }
 
 export interface OrganisationSettingsDto {
+  /** Short company name for NUPRC reports ("COMPANY ABR"), e.g. "XNEPL". */
+  abbreviation: string | null;
   defaultReferenceTemperature: { value: string; unit: TemperatureUnit };
   defaultReferencePressure: { value: string; unit: PressureUnit };
   /**
@@ -326,6 +332,8 @@ export interface OrganisationSettingsDto {
 
 /** PATCH /settings. A null defaultCompressibility removes it. */
 export interface OrganisationSettingsUpdate {
+  /** A null abbreviation removes it. */
+  abbreviation?: string | null;
   defaultReferenceTemperature?: { value: string; unit: TemperatureUnit };
   defaultReferencePressure?: { value: string; unit: PressureUnit };
   defaultCompressibility?: DefaultCompressibilityDto | null;

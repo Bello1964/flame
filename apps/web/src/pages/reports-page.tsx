@@ -74,6 +74,9 @@ export function ReportsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link to={`${orgPath}/reports/nuprc`}>NUPRC reports</Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link to={`${orgPath}/reports/print?${query}`}>
               <Printer aria-hidden />

@@ -10,6 +10,7 @@ import type { Actor } from '../facilities/facilities.service.js';
 
 function toDto(o: Organisation): OrganisationSettingsDto {
   return {
+    abbreviation: o.abbreviation,
     defaultReferenceTemperature: {
       value: exact(o.defaultReferenceTemperature),
       unit: o.defaultReferenceTemperatureUnit,
@@ -115,6 +116,7 @@ export class SettingsService {
       }
 
       const next = {
+        ...(input.abbreviation === undefined ? {} : { abbreviation: input.abbreviation }),
         ...(t
           ? { defaultReferenceTemperature: t.value, defaultReferenceTemperatureUnit: t.unit }
           : {}),

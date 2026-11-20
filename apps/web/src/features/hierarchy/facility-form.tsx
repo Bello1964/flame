@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { FacilityDto } from '@flame/shared';
+import {
+  FACILITY_SEGMENTS,
+  FACILITY_SEGMENT_LABELS,
+  FACILITY_TERRAINS,
+  NUPRC_FACILITY_TYPES,
+  NUPRC_FACILITY_TYPE_LABELS,
+  type FacilityDto,
+} from '@flame/shared';
+import { NativeSelect } from '@/components/ui/native-select';
 import { FormField } from '@/components/form-field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +18,13 @@ import { useOrganisation } from '@/features/organisations/organisation-context';
 import { useCreateRecord, useUpdateRecord } from './api';
 import { RecordFormDialog } from './record-form-dialog';
 import { applyServerError } from './server-errors';
-import { changedFields, facilityFormSchema, toApi, type FacilityFormValues } from './schemas';
+import {
+  NOT_RECORDED,
+  changedFields,
+  facilityFormSchema,
+  toApi,
+  type FacilityFormValues,
+} from './schemas';
 
 const FIELDS = [
   'name',
@@ -21,6 +35,11 @@ const FIELDS = [
   'latitude',
   'longitude',
   'timeZone',
+  'terrain',
+  'concession',
+  'fieldName',
+  'facilityType',
+  'segment',
 ] as const satisfies readonly (keyof FacilityFormValues)[];
 
 function defaultsFrom(record?: FacilityDto): FacilityFormValues {
@@ -33,6 +52,11 @@ function defaultsFrom(record?: FacilityDto): FacilityFormValues {
     latitude: record?.latitude ?? '',
     longitude: record?.longitude ?? '',
     timeZone: record?.timeZone ?? 'Africa/Lagos',
+    terrain: record?.terrain ?? NOT_RECORDED,
+    concession: record?.concession ?? '',
+    fieldName: record?.fieldName ?? '',
+    facilityType: record?.facilityType ?? NOT_RECORDED,
+    segment: record?.segment ?? NOT_RECORDED,
   };
 }
 
@@ -163,6 +187,61 @@ export function FacilityFormDialog({
           />
         )}
       </FormField>
+      <fieldset className="grid gap-4 rounded-md border p-3">
+        <legend className="px-1 text-sm font-medium">For NUPRC reports (optional)</legend>
+        <p className="text-xs text-muted-foreground">
+          Shown in the NUPRC GHG inventory. Anything left empty is flagged in the report, never
+          guessed.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Terrain" error={errors.terrain?.message}>
+            {(c) => (
+              <NativeSelect {...c} {...register('terrain')}>
+                <option value={NOT_RECORDED}>Not recorded</option>
+                {FACILITY_TERRAINS.map((t) => (
+                  <option key={t} value={t}>
+                    {t === 'ONSHORE' ? 'Onshore' : 'Offshore'}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </FormField>
+          <FormField label="Facility type" error={errors.facilityType?.message}>
+            {(c) => (
+              <NativeSelect {...c} {...register('facilityType')}>
+                <option value={NOT_RECORDED}>Not recorded</option>
+                {NUPRC_FACILITY_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {NUPRC_FACILITY_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </FormField>
+          <FormField
+            label="Concession"
+            description="Licence or lease, e.g. OML 58."
+            error={errors.concession?.message}
+          >
+            {(c) => <Input autoComplete="off" {...c} {...register('concession')} />}
+          </FormField>
+          <FormField label="Field name" error={errors.fieldName?.message}>
+            {(c) => <Input autoComplete="off" {...c} {...register('fieldName')} />}
+          </FormField>
+          <FormField label="Segment" error={errors.segment?.message}>
+            {(c) => (
+              <NativeSelect {...c} {...register('segment')}>
+                <option value={NOT_RECORDED}>Not recorded</option>
+                {FACILITY_SEGMENTS.map((t) => (
+                  <option key={t} value={t}>
+                    {FACILITY_SEGMENT_LABELS[t]}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </FormField>
+        </div>
+      </fieldset>
       <FormField label="Description" error={errors.description?.message}>
         {(c) => <Textarea rows={3} {...c} {...register('description')} />}
       </FormField>

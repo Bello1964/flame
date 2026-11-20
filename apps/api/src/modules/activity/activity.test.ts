@@ -438,6 +438,7 @@ describe('organisation settings', () => {
   it('defaults to ISO 13443 and lets owners and administrators change it', async () => {
     const res = await w.viewerA.agent.get(`${base(w.orgA.id)}/settings`);
     expect(res.body.data).toEqual({
+      abbreviation: null,
       defaultReferenceTemperature: { value: '15', unit: 'CELSIUS' },
       defaultReferencePressure: { value: '101.325', unit: 'KPA_ABS' },
       defaultCompressibility: null,

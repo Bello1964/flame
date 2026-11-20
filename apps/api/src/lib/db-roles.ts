@@ -113,6 +113,7 @@ export const RLS_TABLES = [
   'flare_sources',
   'gas_compositions',
   'invitations',
+  'issued_reports',
   'memberships',
   'organisations',
 ] as const;

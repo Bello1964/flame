@@ -24,6 +24,8 @@ export const pages = {
   settings: () => import('@/pages/settings-page'),
   reports: () => import('@/pages/reports-page'),
   reportPrint: () => import('@/pages/report-print-page'),
+  nuprcReports: () => import('@/pages/nuprc-reports-page'),
+  issuedReport: () => import('@/pages/issued-report-page'),
 };
 
 export type PageName = keyof typeof pages;

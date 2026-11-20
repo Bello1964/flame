@@ -37,6 +37,9 @@ export const PERMISSIONS = {
   'calculation:release-claim': ['ORGANISATION_OWNER'],
   // Emissions reports (ARCHITECTURAL_WORKFLOW.md §8.2): approved calculations only.
   'report:read': ROLES,
+  // Issue a NUPRC report as a frozen snapshot, approve or reject someone else's, and record
+  // its submission (ARCHITECTURAL_WORKFLOW.md §8.3). Whoever issued a report can't approve it.
+  'report:issue': ['ORGANISATION_OWNER', 'APPROVER'],
   // Members and invitations (ARCHITECTURAL_WORKFLOW.md §7.2). On top of these, only an
   // Owner may grant the Owner role and nobody may change their own membership. An
   // organisation left without an active Owner is dormant (members carry on).
