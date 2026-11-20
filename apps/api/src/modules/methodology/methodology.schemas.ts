@@ -28,6 +28,8 @@ export const methodologyContentSchema = z.strictObject({
         appliesTo: text(1000),
         requires: z.array(text(1000)).max(20),
         steps: z.array(stepSchema).min(1).max(20),
+        /** e.g. "IPCC Tier 2", with its source; set by Platform Administrators only. */
+        reportingTier: z.strictObject({ label: text(100), reference }).optional(),
       }),
     )
     .min(1)

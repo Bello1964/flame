@@ -152,6 +152,29 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
         ],
         description: 'Actual operating duration in hours.',
       },
+      startTime: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description:
+          'Local start time (HH:MM, in timeZone) of the flaring or venting, when known (NUPRC Reg. 20(4)).',
+      },
+      gasSource: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Gas source or type, e.g. "sour inlet gas" or "acid gas" (NUPRC Reg. 20(4)).',
+      },
       referenceTemperature: {
         type: 'object',
         properties: {
@@ -547,6 +570,8 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
       'averageRate',
       'totalVolume',
       'operatingHours',
+      'startTime',
+      'gasSource',
       'referenceTemperature',
       'referencePressure',
       'zSource',
@@ -1914,6 +1939,62 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
   FacilityDto: {
     type: 'object',
     properties: {
+      terrain: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/FacilityTerrain',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description:
+          'Onshore or offshore (NUPRC "Location (Terrain)"). Optional; reports flag it when missing.',
+      },
+      concession: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Licence or lease, e.g. "OML 58" (NUPRC "Concession").',
+      },
+      fieldName: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Oil or gas field the facility serves (NUPRC "Field Name").',
+      },
+      facilityType: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/NuprcFacilityType',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'NUPRC facility type.',
+      },
+      segment: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/FacilitySegment',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Oil, gas or both (NUPRC "Segment").',
+      },
       region: {
         anyOf: [
           {
@@ -1998,6 +2079,11 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
       },
     },
     required: [
+      'terrain',
+      'concession',
+      'fieldName',
+      'facilityType',
+      'segment',
       'region',
       'country',
       'latitude',
@@ -2058,6 +2144,14 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
     },
     required: ['id', 'name', 'code', 'timeZone', 'assets', 'byType', 'total'],
     additionalProperties: false,
+  },
+  FacilitySegment: {
+    type: 'string',
+    enum: ['GAS', 'OIL', 'OIL_AND_GAS'],
+  },
+  FacilityTerrain: {
+    type: 'string',
+    enum: ['OFFSHORE', 'ONSHORE'],
   },
   FlareEfficiencyCreate: {
     type: 'object',
@@ -2900,6 +2994,372 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
     additionalProperties: false,
     description: 'POST /invitations/lookup and /invitations/decline (public).',
   },
+  IssueReportRequest: {
+    type: 'object',
+    properties: {
+      kind: {
+        $ref: '#/components/schemas/NuprcReportKind',
+      },
+      period: {
+        type: 'string',
+      },
+      reason: {
+        type: 'string',
+        description: 'Required when a version for the period was already issued.',
+      },
+    },
+    required: ['kind', 'period'],
+    additionalProperties: false,
+    description: 'POST /reports/issued. `period`: "2026-Q3" (quarterly) or "2026-07" (monthly).',
+  },
+  IssuedReportDto: {
+    type: 'object',
+    properties: {
+      snapshot: {
+        $ref: '#/components/schemas/NuprcReportDto',
+        description: 'The report exactly as issued.',
+      },
+      id: {
+        type: 'string',
+      },
+      kind: {
+        $ref: '#/components/schemas/NuprcReportKind',
+      },
+      periodKey: {
+        type: 'string',
+      },
+      periodLabel: {
+        type: 'string',
+      },
+      version: {
+        type: 'number',
+      },
+      status: {
+        $ref: '#/components/schemas/IssuedReportStatus',
+      },
+      reason: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Why this version was issued (required from version 2).',
+      },
+      issuedBy: {
+        $ref: '#/components/schemas/IssuedReportUserDto',
+      },
+      issuedAt: {
+        type: 'string',
+      },
+      approvedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      approvedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectionComment: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      supersededAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submittedOn: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'YYYY-MM-DD; null until a submission to NUPRC is recorded.',
+      },
+      submissionReference: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submissionRecordedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submissionRecordedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+    },
+    required: [
+      'snapshot',
+      'id',
+      'kind',
+      'periodKey',
+      'periodLabel',
+      'version',
+      'status',
+      'reason',
+      'issuedBy',
+      'issuedAt',
+      'approvedBy',
+      'approvedAt',
+      'rejectedBy',
+      'rejectedAt',
+      'rejectionComment',
+      'supersededAt',
+      'submittedOn',
+      'submissionReference',
+      'submissionRecordedBy',
+      'submissionRecordedAt',
+    ],
+    additionalProperties: false,
+  },
+  IssuedReportStatus: {
+    type: 'string',
+    enum: ['APPROVED', 'AWAITING_APPROVAL', 'REJECTED', 'SUPERSEDED'],
+  },
+  IssuedReportSummaryDto: {
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+      },
+      kind: {
+        $ref: '#/components/schemas/NuprcReportKind',
+      },
+      periodKey: {
+        type: 'string',
+      },
+      periodLabel: {
+        type: 'string',
+      },
+      version: {
+        type: 'number',
+      },
+      status: {
+        $ref: '#/components/schemas/IssuedReportStatus',
+      },
+      reason: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Why this version was issued (required from version 2).',
+      },
+      issuedBy: {
+        $ref: '#/components/schemas/IssuedReportUserDto',
+      },
+      issuedAt: {
+        type: 'string',
+      },
+      approvedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      approvedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rejectionComment: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      supersededAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submittedOn: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'YYYY-MM-DD; null until a submission to NUPRC is recorded.',
+      },
+      submissionReference: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submissionRecordedBy: {
+        anyOf: [
+          {
+            $ref: '#/components/schemas/IssuedReportUserDto',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      submissionRecordedAt: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+    },
+    required: [
+      'id',
+      'kind',
+      'periodKey',
+      'periodLabel',
+      'version',
+      'status',
+      'reason',
+      'issuedBy',
+      'issuedAt',
+      'approvedBy',
+      'approvedAt',
+      'rejectedBy',
+      'rejectedAt',
+      'rejectionComment',
+      'supersededAt',
+      'submittedOn',
+      'submissionReference',
+      'submissionRecordedBy',
+      'submissionRecordedAt',
+    ],
+    additionalProperties: false,
+  },
+  IssuedReportUserDto: {
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+      },
+      name: {
+        type: 'string',
+      },
+    },
+    required: ['id', 'name'],
+    additionalProperties: false,
+  },
   MeasurementBasis: {
     type: 'string',
     enum: ['ESTIMATED', 'MEASURED'],
@@ -3497,11 +3957,30 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
     required: ['label', 'location'],
     additionalProperties: false,
   },
+  MethodologyReportingTier: {
+    type: 'object',
+    properties: {
+      label: {
+        type: 'string',
+      },
+      reference: {
+        $ref: '#/components/schemas/MethodologyReference',
+      },
+    },
+    required: ['label', 'reference'],
+    additionalProperties: false,
+    description:
+      'How a route is classified for regulatory reporting (e.g. "IPCC Tier 2"), with its source. Set by Platform Administrators in a methodology edition; Flame never assigns it.',
+  },
   MethodologyRoute: {
     type: 'object',
     properties: {
       key: {
         $ref: '#/components/schemas/CalculationRoute',
+      },
+      reportingTier: {
+        $ref: '#/components/schemas/MethodologyReportingTier',
+        description: 'Shown in NUPRC "FRAMEWORK ADOPTED"; absent until an edition sets it.',
       },
       title: {
         type: 'string',
@@ -3552,6 +4031,786 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
     required: ['key', 'title', 'formula', 'explanation', 'parameters'],
     additionalProperties: false,
   },
+  NuprcActivityTotalsDto: {
+    type: 'object',
+    properties: {
+      facilityId: {
+        type: 'string',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      activityType: {
+        $ref: '#/components/schemas/ActivityType',
+      },
+      approvedVolumeMmscf: {
+        type: 'string',
+        description: 'All approved records placed in the quarter (MMscf).',
+      },
+      volumeCalculatedMmscf: {
+        type: 'string',
+        description: 'Approved records that also have an approved calculation (MMscf).',
+      },
+      recordCount: {
+        type: 'number',
+      },
+    },
+    required: [
+      'facilityId',
+      'facilityName',
+      'activityType',
+      'approvedVolumeMmscf',
+      'volumeCalculatedMmscf',
+      'recordCount',
+    ],
+    additionalProperties: false,
+    description:
+      'Activity data per facility and activity type for the quarter (template section 4).',
+  },
+  NuprcAppendixARowDto: {
+    type: 'object',
+    properties: {
+      serial: {
+        type: 'number',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      facilityType: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      location: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      sourceCategory: {
+        $ref: '#/components/schemas/NuprcEmissionSource',
+      },
+      equipmentType: {
+        type: 'string',
+      },
+      quantity: {
+        type: 'number',
+      },
+      segment: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      pollutants: {
+        type: 'string',
+      },
+      quantificationMethod: {
+        type: 'string',
+      },
+      uncertainty: {
+        type: 'string',
+      },
+    },
+    required: [
+      'serial',
+      'facilityName',
+      'facilityType',
+      'location',
+      'sourceCategory',
+      'equipmentType',
+      'quantity',
+      'segment',
+      'pollutants',
+      'quantificationMethod',
+      'uncertainty',
+    ],
+    additionalProperties: false,
+    description: 'Appendix A: inventory of flaring and venting sources per facility.',
+  },
+  NuprcAppendixCRowDto: {
+    type: 'object',
+    properties: {
+      serial: {
+        type: 'number',
+      },
+      year: {
+        type: 'string',
+      },
+      month: {
+        type: 'string',
+        description: 'Month name, e.g. "January".',
+      },
+      companyName: {
+        type: 'string',
+      },
+      companyAbbreviation: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      terrain: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      concession: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      fieldName: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      facilityId: {
+        type: 'string',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      facilityType: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      coordinates: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: '"latitude, longitude" in decimal degrees, or null.',
+      },
+      framework: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Tier labels set in the methodology editions used; null when none is set.',
+      },
+      emissionSource: {
+        $ref: '#/components/schemas/NuprcEmissionSource',
+      },
+      equipmentType: {
+        type: 'string',
+      },
+      unit: {
+        type: 'string',
+        enum: ['Tonnes CO2e'],
+      },
+      co2: {
+        type: 'string',
+        description: "tCO2e per gas: each calculation's gas tonnes × its edition's GWP, summed.",
+      },
+      ch4: {
+        type: 'string',
+      },
+      n2o: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Null when no calculation in the row has N2O (venting).',
+      },
+      total: {
+        type: 'string',
+        description: "Sum of the approved calculations' tCO2e.",
+      },
+      comments: {
+        type: 'string',
+      },
+    },
+    required: [
+      'serial',
+      'year',
+      'month',
+      'companyName',
+      'companyAbbreviation',
+      'terrain',
+      'concession',
+      'fieldName',
+      'facilityId',
+      'facilityName',
+      'facilityType',
+      'coordinates',
+      'framework',
+      'emissionSource',
+      'equipmentType',
+      'unit',
+      'co2',
+      'ch4',
+      'n2o',
+      'total',
+      'comments',
+    ],
+    additionalProperties: false,
+    description: 'One Appendix C row: a month, facility, emission source and equipment type.',
+  },
+  NuprcCoverageDto: {
+    type: 'object',
+    properties: {
+      approvedRecords: {
+        type: 'number',
+        description: 'Approved records placed in the period.',
+      },
+      withoutApprovedCalculation: {
+        type: 'number',
+        description: 'Approved records placed in the period with no approved calculation yet.',
+      },
+      awaitingApproval: {
+        type: 'number',
+        description:
+          'Records placed in the period not yet approved (draft or in review): not included.',
+      },
+    },
+    required: ['approvedRecords', 'withoutApprovedCalculation', 'awaitingApproval'],
+    additionalProperties: false,
+  },
+  NuprcEmissionSource: {
+    type: 'string',
+    enum: ['Flaring', 'Venting'],
+  },
+  NuprcFacilityType: {
+    type: 'string',
+    enum: ['CPF', 'FLOWSTATION', 'FPSO', 'FSO', 'PLATFORM', 'WELLPAD'],
+  },
+  NuprcGasTotalsDto: {
+    type: 'object',
+    properties: {
+      facilityId: {
+        type: 'string',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      emissionSource: {
+        $ref: '#/components/schemas/NuprcEmissionSource',
+      },
+      co2: {
+        type: 'string',
+      },
+      ch4: {
+        type: 'string',
+      },
+      n2o: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      total: {
+        type: 'string',
+      },
+      calculationCount: {
+        type: 'number',
+      },
+    },
+    required: [
+      'facilityId',
+      'facilityName',
+      'emissionSource',
+      'co2',
+      'ch4',
+      'n2o',
+      'total',
+      'calculationCount',
+    ],
+    additionalProperties: false,
+    description: 'Emissions by gas per facility and source for the quarter (template section 7).',
+  },
+  NuprcMonthlyLogDto: {
+    type: 'object',
+    properties: {
+      kind: {
+        type: 'string',
+        enum: ['MONTHLY_FLARE_VENT_LOG'],
+      },
+      source: {
+        $ref: '#/components/schemas/NuprcSourceDto',
+      },
+      organisation: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+          },
+          name: {
+            type: 'string',
+          },
+          abbreviation: {
+            anyOf: [
+              {
+                type: 'string',
+              },
+              {
+                type: 'null',
+              },
+            ],
+          },
+        },
+        required: ['id', 'name', 'abbreviation'],
+        additionalProperties: false,
+      },
+      period: {
+        $ref: '#/components/schemas/ReportPeriodDto',
+      },
+      generatedAt: {
+        type: 'string',
+      },
+      entries: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcMonthlyLogEntryDto',
+        },
+      },
+      sourceTotals: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcMonthlySourceTotalDto',
+        },
+      },
+      totals: {
+        type: 'object',
+        properties: {
+          flaredMmscf: {
+            type: 'string',
+          },
+          ventedMmscf: {
+            type: 'string',
+          },
+        },
+        required: ['flaredMmscf', 'ventedMmscf'],
+        additionalProperties: false,
+      },
+      coverage: {
+        $ref: '#/components/schemas/NuprcCoverageDto',
+      },
+      unplaced: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/UnplacedRecordDto',
+        },
+      },
+      notRecorded: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      notes: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+    },
+    required: [
+      'kind',
+      'source',
+      'organisation',
+      'period',
+      'generatedAt',
+      'entries',
+      'sourceTotals',
+      'totals',
+      'coverage',
+      'unplaced',
+      'notRecorded',
+      'notes',
+    ],
+    additionalProperties: false,
+  },
+  NuprcMonthlyLogEntryDto: {
+    type: 'object',
+    properties: {
+      recordId: {
+        type: 'string',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      flareSourceName: {
+        type: 'string',
+      },
+      flareSourceCode: {
+        type: 'string',
+      },
+      emissionSource: {
+        $ref: '#/components/schemas/NuprcEmissionSource',
+      },
+      activityType: {
+        $ref: '#/components/schemas/ActivityType',
+      },
+      periodStart: {
+        type: 'string',
+        description: 'Inclusive local dates.',
+      },
+      periodEnd: {
+        type: 'string',
+      },
+      startTime: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: '"HH:MM" local time, or null when not recorded.',
+      },
+      durationHours: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      rateMmscfd: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Standardised average rate (MMscf/d).',
+      },
+      volumeMmscf: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Standardised volume (MMscf).',
+      },
+      originalVolume: {
+        anyOf: [
+          {
+            type: 'object',
+            properties: {
+              value: {
+                type: 'string',
+              },
+              unit: {
+                $ref: '#/components/schemas/VolumeUnit',
+              },
+            },
+            required: ['value', 'unit'],
+            additionalProperties: false,
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'The volume as entered, with its unit.',
+      },
+      gasSource: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      measurementBasis: {
+        $ref: '#/components/schemas/MeasurementBasis',
+      },
+      spansMonths: {
+        type: 'boolean',
+        description:
+          "The event crosses a month boundary: listed in every month it touches, and not in any month's totals (volumes are never split).",
+      },
+      ch4Co2e: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: "Venting only: CH4 in tCO2e from the record's approved calculation, if any.",
+      },
+    },
+    required: [
+      'recordId',
+      'facilityName',
+      'flareSourceName',
+      'flareSourceCode',
+      'emissionSource',
+      'activityType',
+      'periodStart',
+      'periodEnd',
+      'startTime',
+      'durationHours',
+      'rateMmscfd',
+      'volumeMmscf',
+      'originalVolume',
+      'gasSource',
+      'measurementBasis',
+      'spansMonths',
+      'ch4Co2e',
+    ],
+    additionalProperties: false,
+    description:
+      'One flaring or venting entry of the monthly log (NUPRC Regulations 2023, reg. 20(4)).',
+  },
+  NuprcMonthlySourceTotalDto: {
+    type: 'object',
+    properties: {
+      flareSourceId: {
+        type: 'string',
+      },
+      flareSourceName: {
+        type: 'string',
+      },
+      flareSourceCode: {
+        type: 'string',
+      },
+      facilityName: {
+        type: 'string',
+      },
+      flaredMmscf: {
+        type: 'string',
+      },
+      ventedMmscf: {
+        type: 'string',
+      },
+    },
+    required: [
+      'flareSourceId',
+      'flareSourceName',
+      'flareSourceCode',
+      'facilityName',
+      'flaredMmscf',
+      'ventedMmscf',
+    ],
+    additionalProperties: false,
+  },
+  NuprcQuarterlyReportDto: {
+    type: 'object',
+    properties: {
+      kind: {
+        type: 'string',
+        enum: ['QUARTERLY_GHG_INVENTORY'],
+      },
+      source: {
+        $ref: '#/components/schemas/NuprcSourceDto',
+      },
+      organisation: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+          },
+          name: {
+            type: 'string',
+          },
+          abbreviation: {
+            anyOf: [
+              {
+                type: 'string',
+              },
+              {
+                type: 'null',
+              },
+            ],
+          },
+        },
+        required: ['id', 'name', 'abbreviation'],
+        additionalProperties: false,
+      },
+      period: {
+        $ref: '#/components/schemas/ReportPeriodDto',
+      },
+      generatedAt: {
+        type: 'string',
+      },
+      appendixC: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcAppendixCRowDto',
+        },
+      },
+      appendixA: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcAppendixARowDto',
+        },
+      },
+      gasTotals: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcGasTotalsDto',
+        },
+      },
+      activityTotals: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/NuprcActivityTotalsDto',
+        },
+      },
+      editions: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/ReportEditionDto',
+        },
+      },
+      gwpConsistent: {
+        type: 'boolean',
+        description: 'False when the editions used have different GWP values.',
+      },
+      coverage: {
+        $ref: '#/components/schemas/NuprcCoverageDto',
+      },
+      unplaced: {
+        type: 'array',
+        items: {
+          $ref: '#/components/schemas/UnplacedRecordDto',
+        },
+        description: 'Records overlapping the quarter but not wholly inside it: not counted.',
+      },
+      notRecorded: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+        description:
+          'Template items Flame does not record (e.g. combustion, fugitives, intensity).',
+      },
+      notes: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+    },
+    required: [
+      'kind',
+      'source',
+      'organisation',
+      'period',
+      'generatedAt',
+      'appendixC',
+      'appendixA',
+      'gasTotals',
+      'activityTotals',
+      'editions',
+      'gwpConsistent',
+      'coverage',
+      'unplaced',
+      'notRecorded',
+      'notes',
+    ],
+    additionalProperties: false,
+  },
+  NuprcReportDto: {
+    anyOf: [
+      {
+        $ref: '#/components/schemas/NuprcQuarterlyReportDto',
+      },
+      {
+        $ref: '#/components/schemas/NuprcMonthlyLogDto',
+      },
+    ],
+  },
+  NuprcReportKind: {
+    type: 'string',
+    enum: ['MONTHLY_FLARE_VENT_LOG', 'QUARTERLY_GHG_INVENTORY'],
+  },
+  NuprcSourceDto: {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string',
+      },
+      issuer: {
+        type: 'string',
+      },
+      url: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
+      note: {
+        type: 'string',
+        description: 'What Flame follows from it, and what it does not claim.',
+      },
+    },
+    required: ['title', 'issuer', 'url', 'note'],
+    additionalProperties: false,
+    description: 'Where the layout comes from, shown on every NUPRC report.',
+  },
   OrganisationDto: {
     type: 'object',
     properties: {
@@ -3587,6 +4846,17 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
   OrganisationSettingsDto: {
     type: 'object',
     properties: {
+      abbreviation: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'Short company name for NUPRC reports ("COMPANY ABR"), e.g. "XNEPL".',
+      },
       defaultReferenceTemperature: {
         type: 'object',
         properties: {
@@ -3626,12 +4896,28 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
           'Compressibility factors for records at the default condition, with their source. Only when the default differs from the canonical condition; they prefill records.',
       },
     },
-    required: ['defaultReferenceTemperature', 'defaultReferencePressure', 'defaultCompressibility'],
+    required: [
+      'abbreviation',
+      'defaultReferenceTemperature',
+      'defaultReferencePressure',
+      'defaultCompressibility',
+    ],
     additionalProperties: false,
   },
   OrganisationSettingsUpdate: {
     type: 'object',
     properties: {
+      abbreviation: {
+        anyOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'null',
+          },
+        ],
+        description: 'A null abbreviation removes it.',
+      },
       defaultReferenceTemperature: {
         type: 'object',
         properties: {
@@ -3788,6 +5074,7 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
       'members:read',
       'organisation:read',
       'organisation:settings',
+      'report:issue',
       'report:read',
     ],
   },
@@ -3955,6 +5242,30 @@ export const sharedSchemas: Record<string, Record<string, unknown>> = {
   RecordStatus: {
     type: 'string',
     enum: ['ACTIVE', 'ARCHIVED'],
+  },
+  RecordSubmissionRequest: {
+    type: 'object',
+    properties: {
+      submittedOn: {
+        type: 'string',
+        description: 'YYYY-MM-DD, not in the future.',
+      },
+      reference: {
+        type: 'string',
+      },
+    },
+    required: ['submittedOn'],
+    additionalProperties: false,
+  },
+  RejectIssuedReportRequest: {
+    type: 'object',
+    properties: {
+      comment: {
+        type: 'string',
+      },
+    },
+    required: ['comment'],
+    additionalProperties: false,
   },
   ReportCalculationDto: {
     type: 'object',

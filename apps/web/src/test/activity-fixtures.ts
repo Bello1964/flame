@@ -36,6 +36,8 @@ export function record(overrides: Partial<ActivityRecordDto> = {}): ActivityReco
     averageRate: { value: '0.25', unit: 'MMSCF_PER_DAY', entered: '0.250' },
     totalVolume: null,
     operatingHours: { value: '12', entered: '12' },
+    startTime: null,
+    gasSource: null,
     referenceTemperature: { value: '15', unit: 'CELSIUS', entered: '15' },
     referencePressure: { value: '101.325', unit: 'KPA_ABS', entered: '101.325' },
     zSource: null,

@@ -58,3 +58,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   DATA_ENTRY_OFFICER: 'Data entry officer',
   VIEWER: 'Viewer',
 };
+
+/** Issue a NUPRC report, approve or reject someone else's, and record its submission. */
+export function canIssueReports(roles: readonly Role[]): boolean {
+  return hasPermission(roles, 'report:issue');
+}

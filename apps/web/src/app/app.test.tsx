@@ -269,6 +269,11 @@ describe('facilities', () => {
       latitude: '5.704321',
       longitude: null,
       timeZone: 'Africa/Lagos',
+      terrain: null,
+      concession: null,
+      fieldName: null,
+      facilityType: null,
+      segment: null,
     });
   });
 

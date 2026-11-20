@@ -9,7 +9,7 @@ import { formatDateTime } from '@/lib/format';
 import { useCurrentSession } from '@/features/auth/require-auth';
 import { EditionStatusBadge } from '@/features/calculations/badges';
 import { EditionView } from '@/features/methodology/edition-view';
-import { DecisionDialog, ParameterDialog } from '@/features/methodology/admin-dialogs';
+import { DecisionDialog, ParameterDialog, TierDialog } from '@/features/methodology/admin-dialogs';
 import {
   useAdminEdition,
   useAdminEditions,
@@ -151,6 +151,7 @@ function AdminEdition({ id }: { id: string }) {
   const [dialog, setDialog] = useState<'approve' | 'withdraw' | null>(null);
   const [editingParam, setEditingParam] = useState<MethodologyParameterDto | null>(null);
   const [editingDecision, setEditingDecision] = useState<number | null>(null);
+  const [editingTier, setEditingTier] = useState<number | null>(null);
 
   if (edition.isPending) {
     return (
@@ -236,6 +237,10 @@ function AdminEdition({ id }: { id: string }) {
                 editButton('Edit this decision', () => {
                   setEditingDecision(i);
                 }),
+              routeAction: (i: number) =>
+                editButton('Edit this route’s reporting tier', () => {
+                  setEditingTier(i);
+                }),
             }
           : {})}
       />
@@ -281,6 +286,15 @@ function AdminEdition({ id }: { id: string }) {
           parameter={editingParam}
           onClose={() => {
             setEditingParam(null);
+          }}
+        />
+      )}
+      {editingTier !== null && (
+        <TierDialog
+          edition={e}
+          index={editingTier}
+          onClose={() => {
+            setEditingTier(null);
           }}
         />
       )}

@@ -191,6 +191,8 @@ const EXPECTED_APP_PRIVILEGES: Record<string, string[]> = {
   gas_compositions: ['INSERT', 'SELECT', 'UPDATE'],
   // Milestone 6: invitations only change state; removed memberships are kept (REMOVED).
   invitations: ['INSERT', 'SELECT', 'UPDATE'],
+  // NUPRC reports: issued snapshots only change state; never deleted.
+  issued_reports: ['INSERT', 'SELECT', 'UPDATE'],
   memberships: ['INSERT', 'SELECT', 'UPDATE'],
   methodology_editions: ['INSERT', 'SELECT', 'UPDATE'],
   methodology_parameters: ['INSERT', 'SELECT', 'UPDATE'],

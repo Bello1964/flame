@@ -308,6 +308,101 @@ function SettingsForm({
   );
 }
 
+const abbreviationSchema = z.object({
+  abbreviation: z.string().trim().max(20, 'Use at most 20 characters'),
+});
+type AbbreviationValues = z.infer<typeof abbreviationSchema>;
+
+/** The short company name NUPRC's GHG inventory asks for ("COMPANY ABR"). */
+function AbbreviationForm({
+  settings,
+  canEdit,
+}: {
+  settings: OrganisationSettingsDto;
+  canEdit: boolean;
+}) {
+  const { organisationId } = useOrganisation();
+  const update = useUpdateSettings(organisationId);
+  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    setError,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<AbbreviationValues>({
+    resolver: zodResolver(abbreviationSchema),
+    defaultValues: { abbreviation: settings.abbreviation ?? '' },
+  });
+
+  const onSubmit = handleSubmit((values) => {
+    setFormError(null);
+    const abbreviation = values.abbreviation.trim();
+    update.mutate(
+      { abbreviation: abbreviation === '' ? null : abbreviation },
+      {
+        onSuccess: (next) => {
+          toast.success('Abbreviation saved.');
+          reset({ abbreviation: next.abbreviation ?? '' });
+        },
+        onError: (error) => {
+          const message = fieldErrorsOf(error)['abbreviation']?.[0];
+          if (message) setError('abbreviation', { type: 'server', message });
+          else setFormError(errorMessage(error));
+        },
+      },
+    );
+  });
+
+  return (
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      noValidate
+      aria-labelledby="abbreviation-heading"
+      className="grid max-w-2xl gap-4 rounded-md border bg-card p-4"
+    >
+      <div>
+        <h2 id="abbreviation-heading" className="text-base font-semibold">
+          NUPRC reports
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          The short company name shown as COMPANY ABR in the NUPRC GHG inventory. If it is empty,
+          the report flags it as not recorded.
+        </p>
+      </div>
+      {formError && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {formError}
+        </p>
+      )}
+      <fieldset disabled={!canEdit} className="grid gap-4">
+        <FormField label="Company abbreviation" error={errors.abbreviation?.message}>
+          {(c) => (
+            <Input
+              autoComplete="off"
+              className="sm:max-w-48"
+              {...c}
+              {...register('abbreviation')}
+            />
+          )}
+        </FormField>
+      </fieldset>
+      {canEdit && (
+        <div>
+          <Button type="submit" disabled={update.isPending || !isDirty}>
+            {update.isPending && <Loader2 className="animate-spin" aria-hidden />}
+            {update.isPending ? 'Saving…' : 'Save abbreviation'}
+          </Button>
+        </div>
+      )}
+    </form>
+  );
+}
+
 export function SettingsPage() {
   const organisation = useOrganisation();
   const settings = useSettings(organisation.organisationId);
@@ -321,7 +416,10 @@ export function SettingsPage() {
         </p>
       </header>
       {settings.data ? (
-        <SettingsForm settings={settings.data} canEdit={organisation.canManageSettings} />
+        <>
+          <SettingsForm settings={settings.data} canEdit={organisation.canManageSettings} />
+          <AbbreviationForm settings={settings.data} canEdit={organisation.canManageSettings} />
+        </>
       ) : settings.isError ? (
         <ErrorState
           title="Could not load settings"

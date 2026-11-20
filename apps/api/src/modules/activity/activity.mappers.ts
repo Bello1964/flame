@@ -43,6 +43,8 @@ export function toActivityDto(r: RecordWithRelations, extras: DtoExtras): Activi
     averageRate: quantity(r.averageRate, r.rateUnit, r.averageRateInput),
     totalVolume: quantity(r.totalVolume, r.volumeUnit, r.totalVolumeInput),
     operatingHours: plain(r.operatingHours, r.operatingHoursInput),
+    startTime: r.startTime,
+    gasSource: r.gasSource,
     referenceTemperature: {
       value: exact(r.referenceTemperature),
       unit: r.referenceTemperatureUnit,

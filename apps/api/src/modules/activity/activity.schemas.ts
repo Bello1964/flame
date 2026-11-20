@@ -93,6 +93,15 @@ const fields = {
   measurementMethod: z.enum(MEASUREMENT_METHODS),
   methodDescription: text(500).nullable().optional(),
   notes: text(2000).nullable().optional(),
+  /** Local start time of the flaring or venting (NUPRC Reg. 20(4)). */
+  startTime: z
+    .string()
+    .trim()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time such as 06:30')
+    .nullable()
+    .optional(),
+  /** Gas source or type, e.g. "sour inlet gas" (NUPRC Reg. 20(4)). */
+  gasSource: text(200).nullable().optional(),
 };
 
 const kind = z.enum(ACTIVITY_RECORD_KINDS);
@@ -194,6 +203,8 @@ export const activityUpdateSchema = z
     measurementMethod: fields.measurementMethod.optional(),
     methodDescription: fields.methodDescription,
     notes: fields.notes,
+    startTime: fields.startTime,
+    gasSource: fields.gasSource,
     acknowledgeOverlap: z.boolean().optional(),
   })
   .refine(
@@ -224,6 +235,8 @@ export const activityListQuerySchema = z.object({
 
 export const settingsUpdateSchema = z
   .strictObject({
+    /** Short company name for NUPRC reports; null removes it. */
+    abbreviation: z.string().trim().min(1).max(20).nullable().optional(),
     defaultReferenceTemperature: fields.referenceTemperature.optional(),
     defaultReferencePressure: fields.referencePressure.optional(),
     // Z at the default condition and at the canonical one, with their source; null removes.

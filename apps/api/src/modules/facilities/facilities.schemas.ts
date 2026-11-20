@@ -1,3 +1,4 @@
+import { FACILITY_SEGMENTS, FACILITY_TERRAINS, NUPRC_FACILITY_TYPES } from '@flame/shared';
 import { z } from 'zod';
 import { FLARE_SERVICES, FLARE_TYPES } from '@flame/shared';
 
@@ -61,9 +62,19 @@ export const listQuerySchema = z.object({
   q: z.string().trim().min(1).max(100).optional(),
 });
 
+/** NUPRC report fields: optional, and null clears them. */
+const nuprcFacilityFields = {
+  terrain: z.enum(FACILITY_TERRAINS).nullable().optional(),
+  concession: z.string().trim().min(1).max(100).nullable().optional(),
+  fieldName: z.string().trim().min(1).max(200).nullable().optional(),
+  facilityType: z.enum(NUPRC_FACILITY_TYPES).nullable().optional(),
+  segment: z.enum(FACILITY_SEGMENTS).nullable().optional(),
+};
+
 export const facilityCreateSchema = z.strictObject({
   name,
   code,
+  ...nuprcFacilityFields,
   description: description.optional(),
   region: shortText.optional(),
   country: country.optional(),

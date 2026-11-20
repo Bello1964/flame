@@ -266,3 +266,121 @@ export function DecisionDialog({
     </RecordFormDialog>
   );
 }
+
+const tierSchema = z
+  .object({
+    label: z.string().trim().max(100, 'Use at most 100 characters'),
+    sourceLabel: z.string().trim().max(300, 'Use at most 300 characters'),
+    location: z.string().trim().max(300, 'Use at most 300 characters'),
+    url: z.string().trim().max(1000, 'Use at most 1000 characters'),
+  })
+  .superRefine((v, ctx) => {
+    if (v.label === '') return;
+    if (v.sourceLabel === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['sourceLabel'],
+        message: 'Name the source of this classification',
+      });
+    }
+    if (v.location === '') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['location'],
+        message: 'Give the page, table or section',
+      });
+    }
+  });
+type TierValues = z.infer<typeof tierSchema>;
+
+/**
+ * Sets (or clears) a route's regulatory reporting tier in a draft edition, e.g. "IPCC
+ * Tier 2", with its source. NUPRC reports show it as FRAMEWORK ADOPTED once approved.
+ */
+export function TierDialog({
+  edition,
+  index,
+  onClose,
+}: {
+  edition: MethodologyEditionDto;
+  index: number;
+  onClose: () => void;
+}) {
+  const update = useUpdateEdition(edition.id);
+  const route = edition.content.routes[index];
+  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isDirty },
+  } = useForm<TierValues>({
+    resolver: zodResolver(tierSchema),
+    defaultValues: {
+      label: route?.reportingTier?.label ?? '',
+      sourceLabel: route?.reportingTier?.reference.label ?? '',
+      location: route?.reportingTier?.reference.location ?? '',
+      url: route?.reportingTier?.reference.url ?? '',
+    },
+  });
+  if (!route) return null;
+
+  const submit = handleSubmit((v) => {
+    setFormError(null);
+    const routes = edition.content.routes.map((r, i) => {
+      if (i !== index) return r;
+      const rest = { ...r };
+      delete rest.reportingTier;
+      if (v.label === '') return rest;
+      const reference = v.url
+        ? { label: v.sourceLabel, location: v.location, url: v.url }
+        : { label: v.sourceLabel, location: v.location };
+      return { ...rest, reportingTier: { label: v.label, reference } };
+    });
+    update.mutate(
+      { content: { ...edition.content, routes } },
+      {
+        onSuccess: () => {
+          toast.success('Reporting tier updated in the draft.');
+          onClose();
+        },
+        onError: (err) => {
+          setFormError(errorMessage(err));
+        },
+      },
+    );
+  });
+
+  return (
+    <RecordFormDialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+      title="Regulatory reporting tier"
+      description={`${route.title}, draft edition ${String(edition.edition)}. Shown as FRAMEWORK ADOPTED in NUPRC reports once this edition is approved. Leave the tier empty to remove it.`}
+      submitLabel="Save to draft"
+      submitting={update.isPending}
+      isDirty={isDirty}
+      requireChanges
+      formError={formError}
+      onSubmit={(e) => void submit(e)}
+    >
+      <FormField
+        label="Tier"
+        description="e.g. IPCC Tier 2. Only from a documented classification."
+        error={errors.label?.message}
+      >
+        {(c) => <Input {...c} {...register('label')} />}
+      </FormField>
+      <FormField label="Source" error={errors.sourceLabel?.message}>
+        {(c) => <Input {...c} {...register('sourceLabel')} />}
+      </FormField>
+      <FormField label="Page, table or section" error={errors.location?.message}>
+        {(c) => <Input {...c} {...register('location')} />}
+      </FormField>
+      <FormField label="Link" error={errors.url?.message}>
+        {(c) => <Input type="url" {...c} {...register('url')} />}
+      </FormField>
+    </RecordFormDialog>
+  );
+}

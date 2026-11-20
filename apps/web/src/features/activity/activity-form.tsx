@@ -543,6 +543,31 @@ export function ActivityFormDialog(props: Props) {
             </FormField>
           )}
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Start time"
+            description="Local time the flaring or venting started (24-hour, e.g. 06:30). For the NUPRC monthly log."
+            error={errors.startTime?.message}
+          >
+            {(c) => (
+              <Input
+                inputMode="numeric"
+                placeholder="HH:MM"
+                autoComplete="off"
+                className="sm:max-w-32"
+                {...c}
+                {...register('startTime')}
+              />
+            )}
+          </FormField>
+          <FormField
+            label="Gas source or type"
+            description="e.g. sour inlet gas, acid gas. For the NUPRC monthly log."
+            error={errors.gasSource?.message}
+          >
+            {(c) => <Input autoComplete="off" {...c} {...register('gasSource')} />}
+          </FormField>
+        </div>
         <FormField label="Notes" error={errors.notes?.message}>
           {(c) => <Textarea rows={2} {...c} {...register('notes')} />}
         </FormField>

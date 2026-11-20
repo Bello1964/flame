@@ -331,6 +331,43 @@ Decisions confirmed with the product owner on 2026-11-16. Module `apps/api/src/m
 - **Known limits.** The facility filter lists up to 100 facilities. Reports aggregate in the API process; very large organisations may later need database-side aggregation or issued snapshots.
 - **Out of scope.** NUPRC templates, issued/frozen reports, evidence uploads, other gas releases (not calculated, so they show volumes and coverage only).
 
+### 8.3 NUPRC reports (Milestone 9)
+
+Decisions confirmed with the product owner on 2026-11-17 and 2026-11-20. Code: `apps/api/src/modules/reporting` (`nuprc.service.ts`, `issued-reports.service.ts`, `nuprc.routes.ts`, `nuprc-csv.ts`); web `/o/:organisationId/reports/nuprc` and `/reports/issued/:id`.
+
+- **Sources.**
+  - The quarterly inventory follows NUPRC's _Guidance Template for GHG Emissions Inventory Reporting in Upstream Oil and Gas Operations_ (2026), which the product owner confirmed. Appendix C uses its 20 column headings in order.
+  - The monthly log follows regulation 20 of the _Gas Flaring, Venting and Methane Emissions (Prevention of Waste and Pollution) Regulations, 2023_. Its exact layout belongs to NUPRC's _Metering and Data Collection Standards_, which are not published, so the log carries the items regulation 20(4) names and says so.
+  - Flame produces the data parts only. Reports never claim regulatory compliance or verification.
+- **Data.**
+  - Only approved activity records wholly inside the period (§8.2 placement), with their approved calculations, are counted.
+  - Records still in review, approved records without an approved calculation, and records crossing the period boundary appear as coverage, never in the figures.
+  - CO2, CH4 and N2O are each calculation's gas tonnes × its edition's GWP. TOTAL is the approved calculations' tCO2e, so they can differ in the last decimal place.
+  - Flaring covers routine, non-routine and emergency flaring; Venting covers venting. Other releases, combustion, fugitives, production-based intensity and uncertainty are listed as not recorded.
+- **Quarterly inventory.**
+  - Appendix C has one row per month, facility, emission source and equipment type ("Flare Point (<flare type>)" or "Vent").
+  - A record that crosses a month boundary inside the quarter gets its own row, whose MONTH names the span (e.g. "July–August"), with a comment. It is never split between months (decision 2026-11-20), so Appendix C adds up to the quarter totals.
+  - Appendix A covers flaring and venting sources, with Uncertainty "Not quantified in Flame".
+  - The report also has emissions by gas per facility and source, activity totals in MMscf, and the editions used with their GWPs.
+  - Missing optional fields (organisation abbreviation; facility terrain, concession, field name, facility type, segment, coordinates) are left blank and named in COMMENTS, never guessed.
+  - FRAMEWORK ADOPTED is the route's `reportingTier`, set by Platform Administrators in a methodology edition with its source. When an edition has none, the column stays blank with a note. Flame never assigns a tier.
+- **Monthly log.**
+  - Each approved flaring or venting record in the month becomes an entry: dates, start time, duration, standardised rate and volume, the volume as entered, gas source or type, and measured or estimated.
+  - Venting entries also carry CH4 tCO2e from their approved calculation.
+  - Totals are kept per flare source. Start time and gas source are optional fields on activity records.
+  - An approved event that crosses a month boundary is listed in every month it touches, flagged "spans months", and left out of those months' totals. Volumes are never split (decision 2026-11-20).
+- **CSV.**
+  - Quarterly parts: `appendix-c` (NUPRC's exact header, to paste into NUPRC's Excel template), `appendix-a` and `gas-totals`.
+  - Monthly parts: `entries` and `totals`.
+  - Files are UTF-8 with a BOM, formula-safe, and every download is audited (`report.exported`). There is no Excel output for now (decision 2026-11-20).
+- **Issued reports** (`issued_reports`).
+  - With `report:issue` (Owner, Approver), a report for a period that has ended (by the Nigerian calendar date, Africa/Lagos) can be issued as a frozen snapshot of the full report. Its status is `AWAITING_APPROVAL`.
+  - A different Owner or Approver approves it or rejects it with a comment. Separation of duties is enforced in the service and by a CHECK constraint.
+  - A correction is a new version with a reason. When approved, it supersedes the previous approved version. At most one version per period awaits approval, and one is approved (partial unique indexes).
+  - The submission to NUPRC is recorded once, with its date and NUPRC's reference, if any. There are no deadline reminders.
+  - A trigger keeps what was issued unchanged and statuses moving forward only. Issued reports are never deleted, and RLS applies.
+  - CSVs of an issued report come from its snapshot. Unless the version is approved, its file name carries its status (e.g. `-v1-REJECTED-`), and the page warns that it must not be submitted. Audited: `report.issued`, `report.approved`, `report.rejected`, `report.submission_recorded`.
+
 ## 9. Audit logging
 
 **Implemented.** Append-only `AuditLog` table. It is protected in two layers: the API connects as a restricted role with only INSERT and SELECT on it, and triggers reject row UPDATE, DELETE and TRUNCATE even for the schema owner (who alone could disable them). Each entry records actor, organisation, action, entity type and id, timestamp, and change summary. Covers creation, submission, review, corrections, approval, rejection, factor changes, calculations and permission changes, and membership, invitation and platform-administration changes (§7.2).

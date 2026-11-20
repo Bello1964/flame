@@ -69,6 +69,11 @@ model User {
 
   passwordResets PasswordReset[]
 
+  issuedReports          IssuedReport[] @relation("IssuedReportIssuedBy")
+  approvedIssuedReports  IssuedReport[] @relation("IssuedReportApprovedBy")
+  rejectedIssuedReports  IssuedReport[] @relation("IssuedReportRejectedBy")
+  submittedIssuedReports IssuedReport[] @relation("IssuedReportSubmissionBy")
+
   @@map("users")
 }
 
@@ -135,6 +140,8 @@ model Organisation {
   /// ISO 3166-1 alpha-2.
   country                         String             @default("NG") @db.Char(2)
   status                          OrganisationStatus @default(ACTIVE)
+  /// Short company name for NUPRC reports ("COMPANY ABR"). Optional.
+  abbreviation                    String?            @db.VarChar(20)
   /// Default source reference condition that prefills new activity records. Initially
   /// ISO 13443 (15 °C, 101.325 kPa absolute). See ARCHITECTURAL_WORKFLOW.md §4.1.
   defaultReferenceTemperature     Decimal            @default(15) @db.Decimal(30, 10)
@@ -151,6 +158,7 @@ model Organisation {
 
   memberships          Membership[]
   facilities           Facility[]
+  issuedReports        IssuedReport[]
   assets               Asset[]
   flareSources         FlareSource[]
   activityRecords      ActivityRecord[]
@@ -329,25 +337,52 @@ enum RecordStatus {
   ARCHIVED
 }
 
+enum FacilityTerrain {
+  ONSHORE
+  OFFSHORE
+}
+
+/// Facility types listed in NUPRC's GHG inventory template.
+enum NuprcFacilityType {
+  CPF
+  FLOWSTATION
+  WELLPAD
+  PLATFORM
+  FSO
+  FPSO
+}
+
+enum FacilitySegment {
+  OIL
+  GAS
+  OIL_AND_GAS
+}
+
 model Facility {
-  id             String       @id @default(uuid(7)) @db.Uuid
-  organisationId String       @db.Uuid
-  name           String       @db.VarChar(200)
+  id             String             @id @default(uuid(7)) @db.Uuid
+  organisationId String             @db.Uuid
+  name           String             @db.VarChar(200)
   /// Organisation-defined reference code, unique within the organisation.
-  code           String       @db.VarChar(50)
-  description    String?      @db.VarChar(2000)
+  code           String             @db.VarChar(50)
+  /// NUPRC report fields (optional; reports flag them when missing).
+  terrain        FacilityTerrain?
+  concession     String?            @db.VarChar(100)
+  fieldName      String?            @db.VarChar(200)
+  facilityType   NuprcFacilityType?
+  segment        FacilitySegment?
+  description    String?            @db.VarChar(2000)
   /// Nigerian state or equivalent first-level region.
-  region         String?      @db.VarChar(100)
-  country        String       @default("NG") @db.Char(2)
-  latitude       Decimal?     @db.Decimal(9, 6)
-  longitude      Decimal?     @db.Decimal(9, 6)
+  region         String?            @db.VarChar(100)
+  country        String             @default("NG") @db.Char(2)
+  latitude       Decimal?           @db.Decimal(9, 6)
+  longitude      Decimal?           @db.Decimal(9, 6)
   /// IANA time zone that defines activity days and periods at this facility.
-  timeZone       String       @default("Africa/Lagos") @db.VarChar(64)
-  status         RecordStatus @default(ACTIVE)
-  archivedAt     DateTime?    @db.Timestamptz(3)
-  createdById    String       @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+  timeZone       String             @default("Africa/Lagos") @db.VarChar(64)
+  status         RecordStatus       @default(ACTIVE)
+  archivedAt     DateTime?          @db.Timestamptz(3)
+  createdById    String             @db.Uuid
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   createdBy    User         @relation("FacilityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -519,6 +554,10 @@ model ActivityRecord {
   volumeUnit          VolumeUnit?
   operatingHours      Decimal?    @db.Decimal(30, 10)
   operatingHoursInput String?     @db.VarChar(40)
+  /// Local start time "HH:MM" in timeZone, when known (NUPRC Reg. 20(4)).
+  startTime           String?     @db.VarChar(5)
+  /// Gas source or type, e.g. "sour inlet gas" (NUPRC Reg. 20(4)).
+  gasSource           String?     @db.VarChar(200)
 
   // Source reference condition (absolute) and compressibility factors.
   referenceTemperature      Decimal         @db.Decimal(30, 10)
@@ -966,4 +1005,58 @@ model CalculationEvent {
 
   @@index([organisationId, calculationId, createdAt])
   @@map("calculation_events")
+}
+
+// ─── Issued NUPRC reports (ARCHITECTURAL_WORKFLOW.md §8.3) ────────────────────
+
+enum NuprcReportKind {
+  QUARTERLY_GHG_INVENTORY
+  MONTHLY_FLARE_VENT_LOG
+}
+
+enum IssuedReportStatus {
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+/// A NUPRC report issued as a frozen snapshot. The snapshot never changes (trigger); a
+/// correction is a new version of the same kind and period that supersedes the approved one.
+model IssuedReport {
+  id                     String             @id @default(uuid(7)) @db.Uuid
+  organisationId         String             @db.Uuid
+  kind                   NuprcReportKind
+  /// "2026-Q3" or "2026-07".
+  periodKey              String             @db.VarChar(10)
+  version                Int
+  status                 IssuedReportStatus @default(AWAITING_APPROVAL)
+  /// The full report as issued (figures, editions, GWPs, coverage, rows).
+  snapshot               Json
+  /// Why a new version was issued; required from version 2.
+  reason                 String?            @db.VarChar(2000)
+  issuedById             String             @db.Uuid
+  issuedAt               DateTime           @default(now()) @db.Timestamptz(3)
+  approvedById           String?            @db.Uuid
+  approvedAt             DateTime?          @db.Timestamptz(3)
+  rejectedById           String?            @db.Uuid
+  rejectedAt             DateTime?          @db.Timestamptz(3)
+  rejectionComment       String?            @db.VarChar(2000)
+  supersededAt           DateTime?          @db.Timestamptz(3)
+  /// Date the approved report was submitted to NUPRC, and NUPRC's reference if any.
+  submittedOn            DateTime?          @db.Date
+  submissionReference    String?            @db.VarChar(200)
+  submissionRecordedById String?            @db.Uuid
+  submissionRecordedAt   DateTime?          @db.Timestamptz(3)
+  updatedAt              DateTime           @updatedAt @db.Timestamptz(3)
+
+  organisation         Organisation @relation(fields: [organisationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  issuedBy             User         @relation("IssuedReportIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvedBy           User?        @relation("IssuedReportApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  rejectedBy           User?        @relation("IssuedReportRejectedBy", fields: [rejectedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  submissionRecordedBy User?        @relation("IssuedReportSubmissionBy", fields: [submissionRecordedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organisationId, kind, periodKey, version])
+  @@index([organisationId, kind, periodKey])
+  @@map("issued_reports")
 }

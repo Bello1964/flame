@@ -154,11 +154,14 @@ export function EditionView({
   edition,
   parameterAction,
   decisionAction,
+  routeAction,
   notice,
 }: {
   edition: MethodologyEditionDto;
   parameterAction?: (p: MethodologyParameterDto) => ReactNode;
   decisionAction?: (d: MethodologyDecision, index: number) => ReactNode;
+  /** Rendered beside each route, e.g. an edit button for its reporting tier. */
+  routeAction?: (index: number) => ReactNode;
   notice?: ReactNode;
 }) {
   const c = edition.content;
@@ -223,10 +226,29 @@ export function EditionView({
 
       <Section id="routes" title="How each result is calculated">
         <div className="space-y-6">
-          {c.routes.map((route) => (
+          {c.routes.map((route, routeIndex) => (
             <article key={route.key} className="rounded-md border bg-card p-4 sm:p-5">
-              <h3 className="text-lg font-semibold">{route.title || ROUTE_LABELS[route.key]}</h3>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-lg font-semibold">{route.title || ROUTE_LABELS[route.key]}</h3>
+                {routeAction?.(routeIndex)}
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">Applies to: {route.appliesTo}</p>
+              <p className="mt-1 text-sm">
+                <span className="font-medium">Regulatory reporting tier: </span>
+                {route.reportingTier ? (
+                  <>
+                    {route.reportingTier.label}{' '}
+                    <span className="text-muted-foreground">
+                      ({route.reportingTier.reference.label},{' '}
+                      {route.reportingTier.reference.location})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">
+                    not set in this edition (NUPRC reports show it as not set)
+                  </span>
+                )}
+              </p>
               {route.requires.length > 0 && (
                 <div className="mt-3">
                   <p className="text-sm font-medium">Needs</p>

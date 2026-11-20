@@ -4,6 +4,7 @@ import {
   canApproveActivity,
   canApproveCalculation,
   canGrantOwner,
+  canIssueReports,
   canManageMembers,
   canManageSettings,
   canReadMembers,
@@ -32,6 +33,8 @@ export interface ActiveOrganisation extends MembershipSummary {
   /** Display hints only; the API enforces members:read and members:manage. */
   canReadMembers: boolean;
   canManageMembers: boolean;
+  /** Display hint only; the API enforces the permission. */
+  canIssueReports: boolean;
   /** Display hint only: only an Owner may grant the Owner role. */
   canGrantOwner: boolean;
 }
@@ -58,6 +61,7 @@ export function OrganisationProvider({
       canApproveCalculation: canApproveCalculation(membership.roles),
       canReadMembers: canReadMembers(membership.roles),
       canManageMembers: canManageMembers(membership.roles),
+      canIssueReports: canIssueReports(membership.roles),
       canGrantOwner: canGrantOwner(membership.roles),
     }),
     [membership],

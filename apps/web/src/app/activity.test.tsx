@@ -149,6 +149,8 @@ describe('recording activity', () => {
       measurementMethod: 'METERED',
       methodDescription: null,
       notes: null,
+      startTime: null,
+      gasSource: null,
     });
   });
 
@@ -457,6 +459,8 @@ describe('editing a record', () => {
       measurementMethod: 'METERED',
       methodDescription: null,
       notes: 'Meter checked',
+      startTime: null,
+      gasSource: null,
     });
     // Neither the flare source nor the kind can change on an edit.
     expect(body).not.toHaveProperty('flareSourceId');
