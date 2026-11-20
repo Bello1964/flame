@@ -31,7 +31,8 @@ import type { InputsService } from './inputs.service.js';
  * The coarse gate per action; the service decides per calculation (state, claim,
  * separation of duties). release-claim and reject are open to more than one permission.
  */
-const GATES: Record<CalculationAction, Permission> = {
+/** The permission each calculation workflow action needs (also read by the API docs). */
+export const CALCULATION_ACTION_GATES: Record<CalculationAction, Permission> = {
   submit: 'calculation:run',
   recall: 'calculation:run',
   discard: 'calculation:run',
@@ -143,7 +144,7 @@ export function calculationsRouter(
   for (const action of CALCULATION_ACTIONS) {
     router.post(
       `/calculations/:id/${action}`,
-      requirePermission(GATES[action]),
+      requirePermission(CALCULATION_ACTION_GATES[action]),
       async (req, res) => {
         const { id } = parse(idParamSchema, req.params);
         const comment = CALCULATION_COMMENT_REQUIRED.includes(action)

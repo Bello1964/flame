@@ -20,6 +20,7 @@ export const pages = {
   forgotPassword: () => import('@/pages/forgot-password-page'),
   resetPassword: () => import('@/pages/reset-password-page'),
   account: () => import('@/pages/account-page'),
+  apiDocs: () => import('@/pages/api-docs-page'),
   settings: () => import('@/pages/settings-page'),
   reports: () => import('@/pages/reports-page'),
   reportPrint: () => import('@/pages/report-print-page'),
