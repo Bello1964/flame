@@ -301,7 +301,7 @@ export function RecordList<R extends HierarchyResource>({
                         onTouchStart={() => {
                           prefetch(row.id);
                         }}
-                        className="block truncate font-medium text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                        className="block truncate row-link"
                       >
                         {row.name}
                       </Link>

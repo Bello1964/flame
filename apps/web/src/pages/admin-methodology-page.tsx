@@ -104,10 +104,7 @@ function AdminEditionList() {
             {editions.data.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <Link
-                    to={`/admin/methodology/${e.id}`}
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
+                  <Link to={`/admin/methodology/${e.id}`} className="row-link">
                     Edition {e.edition}: {e.title}
                   </Link>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

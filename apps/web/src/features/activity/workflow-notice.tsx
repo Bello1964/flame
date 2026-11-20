@@ -13,17 +13,18 @@ function Notice({
   children,
 }: {
   icon: ReactNode;
-  tone?: 'neutral' | 'attention' | 'done' | 'stopped';
+  tone?: 'neutral' | 'pending' | 'attention' | 'done' | 'stopped';
   children: ReactNode;
 }) {
   return (
     <div
       className={cn(
         'flex items-start gap-2 rounded-md border p-3 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0',
-        tone === 'neutral' && 'bg-muted/40',
-        tone === 'attention' && 'border-warning/50 bg-warning/10',
-        tone === 'done' && 'border-primary/30 bg-accent/60',
-        tone === 'stopped' && 'border-destructive/30 bg-destructive/5',
+        tone === 'neutral' && 'bg-card',
+        tone === 'pending' && 'border-pending/35 bg-pending/6 [&>svg]:text-pending',
+        tone === 'attention' && 'border-warning/45 bg-warning/8 [&>svg]:text-warning',
+        tone === 'done' && 'border-success/35 bg-success/6 [&>svg]:text-success',
+        tone === 'stopped' && 'border-destructive/30 bg-destructive/5 [&>svg]:text-destructive',
       )}
     >
       {icon}
@@ -74,7 +75,7 @@ export function WorkflowNotice({ record: r }: { record: ActivityRecordDto }) {
   switch (r.status) {
     case 'SUBMITTED':
       notices.push(
-        <Notice key="status" tone="attention" icon={<Info aria-hidden />}>
+        <Notice key="status" tone="pending" icon={<Info aria-hidden />}>
           <p>
             Waiting for a reviewer
             {r.submittedAt ? ` since ${formatDateTime(r.submittedAt)}` : ''}. Values are locked.
@@ -84,7 +85,7 @@ export function WorkflowNotice({ record: r }: { record: ActivityRecordDto }) {
       break;
     case 'UNDER_REVIEW':
       notices.push(
-        <Notice key="status" tone="attention" icon={<Info aria-hidden />}>
+        <Notice key="status" tone="pending" icon={<Info aria-hidden />}>
           <p>
             Being reviewed by {r.claim?.byName ?? 'a reviewer'}
             {r.claim ? ` since ${formatDateTime(r.claim.at)}` : ''}. Values are locked.
@@ -94,7 +95,7 @@ export function WorkflowNotice({ record: r }: { record: ActivityRecordDto }) {
       break;
     case 'AWAITING_APPROVAL':
       notices.push(
-        <Notice key="status" tone="attention" icon={<Info aria-hidden />}>
+        <Notice key="status" tone="pending" icon={<Info aria-hidden />}>
           <p>Reviewed and waiting for approval. Values are locked.</p>
         </Notice>,
       );

@@ -85,8 +85,13 @@ export const activityKeys = {
 
 const base = (orgId: string) => `/organisations/${encodeURIComponent(orgId)}`;
 
-export function useActivityList(orgId: string, params: ActivityListParams) {
+export function useActivityList(
+  orgId: string,
+  params: ActivityListParams,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
+    enabled: options.enabled ?? true,
     queryKey: activityKeys.list(orgId, params),
     queryFn: ({ signal }) =>
       apiGet<ListResponse<ActivityRecordDto>>(
@@ -101,9 +106,10 @@ export function useActivityList(orgId: string, params: ActivityListParams) {
         }),
         { signal },
       ),
-    // Keep rows while paging or filtering; never across flare sources.
+    // Keep rows while paging or filtering; never across organisations or flare sources.
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[4].flareSourceId === params.flareSourceId
+      previousQuery?.queryKey[1] === orgId &&
+      previousQuery.queryKey[4].flareSourceId === params.flareSourceId
         ? keepPreviousData(previous)
         : undefined,
   });

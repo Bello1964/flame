@@ -114,17 +114,24 @@ export function ApiDocsPage() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-        <Link to="/" className="inline-block" aria-label="Flame home">
-          <BrandLockup tone="light" />
+      <header className="flex flex-wrap items-center justify-between gap-3 bg-basalt px-4 py-3.5 sm:px-6">
+        <Link
+          to="/"
+          className="inline-block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-oxide-on-dark"
+          aria-label="Flame home"
+        >
+          <BrandLockup subtitle="API reference" />
         </Link>
         <nav aria-label="Documentation" className="flex gap-4 text-sm">
-          <Link to="/methodology" className="text-primary underline-offset-4 hover:underline">
+          <Link
+            to="/methodology"
+            className="rounded-sm text-muted-light underline-offset-4 outline-none hover:text-limestone hover:underline focus-visible:ring-2 focus-visible:ring-oxide-on-dark"
+          >
             Methodology
           </Link>
           <a
             href="/api/v1/openapi.json"
-            className="text-primary underline-offset-4 hover:underline"
+            className="rounded-sm text-muted-light underline-offset-4 outline-none hover:text-limestone hover:underline focus-visible:ring-2 focus-visible:ring-oxide-on-dark"
           >
             OpenAPI JSON
           </a>
@@ -144,7 +151,7 @@ export function ApiDocsPage() {
           />
         )}
         {/* Swagger UI renders its own light theme; keep it on a light surface. */}
-        <div ref={container} className="rounded-md bg-white text-black" />
+        <div ref={container} className="rounded-md border bg-white text-basalt" />
       </main>
     </div>
   );

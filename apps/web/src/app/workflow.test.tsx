@@ -260,7 +260,11 @@ describe('the review page', () => {
     expect(within(tabs).getByRole('tab', { name: /My reviews/ })).toBeInTheDocument();
     expect(within(tabs).queryByRole('tab', { name: /Awaiting approval/ })).not.toBeInTheDocument();
     expect(await screen.findByText('HP Flare Stack')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Review' })).toBeInTheDocument();
+    // The link's name carries the waiting count when there is one, counting only the
+    // queues this reviewer sees: never the approval queue.
+    expect(
+      screen.getByRole('link', { name: /^Review(, \d+ records? waiting for review)?$/ }),
+    ).toBeInTheDocument();
   });
 
   it('tells other roles the queues are not for them', async () => {
@@ -269,7 +273,7 @@ describe('the review page', () => {
     expect(
       await screen.findByText('Review queues are for reviewers and approvers'),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Review' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Review\b/ })).not.toBeInTheDocument();
   });
 
   it('starts reviews in bulk and reports records that could not be claimed', async () => {

@@ -74,7 +74,7 @@ export function ReportsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm">
+          <Button asChild size="sm" variant="patina">
             <Link to={`${orgPath}/reports/nuprc`}>NUPRC reports</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
@@ -122,7 +122,7 @@ export function ReportsPage() {
             <Button
               key={g}
               size="sm"
-              variant={g === granularity ? 'default' : 'ghost'}
+              variant={g === granularity ? 'selected' : 'ghost'}
               aria-pressed={g === granularity}
               onClick={() => {
                 update({ period: convertPeriod(params.period, g) });

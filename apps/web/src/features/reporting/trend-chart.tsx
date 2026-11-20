@@ -177,7 +177,7 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
                   x2={width - PAD.right}
                   y1={y(t)}
                   y2={y(t)}
-                  stroke="var(--border)"
+                  stroke="var(--chart-grid)"
                   strokeWidth={1}
                   strokeDasharray={t === 0 ? undefined : '2 3'}
                 />
@@ -186,16 +186,17 @@ export function TrendChart({ trend }: { trend: EmissionsTrendDto }) {
                   y={y(t)}
                   textAnchor="end"
                   dominantBaseline="middle"
-                  className="fill-muted-foreground text-[10px] tabular-nums"
+                  className="fill-muted-foreground font-mono text-[10px] tabular-nums"
                 >
                   {formatDecimal(String(t), 3)}
                 </text>
               </g>
             ))}
             <text
-              x={4}
-              y={PAD.top - 2}
-              className="fill-muted-foreground text-[10px]"
+              x={PAD.left - 6}
+              y={2}
+              textAnchor="end"
+              className="fill-muted-foreground font-mono text-[10px]"
               dominantBaseline="hanging"
             >
               tCO₂e

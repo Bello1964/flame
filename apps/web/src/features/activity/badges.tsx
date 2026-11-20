@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ActivityRecordStatus, ActivityType, ActivityWarning } from '@flame/shared';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ACTIVITY_TYPE_LABELS, STATUS_LABELS, isFlaring } from './labels';
 
@@ -29,40 +29,27 @@ export function ActivityTypeBadge({ type }: { type: ActivityType }) {
   );
 }
 
-const PENDING = 'border-warning/50 bg-warning/10 text-foreground';
-
 /**
- * Every status has its own label and icon, so it never depends on colour alone. Amber
- * marks records waiting on someone; only Approved uses the primary colour, so nothing
- * submitted can be mistaken for approved.
+ * Every status has its own label and icon, so it never depends on colour alone. Records
+ * waiting on someone are Pending; only Approved uses Success, so nothing submitted can be
+ * mistaken for approved. Brand accents (Oxide, Flare Amber) are never status colours.
  */
-const STATUS_STYLE: Record<
-  ActivityRecordStatus,
-  { icon: LucideIcon; variant: 'default' | 'outline' | 'muted'; className?: string }
-> = {
+const STATUS_STYLE: Record<ActivityRecordStatus, { icon: LucideIcon; variant: BadgeVariant }> = {
   DRAFT: { icon: FileText, variant: 'outline' },
-  SUBMITTED: { icon: Send, variant: 'outline', className: PENDING },
-  UNDER_REVIEW: { icon: Eye, variant: 'outline', className: PENDING },
-  AWAITING_APPROVAL: { icon: Hourglass, variant: 'outline', className: PENDING },
-  NEEDS_CORRECTION: {
-    icon: Undo2,
-    variant: 'outline',
-    className: 'border-warning bg-warning/20 text-foreground',
-  },
-  APPROVED: { icon: CheckCircle2, variant: 'default' },
-  REJECTED: {
-    icon: XCircle,
-    variant: 'outline',
-    className: 'border-destructive/40 text-destructive',
-  },
+  SUBMITTED: { icon: Send, variant: 'pending' },
+  UNDER_REVIEW: { icon: Eye, variant: 'pending' },
+  AWAITING_APPROVAL: { icon: Hourglass, variant: 'pending' },
+  NEEDS_CORRECTION: { icon: Undo2, variant: 'warning' },
+  APPROVED: { icon: CheckCircle2, variant: 'success' },
+  REJECTED: { icon: XCircle, variant: 'destructive' },
   SUPERSEDED: { icon: History, variant: 'muted' },
   WITHDRAWN: { icon: Ban, variant: 'muted' },
 };
 
 export function ActivityStatusBadge({ status }: { status: ActivityRecordStatus }) {
-  const { icon: Icon, variant, className } = STATUS_STYLE[status];
+  const { icon: Icon, variant } = STATUS_STYLE[status];
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant={variant}>
       <Icon aria-hidden />
       {STATUS_LABELS[status]}
     </Badge>
@@ -70,7 +57,7 @@ export function ActivityStatusBadge({ status }: { status: ActivityRecordStatus }
 }
 
 /**
- * Count of data-quality warnings, in amber. "No evidence" alone is shown quietly, since
+ * Count of data-quality warnings, in the warning colour with an icon. "No evidence" alone is shown quietly, since
  * every record carries it until evidence uploads exist.
  */
 export function WarningCount({ warnings }: { warnings: ActivityWarning[] }) {

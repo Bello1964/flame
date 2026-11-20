@@ -34,8 +34,10 @@ export function OrganisationLayout() {
     <OrganisationProvider membership={membership}>
       <AppLayout
         basePath={`/o/${membership.organisationId}`}
+        organisationId={membership.organisationId}
         isPlatformAdmin={user.isPlatformAdmin}
-        showReview={canReviewActivity(membership.roles) || canApproveActivity(membership.roles)}
+        canReview={canReviewActivity(membership.roles)}
+        canApprove={canApproveActivity(membership.roles)}
         showMembers={canReadMembers(membership.roles)}
         organisationSlot={<OrganisationSwitcher />}
         organisationCompactSlot={<OrganisationSwitcher compact />}

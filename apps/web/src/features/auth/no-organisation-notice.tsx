@@ -22,7 +22,7 @@ export function NoOrganisationNotice() {
       className="mb-6 flex flex-col gap-3 rounded-md border border-border bg-secondary/60 p-4 sm:flex-row sm:items-center sm:justify-between print:hidden"
     >
       <div className="flex items-start gap-3">
-        <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+        <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <div className="space-y-1">
           <p id="no-organisation-heading" className="text-sm font-medium">
             This account has no organisation access

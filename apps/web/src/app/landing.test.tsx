@@ -40,8 +40,9 @@ describe('the landing page', () => {
   it('labels the example panel as illustrative, not operational data', async () => {
     mockApi(signedOut);
     renderApp('/');
-    const panel = await screen.findByRole('figure');
-    // The visible badge and the screen-reader caption both say so.
+    // The hero reading, not the photograph further down (also a figure).
+    const panel = await screen.findByRole('figure', { name: /not operational data/i });
+    // Its visible caption says so.
     expect(within(panel).getAllByText(/illustrative example/i).length).toBeGreaterThan(0);
     expect(panel).toHaveAccessibleName(/not operational data/i);
   });
@@ -50,9 +51,11 @@ describe('the landing page', () => {
     mockApi(signedOut);
     renderApp('/');
     const workflow = await screen.findByRole('region', { name: /from flare source to reported/i });
-    expect(within(workflow).getAllByText('Available')).toHaveLength(3);
-    expect(within(workflow).getByText('Next')).toBeInTheDocument();
-    expect(within(workflow).getAllByText('Planned')).toHaveLength(2);
+    // Calculations, review and reporting are built; evidence and mitigation are not.
+    expect(within(workflow).getAllByText('Available')).toHaveLength(7);
+    expect(within(workflow).getAllByText('Not yet built')).toHaveLength(2);
+    expect(within(workflow).getByText('Supporting evidence')).toBeInTheDocument();
+    expect(within(workflow).getByText('Mitigation tracking')).toBeInTheDocument();
     // Integrity statements about credits are explicit.
     expect(
       screen.getByText(/calculating tco2e does not create or issue carbon credits/i),

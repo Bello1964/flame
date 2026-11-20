@@ -55,7 +55,7 @@ export function ForgotPasswordPage() {
     return (
       <PublicPageFrame>
         <section className="space-y-4">
-          <MailCheck className="size-8 text-primary" aria-hidden />
+          <MailCheck className="size-8 text-success" aria-hidden />
           <ResultHeading>Check your email</ResultHeading>
           <p className="text-sm text-muted-foreground">
             If <strong className="text-foreground">{sentTo}</strong> belongs to an account that can

@@ -76,7 +76,7 @@ function Tab({
       aria-controls={`calc-panel-${queue.id}`}
       onClick={onSelect}
       className={cn(
-        '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
         selected
           ? 'border-primary font-medium text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -158,7 +158,7 @@ function Panel({ queue }: { queue: Queue }) {
                     <TableCell>
                       <Link
                         to={`/o/${organisationId}/calculations/${c.id}`}
-                        className="font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline"
+                        className="row-link whitespace-nowrap"
                       >
                         {periodLabel({
                           kind: c.activity.kind,

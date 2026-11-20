@@ -36,7 +36,7 @@ export function OrganisationSwitcher({ compact = false }: { compact?: boolean })
     return (
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex size-9 items-center justify-center rounded-md outline-none hover:bg-white/10 focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+          className="flex size-9 items-center justify-center rounded-md outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary"
           aria-label={`Organisation: ${organisation.organisationName}${memberships.length > 1 ? '. Switch organisation' : ''}`}
           title={organisation.organisationName}
         >
@@ -84,7 +84,7 @@ export function OrganisationSwitcher({ compact = false }: { compact?: boolean })
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 transition-colors outline-none hover:bg-white/10 focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+        className="flex w-full items-center gap-2 rounded-sm border border-sidebar-border bg-deep px-2.5 py-2 transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary"
         aria-label={`Organisation: ${organisation.organisationName}. Switch organisation`}
       >
         <Building2 className="size-4 shrink-0 opacity-70" aria-hidden />

@@ -2,66 +2,150 @@
 @import 'tw-animate-css';
 
 /*
- * Brand palette (see .claude/skills/ui-design/SKILL.md). Components use the
- * semantic tokens below, never raw hex values.
+ * FLAME design system: "Precise Industrial Elegance" (.claude/skills/ui-design/SKILL.md).
+ *
+ * Three layers, defined only here:
+ *   1. Brand palette   Basalt, Limestone, Oxide, Patina, Flare Amber and their supports.
+ *   2. Semantic tokens what a colour is FOR (primary action, success, pending...).
+ *   3. Tailwind theme  exposes both as utilities (bg-primary, text-oxide, font-display...).
+ *
+ * Components use semantic tokens. Brand names are for brand surfaces (marketing site,
+ * logo, sidebar). Brand accents are never status colours, and Flare Amber is never a
+ * warning. Every text pairing below was measured for WCAG AA; where a raw brand hue
+ * fails on a surface, a lifted variant is defined beside it (e.g. --oxide-on-dark).
  */
 :root {
-  --brand-forest: #0f2a1d;
-  --brand-moss: #375534;
-  --brand-sage: #6b9071;
-  --brand-light-sage: #aec3b0;
-  --brand-mint: #e3eed4;
-  --brand-amber: #9a803a;
+  /* ── 1. Brand palette ──────────────────────────────────────────────────── */
+  --basalt: #171d1c; /* primary dark: sidebar, dark editorial sections, primary text */
+  --limestone: #f2efe8; /* primary light: app canvas, light editorial sections */
+  --oxide: #a94732; /* signature accent: white on it 5.78:1, on Limestone 5.03:1 */
+  --patina: #45696b; /* secondary accent: on white 6.02:1 */
+  --flare-amber: #d5a84f; /* restrained highlights; Basalt text on it 7.77:1 */
 
-  --radius: 0.5rem;
+  --deep: #222b28; /* deep dark surface */
+  --elevated: #2a3531; /* elevated dark surface */
+  --muted-light: #b8c5be; /* secondary text on dark, 9.58:1 on Basalt */
+  --mineral: #e8e4da; /* soft mineral surface */
+  --stone-line: #d5d2c8; /* light border (decorative: 1.3:1, never a control edge) */
+  --dark-line: #39443f; /* dark border */
+  --ink: #111715; /* deep ink */
+  --white: #ffffff;
 
-  --background: #fbfcf9;
-  --foreground: var(--brand-forest);
-  --card: #ffffff;
-  --card-foreground: var(--brand-forest);
-  --popover: #ffffff;
-  --popover-foreground: var(--brand-forest);
-  --primary: var(--brand-moss);
-  --primary-foreground: #ffffff;
-  --secondary: var(--brand-mint);
-  --secondary-foreground: var(--brand-forest);
-  --muted: #f1f5ee;
-  --muted-foreground: #4a5a4f;
-  --accent: var(--brand-mint);
-  --accent-foreground: var(--brand-forest);
-  --warning: var(--brand-amber);
-  --warning-foreground: #ffffff;
-  --destructive: #b42318;
-  --destructive-foreground: #ffffff;
-  --border: var(--brand-light-sage);
-  --input: var(--brand-light-sage);
-  --ring: var(--brand-moss);
+  /* Lifted variants: the raw hue fails contrast on that surface (measured). */
+  --oxide-on-dark: #d9826b; /* 5.99:1 on Basalt (raw Oxide 2.96:1) */
+  --patina-on-dark: #8fb3b2; /* 7.53:1 on Basalt (raw Patina 2.84:1) */
+  --amber-mark: #a9822e; /* amber as a chart mark on white, 3.55:1 (raw 2.20:1) */
+  --control-line: #8c928b; /* input and control edges, 3.18:1 on white */
 
-  --sidebar: var(--brand-forest);
-  --sidebar-foreground: #e3eed4;
-  --sidebar-primary: var(--brand-mint);
-  --sidebar-primary-foreground: var(--brand-forest);
-  --sidebar-border: #24402f;
+  /* ── 2. Semantic tokens ────────────────────────────────────────────────── */
+  --radius: 0.25rem;
 
-  --chart-1: var(--brand-moss);
-  --chart-2: var(--brand-sage);
-  --chart-3: var(--brand-light-sage);
-  --chart-4: var(--brand-amber);
-  --chart-5: var(--brand-forest);
+  --background: var(--limestone);
+  --foreground: var(--basalt);
+  --card: var(--white);
+  --card-foreground: var(--basalt);
+  --popover: var(--white);
+  --popover-foreground: var(--basalt);
+
+  --primary: var(--oxide); /* the one primary action per view, links, active marker */
+  --primary-foreground: var(--white);
+  --secondary: var(--mineral); /* neutral secondary action and surface */
+  --secondary-foreground: var(--basalt);
+  --muted: var(--mineral);
+  --muted-foreground: #5b6661; /* 5.20:1 Limestone, 4.70:1 mineral, 5.97:1 white */
+  --accent: var(--mineral); /* hover and selected surfaces */
+  --accent-foreground: var(--basalt);
+
+  --border: var(--stone-line);
+  --input: var(--control-line);
+  --ring: var(--patina); /* focus is Patina, so it never reads as an error */
+
+  /* Status. Each is always paired with an icon and a label, never colour alone. */
+  --success: #3b6b3f; /* approved, saved: 6.25:1 on white */
+  --success-foreground: var(--white);
+  --warning: #8a5a0b; /* data-quality warnings, needs correction: 5.92:1 on white */
+  --warning-foreground: var(--white);
+  --destructive: #a1213f; /* errors, rejected, destructive actions: 7.49:1 on white */
+  --destructive-foreground: var(--white);
+  --critical: #7a1028; /* critical alerts (filled, white text 10.87:1) */
+  --critical-foreground: var(--white);
+  --info: #2f5878; /* neutral information: 7.53:1 on white */
+  --info-foreground: var(--white);
+  --pending: #5a5f72; /* submitted, under review, awaiting someone: 6.34:1 on white */
+  --pending-foreground: var(--white);
+  --disabled: var(--mineral);
+  --disabled-foreground: var(--control-line);
+
+  /* Application chrome: a Basalt sidebar with a restrained Oxide active marker. */
+  --sidebar: var(--basalt);
+  --sidebar-foreground: var(--muted-light);
+  --sidebar-accent: var(--elevated); /* hover and active row */
+  --sidebar-accent-foreground: var(--white);
+  --sidebar-primary: var(--oxide-on-dark); /* active marker and focus ring on dark */
+  --sidebar-primary-foreground: var(--basalt);
+  --sidebar-border: var(--dark-line);
+
+  /*
+   * Chart series, fixed per activity type (see reporting/chart-scale.ts). Worst adjacent
+   * pair ΔE 22.7 (routine vs venting), and segments are always separated by a gap.
+   */
+  --chart-1: var(--patina); /* routine flaring */
+  --chart-2: var(--amber-mark); /* non-routine flaring */
+  --chart-3: var(--oxide); /* emergency flaring */
+  --chart-4: #2b3532; /* venting: unburnt release, a dark neutral */
+  --chart-grid: #e6e2d8;
+}
+
+@theme {
+  /* Only FLAME colours exist: Tailwind's default palette is switched off, so a stray
+     legacy or generic colour class cannot compile into the product. */
+  --color-*: initial;
+
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+
+  /* Restrained depth: hairlines over shadows. */
+  --shadow-xs: 0 1px 0 rgb(23 29 28 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(23 29 28 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(23 29 28 / 0.1);
+  --shadow-lg: 0 12px 32px -8px rgb(23 29 28 / 0.18);
+
+  --ease-flame: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Editorial type scale for the marketing site (the app uses Tailwind's text-sm..2xl). */
+  --text-display-sm: 2.75rem;
+  --text-display-sm--line-height: 1.02;
+  --text-display: 3.75rem;
+  --text-display--line-height: 1;
+  --text-display-lg: 5.5rem;
+  --text-display-lg--line-height: 0.95;
 }
 
 @theme inline {
-  /* Named brand colours, for brand surfaces such as the landing page. */
-  --color-forest: var(--brand-forest);
-  --color-moss: var(--brand-moss);
-  --color-sage: var(--brand-sage);
-  --color-light-sage: var(--brand-light-sage);
-  --color-mint: var(--brand-mint);
-  --color-amber: var(--brand-amber);
+  --color-white: var(--white);
+  --color-transparent: transparent;
+
+  /* Brand colours, for brand surfaces. */
+  --color-basalt: var(--basalt);
+  --color-limestone: var(--limestone);
+  --color-oxide: var(--oxide);
+  --color-patina: var(--patina);
+  --color-flare: var(--flare-amber);
+  --color-deep: var(--deep);
+  --color-elevated: var(--elevated);
+  --color-muted-light: var(--muted-light);
+  --color-mineral: var(--mineral);
+  --color-stone-line: var(--stone-line);
+  --color-dark-line: var(--dark-line);
+  --color-ink: var(--ink);
+  --color-oxide-on-dark: var(--oxide-on-dark);
+  --color-patina-on-dark: var(--patina-on-dark);
 
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -77,33 +161,94 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-critical: var(--critical);
+  --color-critical-foreground: var(--critical-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-pending: var(--pending);
+  --color-pending-foreground: var(--pending-foreground);
+  --color-disabled: var(--disabled);
+  --color-disabled-foreground: var(--disabled-foreground);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-border: var(--sidebar-border);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-chart-grid: var(--chart-grid);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings: 'tnum';
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--flare-amber) 45%, transparent);
+    color: var(--basalt);
+  }
+}
+
+@layer components {
+  /* A technical label: small mono caps. Used for eyebrows, units and metadata. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  /*
+   * A record's name in a table or list: Basalt with a quiet underline that turns Oxide on
+   * hover. Oxide text is kept for prose links and actions, so a column of links never
+   * reads as a column of errors.
+   */
+  .row-link {
+    color: var(--foreground);
+    font-weight: 500;
+    text-decoration-line: underline;
+    text-decoration-color: var(--stone-line);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    transition: text-decoration-color 150ms;
+  }
+  .row-link:hover,
+  .row-link:focus-visible {
+    text-decoration-color: var(--oxide);
+  }
+  /* Keyboard focus is a solid ring, not only an underline colour change (WCAG 2.4.7). */
+  .row-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  /* Numbers that must line up: values, units, identifiers, timestamps. */
+  .figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -139,43 +284,13 @@
 }
 
 /*
- * Landing page primitives. A fine technical grid that fades out, and a short,
- * staggered rise-in for content. Both are decoration only; with reduced motion the
- * content simply appears.
+ * Marketing motion. Content rises in once, staggered by --rise-delay; the hero photograph
+ * settles from a slight scale. Decoration only: with reduced motion, content simply appears.
  */
-.flame-grid {
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in srgb, var(--brand-mint) 7%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--brand-mint) 7%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 80%);
-}
-.flame-grid-light {
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in srgb, var(--brand-moss) 6%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--brand-moss) 6%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 56px 56px;
-}
 @keyframes flame-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -183,11 +298,54 @@
   }
 }
 .flame-rise {
-  animation: flame-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: flame-rise 800ms var(--ease-flame) both;
   animation-delay: var(--rise-delay, 0ms);
 }
+@keyframes flame-settle {
+  from {
+    transform: scale(1.06);
+    opacity: 0.6;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.flame-settle {
+  animation: flame-settle 2200ms var(--ease-flame) both;
+}
+/* Sections that reveal as they scroll into view (see landing/reveal.tsx). */
+.flame-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 900ms var(--ease-flame),
+    transform 900ms var(--ease-flame);
+}
+.flame-reveal[data-visible='true'] {
+  opacity: 1;
+  transform: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  .flame-rise {
+  .flame-rise,
+  .flame-settle {
     animation: none;
+  }
+  .flame-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Print: reports print on white with Basalt text, whatever the screen canvas. */
+@media print {
+  body {
+    background: var(--white);
+  }
+  .flame-reveal,
+  .flame-rise {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

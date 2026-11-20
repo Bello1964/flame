@@ -35,7 +35,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
 
   const initial = (
     <span
-      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-elevated text-xs font-semibold text-limestone ring-1 ring-dark-line"
       aria-hidden
     >
       {user.name.trim().charAt(0).toUpperCase() || '?'}
@@ -46,7 +46,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
     <DropdownMenu>
       {compact ? (
         <DropdownMenuTrigger
-          className="flex size-9 items-center justify-center rounded-full outline-none hover:bg-white/10 focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50 disabled:opacity-60"
+          className="flex size-9 items-center justify-center rounded-full outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary disabled:opacity-60"
           disabled={logout.isPending}
           aria-label={`Account: ${user.name}`}
           title={user.name}
@@ -55,7 +55,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         </DropdownMenuTrigger>
       ) : (
         <DropdownMenuTrigger
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors outline-none hover:bg-white/10 focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50 disabled:opacity-60"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary disabled:opacity-60"
           disabled={logout.isPending}
           aria-label={`Account: ${user.name}`}
         >

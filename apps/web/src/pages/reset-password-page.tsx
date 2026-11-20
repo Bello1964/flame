@@ -87,7 +87,7 @@ export function ResetPasswordPage() {
     return (
       <PublicPageFrame>
         <section className="space-y-4">
-          <CheckCircle2 className="size-8 text-primary" aria-hidden />
+          <CheckCircle2 className="size-8 text-success" aria-hidden />
           <ResultHeading>Password changed</ResultHeading>
           <p className="text-sm text-muted-foreground">
             Your account was signed out on every device. Sign in with your new password.

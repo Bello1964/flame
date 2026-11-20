@@ -28,7 +28,7 @@ function Entry({ e }: { e: ActivityRecordEventDto }) {
   return (
     <li className="relative pb-5 pl-6 last:pb-0">
       <span
-        className="absolute top-1.5 left-0 size-2.5 rounded-full border-2 border-primary bg-background"
+        className="absolute top-1.5 left-0 size-2.5 rounded-full border-2 border-patina bg-card"
         aria-hidden
       />
       <span className="absolute top-4 bottom-0 left-[4px] w-px bg-border" aria-hidden />

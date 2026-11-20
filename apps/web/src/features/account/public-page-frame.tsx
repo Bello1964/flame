@@ -7,9 +7,13 @@ import { BrandLockup } from '@/components/brand';
 export function PublicPageFrame({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-background">
-      <header className="border-b px-4 py-3">
-        <Link to="/" className="inline-block" aria-label="Flame home">
-          <BrandLockup tone="light" />
+      <header className="bg-basalt px-4 py-3.5 sm:px-6">
+        <Link
+          to="/"
+          className="inline-block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-oxide-on-dark"
+          aria-label="Flame home"
+        >
+          <BrandLockup />
         </Link>
       </header>
       <main className="mx-auto w-full max-w-md px-4 py-10">{children}</main>

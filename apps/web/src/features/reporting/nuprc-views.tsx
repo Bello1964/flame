@@ -67,7 +67,7 @@ function Section({ title, children, id }: { title: string; children: ReactNode; 
 function SourceNote({ source }: { source: NuprcSourceDto }) {
   return (
     <div className="flex items-start gap-3 rounded-md border bg-secondary/40 p-3 text-sm">
-      <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
       <div className="space-y-1">
         <p className="font-medium">
           {source.url ? (
@@ -127,7 +127,7 @@ function Notes({ notes, notRecorded }: { notes: string[]; notRecorded: string[] 
       </div>
       <div className="space-y-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <AlertTriangle className="size-4 text-amber-600" aria-hidden />
+          <AlertTriangle className="size-4 text-warning" aria-hidden />
           Not recorded in Flame
         </h3>
         <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -350,7 +350,7 @@ export function QuarterlyView({
           </ul>
         )}
         {!report.gwpConsistent && (
-          <p role="note" className="text-sm text-amber-700">
+          <p role="note" className="text-sm text-warning">
             The editions used have different GWP values.
           </p>
         )}
