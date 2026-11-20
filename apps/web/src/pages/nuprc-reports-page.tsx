@@ -120,10 +120,7 @@ export function NuprcReportsPage() {
     <div className="space-y-8">
       <header className="space-y-1">
         <p className="text-sm">
-          <Link
-            to={`/o/${orgId}/reports`}
-            className="text-primary underline-offset-4 hover:underline"
-          >
+          <Link to={`/o/${orgId}/reports`} className="row-link">
             Emissions reports
           </Link>{' '}
           / NUPRC
@@ -143,7 +140,7 @@ export function NuprcReportsPage() {
               key={t}
               type="button"
               aria-pressed={tab === t}
-              className={`rounded px-3 py-1.5 text-sm ${tab === t ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'}`}
+              className={`rounded px-3 py-1.5 text-sm ${tab === t ? 'bg-basalt text-limestone' : 'hover:bg-secondary'}`}
               onClick={() => {
                 select(t);
               }}
@@ -253,10 +250,7 @@ export function NuprcReportsPage() {
                       {r.issuedBy.name}, {formatDateTime(r.issuedAt)}
                     </TableCell>
                     <TableCell>
-                      <Link
-                        to={`/o/${orgId}/reports/issued/${r.id}`}
-                        className="text-primary underline-offset-4 hover:underline"
-                      >
+                      <Link to={`/o/${orgId}/reports/issued/${r.id}`} className="row-link">
                         Open
                       </Link>
                     </TableCell>

@@ -132,7 +132,7 @@ Delegate bounded frontend, backend, or independent review tasks to the correspon
 Load a specialised resource when its subject is relevant. Do not assume a referenced resource exists until it has been created.
 
 - `.claude/skills/flare-calculator/SKILL.md` — Gas-flaring units, conversions, emissions calculations, factors, methodologies, and calculation integrity.
-- `.claude/skills/ui-design/SKILL.md` — React dashboards, Tailwind CSS, shadcn/ui, responsive interfaces, accessibility, and data visualisation.
+- `.claude/skills/ui-design/SKILL.md` — FLAME art direction and design system (Basalt, Limestone, Oxide, Patina, Flare Amber; Instrument Serif, IBM Plex), marketing site, React dashboards, Tailwind CSS, shadcn/ui, accessibility, and data visualisation.
 - `.claude/agents/backend.md` — Backend, database, tenancy, security, API, and calculation implementation.
 - `.claude/agents/frontend.md` — Frontend pages, components, forms, state management, and dashboards.
 - `.claude/agents/reviewer.md` — Independent code, architecture, security, and data-integrity reviews.

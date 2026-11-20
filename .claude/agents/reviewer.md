@@ -491,12 +491,9 @@ Inspect whether:
 
 Check consistent use of the approved palette:
 
-- Forest: `#0F2A1D`
-- Moss: `#375534`
-- Sage: `#6B9071`
-- Light Sage: `#AEC3B0`
-- Mint: `#E3EED4`
-- Amber Gold: `#9A803A`
+- Basalt `#171D1C`, Limestone `#F2EFE8`, Oxide `#A94732`, Patina `#45696B`, Flare Amber `#D5A84F` (see `.claude/skills/ui-design/SKILL.md` and the tokens in `apps/web/src/index.css`).
+- No legacy colours (Forest, Moss, Sage, Mint, Amber Gold) and no raw hex values in components.
+- Brand accents are not used as status colours; Flare Amber is not used as a warning colour.
 
 Also inspect typography, spacing, component consistency, contrast, focus states, and responsive layouts.
 

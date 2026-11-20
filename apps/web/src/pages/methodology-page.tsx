@@ -20,7 +20,7 @@ export function PublicShell({ children, aside }: { children: ReactNode; aside?: 
           <Link
             to="/"
             aria-label="Flame home"
-            className="min-w-0 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/50"
+            className="min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary"
           >
             <BrandLockup subtitle="Calculation methodology" />
           </Link>

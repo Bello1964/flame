@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { useSession } from '@/features/auth/session';
 
 /**
- * The landing page's main call to action: "Sign in" for visitors, or a way straight into
- * the organisation for someone already signed in. While the session is being checked it
- * shows "Sign in", which is correct for most visitors and harmless for the rest.
+ * The landing page's main call to action, in Oxide: "Sign in" for visitors, or a way
+ * straight into the organisation for someone already signed in. While the session is being
+ * checked it shows "Sign in", which is correct for most visitors and harmless for the rest.
  */
 export function PrimaryAction() {
   const session = useSession();
@@ -14,7 +14,11 @@ export function PrimaryAction() {
   const signedIn = Boolean(session.data);
 
   return (
-    <Button asChild size="lg" className="bg-mint text-forest hover:bg-mint/90">
+    <Button
+      asChild
+      size="lg"
+      className="h-12 rounded-sm px-6 focus-visible:ring-oxide-on-dark focus-visible:ring-offset-basalt"
+    >
       <Link to={signedIn ? '/app' : '/login'}>
         {signedIn ? `Open ${first?.organisationName ?? 'Flame'}` : 'Sign in'}
         <ArrowRight aria-hidden />

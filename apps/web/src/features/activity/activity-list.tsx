@@ -228,7 +228,7 @@ export function ActivityList({
                     <TableCell>
                       <Link
                         to={`/o/${organisationId}/activity-records/${r.id}`}
-                        className="font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                        className="row-link whitespace-nowrap"
                       >
                         {periodLabel(r)}
                       </Link>

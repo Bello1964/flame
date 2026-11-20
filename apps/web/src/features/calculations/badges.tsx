@@ -12,41 +12,32 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { CalculationStatus, DataQuality, MethodologyEditionStatus } from '@flame/shared';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { CALCULATION_STATUS_LABELS, EDITION_STATUS_LABELS, QUALITY_LABELS } from './labels';
 
-const PENDING = 'border-warning/50 bg-warning/10 text-foreground';
-
-const STATUS_STYLE: Record<
-  CalculationStatus,
-  { icon: LucideIcon; variant: 'default' | 'outline' | 'muted'; className?: string }
-> = {
+const STATUS_STYLE: Record<CalculationStatus, { icon: LucideIcon; variant: BadgeVariant }> = {
   CALCULATED: { icon: Sigma, variant: 'outline' },
-  SUBMITTED: { icon: Send, variant: 'outline', className: PENDING },
-  UNDER_REVIEW: { icon: Eye, variant: 'outline', className: PENDING },
-  AWAITING_APPROVAL: { icon: Hourglass, variant: 'outline', className: PENDING },
-  APPROVED: { icon: CheckCircle2, variant: 'default' },
-  REJECTED: {
-    icon: XCircle,
-    variant: 'outline',
-    className: 'border-destructive/40 text-destructive',
-  },
+  SUBMITTED: { icon: Send, variant: 'pending' },
+  UNDER_REVIEW: { icon: Eye, variant: 'pending' },
+  AWAITING_APPROVAL: { icon: Hourglass, variant: 'pending' },
+  APPROVED: { icon: CheckCircle2, variant: 'success' },
+  REJECTED: { icon: XCircle, variant: 'destructive' },
   SUPERSEDED: { icon: History, variant: 'muted' },
   DISCARDED: { icon: Ban, variant: 'muted' },
 };
 
-/** Only an approved calculation uses the primary colour; nothing pending can look approved. */
+/** Only an approved calculation uses Success; nothing pending can look approved. */
 export function CalculationStatusBadge({ status }: { status: CalculationStatus }) {
-  const { icon: Icon, variant, className } = STATUS_STYLE[status];
+  const { icon: Icon, variant } = STATUS_STYLE[status];
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant={variant}>
       <Icon aria-hidden />
       {CALCULATION_STATUS_LABELS[status]}
     </Badge>
   );
 }
 
-/** How the result was obtained, always next to the figure. */
+/** How the result was obtained, always next to the figure. Estimated is flagged as info. */
 export function DataQualityBadge({ quality }: { quality: DataQuality }) {
   return quality === 'MEASURED_BASIS' ? (
     <Badge variant="secondary">
@@ -54,7 +45,7 @@ export function DataQualityBadge({ quality }: { quality: DataQuality }) {
       {QUALITY_LABELS[quality]}
     </Badge>
   ) : (
-    <Badge variant="outline" className={PENDING}>
+    <Badge variant="info">
       <FlaskConical aria-hidden />
       {QUALITY_LABELS[quality]}
     </Badge>
@@ -62,10 +53,7 @@ export function DataQualityBadge({ quality }: { quality: DataQuality }) {
 }
 
 export function EditionStatusBadge({ status }: { status: MethodologyEditionStatus }) {
-  const variant = status === 'APPROVED' ? 'default' : status === 'DRAFT' ? 'outline' : 'muted';
-  return (
-    <Badge variant={variant} className={status === 'DRAFT' ? PENDING : undefined}>
-      {EDITION_STATUS_LABELS[status]}
-    </Badge>
-  );
+  const variant: BadgeVariant =
+    status === 'APPROVED' ? 'success' : status === 'DRAFT' ? 'pending' : 'muted';
+  return <Badge variant={variant}>{EDITION_STATUS_LABELS[status]}</Badge>;
 }

@@ -206,7 +206,7 @@ function RemovalNotice({ result, onDismiss }: { result: MemberRemovalDto; onDism
       className="flex items-start justify-between gap-3 rounded-md border bg-secondary/60 p-4"
     >
       <div className="flex items-start gap-3">
-        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
         <div className="space-y-1 text-sm">
           <p className="font-medium">
             {result.member.name} was removed. Rejoining needs a new invitation.

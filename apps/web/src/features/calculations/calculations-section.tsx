@@ -299,10 +299,7 @@ export function CalculationsSection({ record }: { record: ActivityRecordDto }) {
               {calcs.data.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <Link
-                      to={`/o/${orgId}/calculations/${c.id}`}
-                      className="font-medium text-primary underline-offset-4 hover:underline"
-                    >
+                    <Link to={`/o/${orgId}/calculations/${c.id}`} className="row-link">
                       Version {c.version}
                     </Link>
                   </TableCell>

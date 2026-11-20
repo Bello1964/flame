@@ -108,12 +108,13 @@ Use these exact colours as the project's foundational palette:
 
 | Token | Hex | Purpose |
 |---|---|---|
-| Forest | `#0F2A1D` | Primary brand, navigation, dark surfaces |
-| Moss | `#375534` | Primary actions, emphasis |
-| Sage | `#6B9071` | Secondary accents, charts |
-| Light Sage | `#AEC3B0` | Borders, muted surfaces |
-| Mint | `#E3EED4` | Soft backgrounds, selected states |
-| Amber Gold | `#9A803A` | Warnings, pending states, attention |
+| Basalt | `#171D1C` | Primary dark brand, sidebar, marketing dark sections, primary text |
+| Limestone | `#F2EFE8` | Application canvas, light marketing sections |
+| Oxide | `#A94732` | Signature accent: primary action, links, active navigation marker (`#D9826B` on dark surfaces) |
+| Patina | `#45696B` | Secondary accent: secondary actions, identifiers, focus ring (`#8FB3B2` on dark surfaces) |
+| Flare Amber | `#D5A84F` | Restrained highlights only, dark text on it; never a warning colour |
+
+Supporting and semantic tokens (success, warning, error, critical, information, pending, neutral, disabled) are defined in `apps/web/src/index.css`; see `.claude/skills/ui-design/SKILL.md`. Brand colours are never used as status colours.
 
 ### Palette implementation
 

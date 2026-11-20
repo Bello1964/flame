@@ -166,29 +166,29 @@ export function AppShellSkeleton() {
   return (
     <Busy
       label="Loading Flame"
-      className="block min-h-dvh md:grid md:grid-cols-[16rem_minmax(0,1fr)]"
+      className="block min-h-dvh md:grid md:grid-cols-[15.5rem_minmax(0,1fr)]"
     >
       <div className="flex flex-col border-b border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-dvh md:border-r md:border-b-0">
-        <div className="px-4 pt-4 pb-3">
-          <BrandLockup subtitle="Emissions management" />
+        <div className="px-4 pt-3 pb-2 md:border-b md:border-sidebar-border md:px-5 md:py-4">
+          <BrandLockup subtitle="Emissions accounting" />
         </div>
         <div className="flex items-center gap-2 px-4 pb-3">
-          <Skeleton className="size-4 bg-white/10" />
+          <Skeleton className="size-4 bg-elevated" />
           <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-3.5 w-32 bg-white/10" />
-            <Skeleton className="h-3 w-20 bg-white/10" />
+            <Skeleton className="h-3.5 w-32 bg-elevated" />
+            <Skeleton className="h-3 w-20 bg-elevated" />
           </div>
         </div>
         <div className="flex gap-1 px-2 pb-3 md:flex-1 md:flex-col">
           {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-9 w-28 bg-white/10 md:w-full" />
+            <Skeleton key={i} className="h-9 w-28 bg-elevated md:w-full" />
           ))}
         </div>
         <div className="flex items-center gap-2 border-t border-sidebar-border p-3">
-          <Skeleton className="size-7 rounded-full bg-white/10" />
+          <Skeleton className="size-7 rounded-full bg-elevated" />
           <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-3.5 w-24 bg-white/10" />
-            <Skeleton className="h-3 w-36 bg-white/10" />
+            <Skeleton className="h-3.5 w-24 bg-elevated" />
+            <Skeleton className="h-3 w-36 bg-elevated" />
           </div>
         </div>
       </div>

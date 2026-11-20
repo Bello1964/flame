@@ -4,15 +4,24 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
+        // Oxide: the one primary action in a view. Disabled filled buttons use the disabled
+        // token (mineral, grey text), never a faded accent.
+        default:
+          'bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--oxide)_88%,var(--basalt))] disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100',
         destructive:
-          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/30',
-        outline: 'border bg-card shadow-xs hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+          'bg-destructive text-destructive-foreground hover:bg-[color-mix(in_srgb,var(--destructive)_88%,var(--basalt))] disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100',
+        // Neutral secondary: a hairline control edge on white.
+        outline: 'border border-input bg-card hover:bg-accent hover:text-accent-foreground',
+        // Patina: secondary emphasis (exports, technical actions).
+        patina: 'border border-patina bg-card text-patina hover:bg-patina/8',
+        secondary:
+          'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_srgb,var(--mineral)_80%,var(--stone-line))]',
+        // Basalt: the chosen option in a segmented control (selection, not an action).
+        selected: 'bg-basalt text-limestone hover:bg-basalt',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },

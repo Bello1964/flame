@@ -27,7 +27,7 @@ export function SystemStatus() {
   return (
     <p
       role="status"
-      className={`flex items-center gap-2 text-sm ${databaseOk ? 'text-primary' : 'text-warning'}`}
+      className={`flex items-center gap-2 text-sm ${databaseOk ? 'text-success' : 'text-warning'}`}
     >
       {databaseOk ? (
         <CheckCircle2 className="size-4" aria-hidden />

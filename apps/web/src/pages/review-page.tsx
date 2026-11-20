@@ -138,7 +138,7 @@ export function ReviewPage() {
             <Button
               key={value}
               size="sm"
-              variant={kind === value ? 'default' : 'ghost'}
+              variant={kind === value ? 'selected' : 'ghost'}
               aria-pressed={kind === value}
               onClick={() => {
                 setParams(value === 'records' ? {} : { kind: value }, { replace: true });
@@ -202,7 +202,7 @@ function QueueTab({
       aria-controls={`panel-${queue.id}`}
       onClick={onSelect}
       className={cn(
-        '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
         selected
           ? 'border-primary font-medium text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -312,7 +312,7 @@ function QueuePanel({ orgId, queue }: { orgId: string; queue: Queue }) {
                     <TableCell>
                       <Link
                         to={`/o/${orgId}/activity-records/${r.id}`}
-                        className="font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                        className="row-link whitespace-nowrap"
                       >
                         {periodLabel(r)}
                       </Link>
