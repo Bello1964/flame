@@ -130,6 +130,9 @@ function scopedAdapter(adapter: Adapter, fallback: DbScope | undefined): Adapter
   });
 }
 
+/** Longest a connection may sit idle inside an open transaction before PostgreSQL ends it. */
+export const IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
+
 export interface PrismaClientOptions {
   /**
    * Scope used when no scope is active (lib/db-scope.ts). The API leaves it unset, so
@@ -143,7 +146,12 @@ export function createPrismaClient(
   databaseUrl: string,
   options: PrismaClientOptions = {},
 ): PrismaClient {
-  const factory = new PrismaPg({ connectionString: databaseUrl });
+  const factory = new PrismaPg({
+    connectionString: databaseUrl,
+    // A transaction left idle (e.g. by a crashed request) is ended by PostgreSQL, so it can
+    // never hold locks indefinitely (ARCHITECTURAL_WORKFLOW.md §11).
+    idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_TIMEOUT_MS,
+  });
   const adapter = new Proxy(factory, {
     get(target, property, receiver) {
       if (property === 'connect') {

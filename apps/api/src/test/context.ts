@@ -61,7 +61,29 @@ export function makeApp(overrides: Partial<AppDependencies> = {}): Express {
  */
 export async function resetDatabase(): Promise<void> {
   testDatabaseUrl(); // re-assert the _test guard before a destructive statement
+  try {
+    await truncateAll();
+  } catch (err) {
+    // A reset that cannot get its locks means another connection holds them: name it, so
+    // a leaked transaction is found instead of a test silently timing out.
+    const holders = await ownerPrisma.$queryRaw<Record<string, unknown>[]>`
+      SELECT pid, usename, application_name, state, wait_event_type, wait_event,
+             now() - xact_start AS xact_age, now() - state_change AS state_age,
+             left(regexp_replace(query, '\\s+', ' ', 'g'), 300) AS last_query
+        FROM pg_stat_activity
+       WHERE datname = current_database() AND pid <> pg_backend_pid()
+         AND (xact_start IS NOT NULL OR wait_event_type = 'Lock')`;
+    throw new Error(
+      `resetDatabase could not get its locks (${err instanceof Error ? err.message : String(err)}). Open transactions:\n${JSON.stringify(holders, null, 2)}`,
+      { cause: err },
+    );
+  }
+}
+
+async function truncateAll(): Promise<void> {
   await ownerPrisma.$transaction([
+    // Fail fast instead of waiting for the test's hook timeout.
+    ownerPrisma.$executeRaw`SET LOCAL lock_timeout = '15s'`,
     ownerPrisma.$executeRaw`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE activity_record_events DISABLE TRIGGER activity_record_events_no_truncate`,
     ownerPrisma.$executeRaw`ALTER TABLE calculation_events DISABLE TRIGGER calculation_events_no_truncate`,
