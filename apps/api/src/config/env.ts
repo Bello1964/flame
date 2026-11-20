@@ -15,7 +15,7 @@ const envSchema = z
       .default('info'),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     WEB_ORIGIN: z.url().default('http://localhost:5173'),
-    /** Number of reverse-proxy hops to trust for client IPs (Render: 1). */
+    /** Number of reverse-proxy hops to trust for client IPs (Heroku: 1). */
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
     SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
     SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),

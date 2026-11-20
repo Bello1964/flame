@@ -14,7 +14,8 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // neon.ts: Neon CLI policy at the root, outside the workspaces' tsconfigs.
+        projectService: { allowDefaultProject: ['neon.ts'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

@@ -407,7 +407,7 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
 | Migrations      | `prisma migrate dev` locally; `prisma migrate deploy` in CI/production. Prisma does not run migrations in a transaction, so every `migration.sql` is wrapped in `BEGIN; … COMMIT;` by hand: it applies completely or not at all, and constraints are never briefly missing |
 | Tests           | Vitest + Supertest against a real PostgreSQL test database (`*_test`, created and migrated automatically)                                                                                                                                                                  |
 | Lint / format   | ESLint (typescript-eslint strict, type-checked) and Prettier                                                                                                                                                                                                               |
-| Hosting         | Render or equivalent                                                                                                                                                                                                                                                       |
+| Hosting         | Heroku (one Eco dyno serving the API and the built web app, EU region) and Neon PostgreSQL (EU), decided 2026-11-20. See §12.3                                                                                                                                             |
 
 ### 12.1 Production deployment checklist
 
@@ -420,7 +420,7 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
 - `package-lock.json` records no `@esbuild/*` platform binaries (an npm bug with optional platform packages), so `tsx` may fail on a fresh install, including on the host. The build (`tsc`, Vite) and `npm start` do not need it. Locally, `npm install @esbuild/<platform>@<esbuild version> --no-save` restores it.
 - `db:create-app-user` runs with `tsx`, a development dependency. If the production host installs with `--omit=dev`, run it from an operator machine with `MIGRATION_DATABASE_URL` and `DATABASE_URL` set for the production database.
 - Run tests only against a dedicated or throwaway PostgreSQL server: the test setup creates a `flame_app_test` login (fresh random password each run) that is a member of the cluster-wide `flame_app` role.
-- Set `TRUST_PROXY` to the number of reverse-proxy hops (1 on Render). The API logs a warning if it sees `X-Forwarded-For` while this is 0.
+- Set `TRUST_PROXY` to the number of reverse-proxy hops (1 on Heroku). The API logs a warning if it sees `X-Forwarded-For` while this is 0.
 - Before running more than one API instance, move the sign-in rate-limit store to a shared store (e.g. PostgreSQL or Redis).
 - Set `NODE_ENV=production` so cookies are `Secure` and use the `__Host-` prefix, and set `WEB_ORIGIN` to the deployed web app's origin (invitation links are built from it).
 - Set `RESEND_API_KEY` and `EMAIL_FROM`; the API refuses to start in production without them (the development mailbox is therefore never mounted there). Before inviting real customers, verify a sending domain in Resend and send from it: the test sender `onboarding@resend.dev` only delivers to the Resend account owner's own address.
@@ -435,6 +435,38 @@ Decisions 2026-11-17: no new packages; public.
 - **Response schemas.** Response bodies come from the `@flame/shared` types. `apps/api/scripts/api-schemas.ts` converts them with the TypeScript compiler, which is already a dev dependency, into the committed `src/docs/schemas.generated.ts`. After changing a shared type, run `npm run docs:schemas -w @flame/api`.
 - **Checks.** `src/docs/openapi.test.ts` fails when an Express route is undocumented, when a documented route does not exist, when the generated schemas are stale, or when a reference does not resolve. The OpenAPI description itself (`openapi.json`) is the only route left out. The development mailbox is mounted only in development, so the tests never see it.
 - **Viewer.** `/docs` in the web app (public, linked from the landing page footer) renders the description with Swagger UI from jsDelivr. The version is pinned and both files are checked with Subresource Integrity hashes. To upgrade, change the version and recompute the hashes in `api-docs-page.tsx`. "Try it out" is switched off, so the page only reads.
+
+### 12.3 Heroku and Neon deployment
+
+Decisions 2026-11-20: Heroku hosts one app; the database is Neon, not Heroku Postgres, because Heroku's Essential plans give a single owner login that cannot create roles, so `flame_app`, the restricted app login and therefore Row-Level Security and the append-only tables could not work there.
+
+- **One origin.** `herokuapp.com` is a public suffix, so a separate web app would be a different site and the session cookie would not be sent. In production the API serves `apps/web/dist` itself (`src/middleware/web-app.ts`): hashed files under `/assets/` cached for a year, every other `GET` outside `/api/` gets `index.html` (no-cache). The Content Security Policy is Helmet's default plus `https://cdn.jsdelivr.net` for the pinned, integrity-checked Swagger UI on `/docs`.
+- **Build.** The Heroku Node.js buildpack runs `npm ci` and the root `build` script (shared, API, web), then removes devDependencies. `prisma` is a runtime dependency so the release step can migrate. Node is pinned to `24.x` (`engines`).
+- **`Procfile`.** `web: node apps/api/dist/server.js`; `release: npm run prisma:deploy -w @flame/api` applies migrations as `MIGRATION_DATABASE_URL` before each new release goes live.
+- **Neon connection strings.** Use the **direct** host (no `-pooler` in the host name): the API sets `idle_in_transaction_session_timeout` as a connection parameter, which the pooler does not accept, and migrations need a session. Keep `sslmode=require` on the owner URL (Prisma's migration engine) and use `sslmode=verify-full` on the app login URL (what `pg` does today; avoids its deprecation warning). URL-encode special characters in passwords. The project is linked with the Neon CLI (`neon.ts`, git-ignored `.neon`); `neon deploy` pulls Neon's variables into the git-ignored root `.env.local`, where `DATABASE_URL_UNPOOLED` is the owner on the direct host (Flame's `MIGRATION_DATABASE_URL`). Neon's pooled `DATABASE_URL` there is not used by Flame.
+
+**Heroku config vars:** `NODE_ENV=production`, `DATABASE_URL` (restricted app login), `MIGRATION_DATABASE_URL` (Neon owner, for the release step), `WEB_ORIGIN` (the exact `https://…herokuapp.com` URL Heroku shows, no trailing slash), `TRUST_PROXY=1`, `RESEND_API_KEY`, `EMAIL_FROM`, `LOG_LEVEL=info`. Heroku sets `PORT`.
+
+**First deployment** (operator PC, PowerShell, from `apps/api`). Variables set in the shell take precedence over `apps/api/.env`; check that Prisma prints the Neon host, not `localhost`. Alternatively keep both URLs in the git-ignored `apps/api/.env.production` and run each command with `node --env-file=.env.production …` / `npx tsx --env-file=.env.production …` (done 2026-11-20 for the first setup).
+
+1. Neon: create a project in an EU region; copy the owner's direct connection string.
+2. Migrate, then create the app login and the first Platform Administrators:
+   ```powershell
+   $env:MIGRATION_DATABASE_URL = "<Neon owner, direct>"
+   $env:DATABASE_URL = "postgresql://flame_app_user:<new password>@<same host>/<db>?sslmode=require"
+   npx prisma migrate deploy
+   npm run db:create-app-user
+   $env:PLATFORM_ADMIN_1_EMAIL = "..."; $env:PLATFORM_ADMIN_1_PASSWORD = "..."
+   $env:PLATFORM_ADMIN_2_EMAIL = "..."; $env:PLATFORM_ADMIN_2_PASSWORD = "..."
+   npm run db:bootstrap-admins
+   ```
+   `db:bootstrap-admins` never reads `.env`. It creates Platform Administrators only (administrator 1 supreme if none exists), is safe to re-run, never resets a password, refuses to promote an existing non-administrator, and audits each step (`platform_admin.bootstrapped`, `platform_admin.supreme_transferred`, `via: operator_script`).
+3. Heroku: `heroku create <name> --region eu`, set the config vars, `git push heroku main`, then `heroku ps:type web=eco`.
+4. Sign in as an administrator; the migrations ship methodology edition 1 as a draft, which a Platform Administrator who did not prepare it approves. Then create the first organisation and invite its owner.
+
+**Production data.** Nothing else is seeded: organisations come from administrator invitations, and no operational or emissions data is ever seeded. The development seed (`db:seed`) refuses to run in production.
+
+**Limits.** An Eco dyno sleeps after 30 minutes without traffic; queued emails stay in the outbox and are sent when it wakes. Until a sending domain is verified in Resend, `EMAIL_FROM` may be `Flame <onboarding@resend.dev>`, which delivers only to the Resend account owner's address.
 
 ## 13. Open decisions
 

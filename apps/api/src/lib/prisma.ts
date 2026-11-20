@@ -133,6 +133,9 @@ function scopedAdapter(adapter: Adapter, fallback: DbScope | undefined): Adapter
 /** Longest a connection may sit idle inside an open transaction before PostgreSQL ends it. */
 export const IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
 
+/** Longest an interactive transaction waits for a database connection before failing. */
+export const TRANSACTION_MAX_WAIT_MS = 15_000;
+
 export interface PrismaClientOptions {
   /**
    * Scope used when no scope is active (lib/db-scope.ts). The API leaves it unset, so
@@ -163,7 +166,14 @@ export function createPrismaClient(
         : value;
     },
   });
-  const client = new PrismaClient({ adapter });
+  const client = new PrismaClient({
+    adapter,
+    // Waiting for a connection before an interactive transaction starts (Prisma's default
+    // is 2 s). A hosted database that auto-suspends when idle (Neon free tier: after 5 min)
+    // can take longer to wake and complete TLS, which failed the first transaction with
+    // P2028. The transaction's own running time keeps Prisma's 5 s default.
+    transactionOptions: { maxWait: TRANSACTION_MAX_WAIT_MS },
+  });
   keepRequestsInCallerScope(client, options.fallbackScope);
   return client;
 }

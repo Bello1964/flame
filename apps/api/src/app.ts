@@ -9,6 +9,7 @@ import { authenticate, requireAuth } from './middleware/authenticate.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { proxyMisconfigurationWarning } from './middleware/proxy-check.js';
+import { webAppRouter } from './middleware/web-app.js';
 import { requireOrganisation } from './middleware/organisation-context.js';
 import { authRouter, createSignInLimiters } from './modules/auth/auth.routes.js';
 import { AuthService } from './modules/auth/auth.service.js';
@@ -52,17 +53,40 @@ export interface AppDependencies {
   config: AppConfig;
   /** Override for tests that run without a database. */
   checkDatabase?: DatabaseCheck;
+  /** Built web app to serve from this origin (production); not served when omitted. */
+  webAppDir?: string;
 }
+
+/**
+ * Content Security Policy: Helmet's defaults, plus jsDelivr for the Swagger UI files on
+ * /docs (pinned version, checked with Subresource Integrity in api-docs-page.tsx).
+ */
+const SWAGGER_UI_CDN = 'https://cdn.jsdelivr.net';
 
 const API = '/api/v1';
 
 /** Builds the Express app without listening, so tests can drive it with Supertest. */
-export function createApp({ logger, prisma, config, checkDatabase }: AppDependencies): Express {
+export function createApp({
+  logger,
+  prisma,
+  config,
+  checkDatabase,
+  webAppDir,
+}: AppDependencies): Express {
   const app = express();
 
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          scriptSrc: ["'self'", SWAGGER_UI_CDN],
+          styleSrc: ["'self'", "'unsafe-inline'", SWAGGER_UI_CDN],
+        },
+      },
+    }),
+  );
   app.use(pinoHttp({ logger }));
   app.use(proxyMisconfigurationWarning(logger, config.trustProxy));
   app.use(express.json({ limit: '1mb' }));
@@ -108,6 +132,9 @@ export function createApp({ logger, prisma, config, checkDatabase }: AppDependen
     openApi ??= buildOpenApiDocument({ cookieName: config.session.cookieName });
     res.set('Cache-Control', 'public, max-age=300').json(openApi);
   });
+
+  // The web app's files and client-side routes, before session handling: they need none.
+  if (webAppDir) app.use(webAppRouter(webAppDir));
 
   // Everything below may use the session.
   app.use(authenticate(sessions, config.session.cookieName));
