@@ -361,7 +361,7 @@ Decisions confirmed with the product owner on 2026-11-17 and 2026-11-20. Code: `
   - Monthly parts: `entries` and `totals`.
   - Files are UTF-8 with a BOM, formula-safe, and every download is audited (`report.exported`). There is no Excel output for now (decision 2026-11-20).
 - **Issued reports** (`issued_reports`).
-  - With `report:issue` (Owner, Approver), a report for a period that has ended (by the Nigerian calendar date, Africa/Lagos) can be issued as a frozen snapshot of the full report. Its status is `AWAITING_APPROVAL`.
+  - With `report:issue` (Owner, Approver), a report for a period that has ended (by the Nigerian calendar date, Africa/Lagos; rule confirmed 2026-11-20) can be issued as a frozen snapshot of the full report. Its status is `AWAITING_APPROVAL`.
   - A different Owner or Approver approves it or rejects it with a comment. Separation of duties is enforced in the service and by a CHECK constraint.
   - A correction is a new version with a reason. When approved, it supersedes the previous approved version. At most one version per period awaits approval, and one is approved (partial unique indexes).
   - The submission to NUPRC is recorded once, with its date and NUPRC's reference, if any. There are no deadline reminders.
@@ -394,6 +394,7 @@ Files live in object storage; PostgreSQL holds metadata and relationships. Uploa
   - **System scope.** Code that legitimately works across organisations calls `withSystemScope(reason)`. The allowed reasons are `session` (listing the signed-in user's memberships), `invitation-link` (public invitation endpoints), `platform-admin` (after the administrator check), `email-worker`, `membership-check` (whether a removed member still belongs anywhere), and `operator-script` (seeding and the supreme-administrator transfer). `db-scope.test.ts` pins the call sites, so a new one fails the tests until it is reviewed.
   - **Audit log.** Entries without an organisation, such as sign-in and account events, can be written in any scope but read only in system scope. `recordAudit` therefore never reads its row back.
   - **Owner and app role.** RLS is enabled, not forced, so the schema owner (migrations, the test reset) is unaffected. At startup the API checks its own role: it refuses to start in production (and warns in development) if the role is a superuser or has BYPASSRLS, owns a protected table, or finds RLS off on any of the 13 tables.
+  - **Idle transactions.** Every connection the API, the scripts and the tests open sets `idle_in_transaction_session_timeout` to 60 seconds (`lib/prisma.ts`), so PostgreSQL ends any transaction left idle (e.g. by a crashed request) and its locks are released (decision 2026-11-20).
   - **Cost.** A scoped query outside a transaction takes three extra round trips: `BEGIN`, the settings and `COMMIT`.
 
 ## 12. Environments and tooling

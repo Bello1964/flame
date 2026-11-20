@@ -169,6 +169,14 @@ describe('concurrent requests in different scopes', () => {
   });
 });
 
+describe('connection safeguards', () => {
+  it('ends transactions left idle, so they cannot hold locks indefinitely', async () => {
+    const rows = await appPrisma.$queryRaw<{ value: string }[]>`
+      SELECT current_setting('idle_in_transaction_session_timeout') AS value`;
+    expect(rows[0]?.value).toBe('1min');
+  });
+});
+
 describe('system scope', () => {
   it('sees every organisation', async () => {
     const all = await withSystemScope('platform-admin', () => appPrisma.facility.count());
