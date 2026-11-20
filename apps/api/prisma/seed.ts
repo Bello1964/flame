@@ -11,6 +11,10 @@
 import { createPrismaClient } from '../src/lib/prisma.js';
 import { hashPassword } from '../src/modules/auth/password.js';
 import { createLogger } from '../src/lib/logger.js';
+import {
+  ensurePlatformAdmins,
+  platformAdminsFromEnv,
+} from '../src/modules/platform-admin/bootstrap.js';
 
 const logger = createLogger('info');
 
@@ -50,38 +54,12 @@ async function main(): Promise<void> {
 
     // Optional Platform Administrators (no organisation membership): approving a
     // methodology edition needs one who didn't prepare it, so two can be seeded.
-    const admins: string[] = [];
-    for (const n of ['1', '2']) {
-      const adminEmail = process.env[`SEED_PLATFORM_ADMIN_${n}_EMAIL`]?.trim().toLowerCase();
-      const adminPassword = process.env[`SEED_PLATFORM_ADMIN_${n}_PASSWORD`];
-      if (!adminEmail) continue;
-      if (!adminPassword || adminPassword.length < 12) {
-        throw new Error(`Set SEED_PLATFORM_ADMIN_${n}_PASSWORD (min 12 characters).`);
-      }
-      const admin = await prisma.user.upsert({
-        where: { email: adminEmail },
-        update: {},
-        create: {
-          email: adminEmail,
-          name: `Platform Administrator ${n}`,
-          passwordHash: await hashPassword(adminPassword),
-          isPlatformAdmin: true,
-        },
-      });
-      admins.push(adminEmail);
-
-      // Administrator 1 becomes the supreme Platform Administrator (the only one who may
-      // remove others' administration rights), unless someone already holds that role,
-      // e.g. after npm run db:transfer-supreme-admin. Idempotent.
-      if (n === '1' && admin.isPlatformAdmin && !admin.isSupremeAdmin) {
-        const supreme = await prisma.user.findFirst({ where: { isSupremeAdmin: true } });
-        if (supreme) {
-          logger.info('A supreme Platform Administrator already exists; leaving it unchanged');
-        } else {
-          await prisma.user.update({ where: { id: admin.id }, data: { isSupremeAdmin: true } });
-        }
-      }
-    }
+    // Administrator 1 becomes the supreme Platform Administrator unless one exists.
+    const admins = await ensurePlatformAdmins(
+      prisma,
+      platformAdminsFromEnv(process.env, 'SEED_PLATFORM_ADMIN'),
+      'seed',
+    );
     logger.info({ organisation: org.slug, user: user.email, admins }, 'Seed complete');
   } finally {
     await prisma.$disconnect();

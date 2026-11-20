@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { loadEnv, toAppConfig } from './config/env.js';
 import { assertRestrictedAppRole } from './lib/db-roles.js';
@@ -20,7 +22,14 @@ try {
   if (config.isProduction) process.exit(1);
 }
 
-const app = createApp({ logger, prisma, config });
+// Production serves the built web app from this origin (apps/api/dist → apps/web/dist).
+const webAppDir = fileURLToPath(new URL('../../web/dist', import.meta.url));
+const serveWebApp = config.isProduction && existsSync(`${webAppDir}/index.html`);
+if (config.isProduction && !serveWebApp) {
+  logger.warn({ webAppDir }, 'Web app build not found: serving the API only');
+}
+
+const app = createApp({ logger, prisma, config, ...(serveWebApp ? { webAppDir } : {}) });
 
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'API listening');
